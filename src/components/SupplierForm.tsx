@@ -88,7 +88,7 @@ export default function SupplierForm() {
         <div className="flex justify-center gap-3">
           <Link
             href={`/farm/${created.id}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-4 py-2 text-sm font-medium text-white hover:bg-pink-500"
           >
             เปิดหน้าฟาร์ม + ลงรอบการตัด <ArrowRight size={16} />
           </Link>
@@ -153,7 +153,7 @@ export default function SupplierForm() {
       <button
         type="submit"
         disabled={saving}
-        className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-pink-500 disabled:opacity-60"
       >
         {saving ? <Loader2 className="animate-spin" size={16} /> : null}
         ระบบสร้าง SUP ID

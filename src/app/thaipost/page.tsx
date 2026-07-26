@@ -47,7 +47,7 @@ export default function ThaiPostPage() {
     <>
       <div className="no-print space-y-8">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-950">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-700">
             <Package className="text-pink-600" /> ปลายน้ำ · Thai Post
           </h1>
           <p className="mt-1 text-pink-900/60">
@@ -71,7 +71,7 @@ export default function ThaiPostPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-5 py-2 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-60"
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
             ค้นหา
@@ -90,7 +90,7 @@ export default function ThaiPostPage() {
               <div className="font-mono text-xs font-semibold text-pink-700">
                 {supplier.id}
               </div>
-              <div className="font-semibold text-pink-950">
+              <div className="font-semibold text-pink-700">
                 {supplier.farmName}
               </div>
               <div className="text-sm text-pink-900/50">

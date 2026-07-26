@@ -27,7 +27,7 @@ export default function CarbonResult({ batch }: { batch: Batch }) {
         <div className="flex items-center gap-1 text-xs font-medium text-pink-900/60">
           <Clock size={12} /> อายุหลังตัด
         </div>
-        <div className="mt-0.5 text-lg font-bold tabular text-pink-950">
+        <div className="mt-0.5 text-lg font-bold tabular text-pink-700">
           {batch.ageDays}
           <span className="ml-1 text-xs font-medium text-pink-900/50">
             วัน
@@ -41,13 +41,13 @@ export default function CarbonResult({ batch }: { batch: Batch }) {
       </div>
       <div className="rounded-xl border border-pink-900/10 bg-white px-3 py-2">
         <div className="text-xs font-medium text-pink-900/60">จำนวนดอก</div>
-        <div className="mt-0.5 text-lg font-bold tabular text-pink-950">
+        <div className="mt-0.5 text-lg font-bold tabular text-pink-700">
           {batch.flowerCount.toLocaleString()}
         </div>
       </div>
       <div className="rounded-xl border border-pink-900/10 bg-white px-3 py-2">
         <div className="text-xs font-medium text-pink-900/60">ระยะทาง</div>
-        <div className="mt-0.5 text-lg font-bold tabular text-pink-950">
+        <div className="mt-0.5 text-lg font-bold tabular text-pink-700">
           {batch.distanceKm.toLocaleString()}
           <span className="ml-1 text-xs font-medium text-pink-900/50">
             km

@@ -3,7 +3,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 
 export const metadata: Metadata = {
-  title: "KLORA-SYS · ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้",
+  title: "KLORA · ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้",
   description:
     "ระบบปฏิบัติการการขนส่งดอกไม้ — ต้นน้ำ (ฟาร์ม) · กลางน้ำ (KYN×Outsource) · ปลายน้ำ (Thai Post)",
 };

@@ -39,7 +39,7 @@ export default async function Dashboard() {
         <div className="relative inline-flex items-center gap-2 rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
           <Flower2 size={15} /> Klora · ระบบตรวจสอบที่มา &amp; คาร์บอนของดอกไม้
         </div>
-        <h1 className="relative mt-3 max-w-2xl text-3xl font-bold leading-tight text-pink-950 sm:text-4xl">
+        <h1 className="relative mt-3 max-w-2xl text-3xl font-bold leading-tight text-pink-700 sm:text-4xl">
           ระบบปฏิบัติการการขนส่งดอกไม้
           <span className="block text-pink-600">
             รู้คาร์บอน รู้อายุดอกไม้ ตั้งแต่ฟาร์มถึงปลายทาง

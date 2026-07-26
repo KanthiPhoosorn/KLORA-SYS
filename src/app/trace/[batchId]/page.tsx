@@ -34,17 +34,17 @@ export default async function TracePage({
 
       {/* Passport header */}
       <div className="overflow-hidden rounded-3xl border border-pink-900/10 bg-white/80 shadow-sm">
-        <div className="bg-gradient-to-br from-pink-500 to-pink-700 px-6 py-6 text-white">
-          <div className="flex items-center gap-2 text-sm font-medium text-pink-50">
+        <div className="bg-gradient-to-br from-pink-100 to-pink-200 px-6 py-6 text-pink-800">
+          <div className="flex items-center gap-2 text-sm font-medium text-pink-600">
             <Leaf size={16} /> Carbon Passport · คาร์บอนพาสปอร์ต
           </div>
-          <h1 className="mt-2 text-2xl font-bold">{supplier.farmName}</h1>
-          <p className="text-pink-50/90">{supplier.flowerType}</p>
+          <h1 className="mt-2 text-2xl font-bold text-pink-700">{supplier.farmName}</h1>
+          <p className="text-pink-700/80">{supplier.flowerType}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full bg-white/20 px-2.5 py-1 font-mono">
+            <span className="rounded-full bg-white/70 px-2.5 py-1 font-mono text-pink-700">
               {batch.id}
             </span>
-            <span className="rounded-full bg-white/20 px-2.5 py-1 font-mono">
+            <span className="rounded-full bg-white/70 px-2.5 py-1 font-mono text-pink-700">
               {supplier.id}
             </span>
           </div>
@@ -65,7 +65,7 @@ export default async function TracePage({
             <div className="flex items-center gap-1.5 text-xs font-medium text-pink-900/50">
               <Clock size={13} /> อายุหลังตัด
             </div>
-            <div className="mt-1 text-3xl font-bold tabular text-pink-950">
+            <div className="mt-1 text-3xl font-bold tabular text-pink-700">
               {batch.ageDays}{" "}
               <span className="text-base font-medium text-pink-900/50">
                 วัน
@@ -120,7 +120,7 @@ export default async function TracePage({
       </div>
 
       <p className="no-print text-center text-xs text-pink-900/40">
-        คำนวณโดย KLORA·SYS — (คาร์บอนปลูก + ขนส่ง)/จำนวนดอก + คาร์บอนตะกร้า/รอบใช้งาน
+        คำนวณโดย KLORA — (คาร์บอนปลูก + ขนส่ง)/จำนวนดอก + คาร์บอนตะกร้า/รอบใช้งาน
       </p>
     </div>
   );

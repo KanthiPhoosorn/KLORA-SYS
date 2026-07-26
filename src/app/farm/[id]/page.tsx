@@ -33,7 +33,7 @@ function Row({
     <div className="flex gap-2 py-1.5 text-sm">
       <span className="mt-0.5 text-pink-600">{icon}</span>
       <span className="w-28 shrink-0 text-pink-900/50">{label}</span>
-      <span className="font-medium text-pink-950">{value}</span>
+      <span className="font-medium text-pink-700">{value}</span>
     </div>
   );
 }

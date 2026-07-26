@@ -34,7 +34,7 @@ export function CardHeader({
         </div>
       ) : null}
       <div>
-        <h2 className="text-base font-semibold text-pink-950">{title}</h2>
+        <h2 className="text-base font-semibold text-pink-700">{title}</h2>
         {subtitle ? (
           <p className="mt-0.5 text-sm text-pink-900/60">{subtitle}</p>
         ) : null}
@@ -138,7 +138,7 @@ export function LinkButton({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-pink-600 text-white hover:bg-pink-700"
+      ? "bg-pink-500 text-white hover:bg-pink-500"
       : "border border-pink-900/15 bg-white/70 text-pink-900 hover:bg-pink-50";
   return (
     <Link

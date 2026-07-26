@@ -14,8 +14,8 @@ export default function QrLabel({
   return (
     <div className="print-label mx-auto w-[340px] rounded-2xl border border-pink-900/15 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <div className="text-lg font-bold text-pink-950">
-          KLORA<span className="text-pink-500">·SYS</span>
+        <div className="text-lg font-extrabold tracking-tight text-pink-500">
+          KLORA
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wide text-pink-900/40">
@@ -39,7 +39,7 @@ export default function QrLabel({
       </div>
 
       <div className="text-center">
-        <div className="font-semibold text-pink-950">{supplier.farmName}</div>
+        <div className="font-semibold text-pink-700">{supplier.farmName}</div>
         <div className="flex items-center justify-center gap-1 text-xs text-pink-900/50">
           <MapPin size={11} /> {supplier.flowerType} · {supplier.id}
         </div>
@@ -55,7 +55,7 @@ export default function QrLabel({
         </div>
         <div className="flex items-center justify-end gap-1.5">
           <Clock size={14} className="text-pink-600" />
-          <span className="tabular font-semibold text-pink-950">
+          <span className="tabular font-semibold text-pink-700">
             {batch.ageDays} วัน
           </span>
           <span className="text-xs text-pink-900/50">หลังตัด</span>

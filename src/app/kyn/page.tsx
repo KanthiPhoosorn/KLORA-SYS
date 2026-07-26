@@ -43,7 +43,7 @@ export default async function KynPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-950">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-700">
           <Factory className="text-pink-600" /> กลางน้ำ · KYN×Outsource
         </h1>
         <p className="mt-1 text-pink-900/60">
@@ -97,7 +97,7 @@ export default async function KynPage() {
                         {b.id}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="font-medium text-pink-950">
+                        <div className="font-medium text-pink-700">
                           {s?.farmName ?? "—"}
                         </div>
                         <div className="text-xs text-pink-900/50">

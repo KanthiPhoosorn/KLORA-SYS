@@ -17,7 +17,7 @@ export default async function FarmPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-950">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-700">
           <Sprout className="text-pink-600" /> ต้นน้ำ · ฟาร์ม
         </h1>
         <p className="mt-1 text-pink-900/60">
@@ -57,7 +57,7 @@ export default async function FarmPage() {
                         </span>
                         <Badge tone="green">{batchCount(s.id)} รอบ</Badge>
                       </div>
-                      <p className="mt-1 font-medium text-pink-950">
+                      <p className="mt-1 font-medium text-pink-700">
                         {s.farmName}
                       </p>
                       <p className="mt-0.5 flex items-center gap-1 text-xs text-pink-900/50">

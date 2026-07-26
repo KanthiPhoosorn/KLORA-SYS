@@ -17,11 +17,11 @@ export default function Nav() {
     <header className="no-print sticky top-0 z-20 border-b border-pink-900/10 bg-white/70 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-6">
         <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-pink-400 to-pink-600 text-white shadow-sm shadow-pink-500/30">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-pink-200 to-pink-300 text-pink-600 ring-1 ring-pink-400/30">
             <Flower2 size={18} />
           </span>
-          <span className="text-lg font-extrabold tracking-tight text-pink-600">
-            KLORA<span className="font-bold text-pink-400">·SYS</span>
+          <span className="text-lg font-extrabold tracking-tight text-pink-500">
+            KLORA
           </span>
         </Link>
         <nav className="ml-auto flex items-center gap-1 overflow-x-auto">

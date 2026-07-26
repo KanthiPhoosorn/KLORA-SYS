@@ -75,7 +75,7 @@ export default function BatchForm({ supplierId }: { supplierId: string }) {
       <button
         type="submit"
         disabled={saving}
-        className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-pink-500 disabled:opacity-60"
       >
         {saving ? (
           <Loader2 className="animate-spin" size={16} />
