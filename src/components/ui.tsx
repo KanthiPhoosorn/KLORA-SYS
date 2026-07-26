@@ -10,7 +10,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-emerald-900/10 bg-white/80 shadow-sm backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border border-pink-900/10 bg-white/80 shadow-sm backdrop-blur-sm ${className}`}
     >
       {children}
     </div>
@@ -27,16 +27,16 @@ export function CardHeader({
   icon?: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 border-b border-emerald-900/10 px-5 py-4">
+    <div className="flex items-start gap-3 border-b border-pink-900/10 px-5 py-4">
       {icon ? (
-        <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+        <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-pink-50 text-pink-700">
           {icon}
         </div>
       ) : null}
       <div>
-        <h2 className="text-base font-semibold text-emerald-950">{title}</h2>
+        <h2 className="text-base font-semibold text-pink-950">{title}</h2>
         {subtitle ? (
-          <p className="mt-0.5 text-sm text-emerald-900/60">{subtitle}</p>
+          <p className="mt-0.5 text-sm text-pink-900/60">{subtitle}</p>
         ) : null}
       </div>
     </div>
@@ -52,7 +52,7 @@ export function Badge({
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-stone-100 text-stone-700",
-    green: "bg-emerald-100 text-emerald-800",
+    green: "bg-pink-100 text-pink-800",
     amber: "bg-amber-100 text-amber-800",
     red: "bg-red-100 text-red-700",
     blue: "bg-blue-100 text-blue-700",
@@ -78,19 +78,19 @@ export function Stat({
   tone?: "green" | "amber" | "blue";
 }) {
   const tones: Record<string, string> = {
-    green: "text-emerald-700",
+    green: "text-pink-700",
     amber: "text-amber-700",
     blue: "text-blue-700",
   };
   return (
-    <div className="rounded-xl border border-emerald-900/10 bg-white/70 px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-emerald-900/50">
+    <div className="rounded-xl border border-pink-900/10 bg-white/70 px-4 py-3">
+      <div className="text-xs font-medium uppercase tracking-wide text-pink-900/50">
         {label}
       </div>
       <div className={`mt-1 text-2xl font-bold tabular ${tones[tone]}`}>
         {value}
         {unit ? (
-          <span className="ml-1 text-sm font-medium text-emerald-900/50">
+          <span className="ml-1 text-sm font-medium text-pink-900/50">
             {unit}
           </span>
         ) : null}
@@ -112,14 +112,14 @@ export function Bar({
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-emerald-100">
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-pink-100">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+          className="h-full rounded-full bg-gradient-to-r from-pink-400 to-pink-600"
           style={{ width: `${pct}%` }}
         />
       </div>
       {label ? (
-        <span className="w-20 shrink-0 text-right text-xs tabular text-emerald-900/60">
+        <span className="w-20 shrink-0 text-right text-xs tabular text-pink-900/60">
           {label}
         </span>
       ) : null}
@@ -138,8 +138,8 @@ export function LinkButton({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-emerald-600 text-white hover:bg-emerald-700"
-      : "border border-emerald-900/15 bg-white/70 text-emerald-900 hover:bg-emerald-50";
+      ? "bg-pink-600 text-white hover:bg-pink-700"
+      : "border border-pink-900/15 bg-white/70 text-pink-900 hover:bg-pink-50";
   return (
     <Link
       href={href}

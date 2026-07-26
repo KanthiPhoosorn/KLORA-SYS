@@ -31,9 +31,9 @@ function Row({
 }) {
   return (
     <div className="flex gap-2 py-1.5 text-sm">
-      <span className="mt-0.5 text-emerald-600">{icon}</span>
-      <span className="w-28 shrink-0 text-emerald-900/50">{label}</span>
-      <span className="font-medium text-emerald-950">{value}</span>
+      <span className="mt-0.5 text-pink-600">{icon}</span>
+      <span className="w-28 shrink-0 text-pink-900/50">{label}</span>
+      <span className="font-medium text-pink-950">{value}</span>
     </div>
   );
 }
@@ -73,12 +73,12 @@ export default async function SupplierDetail({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm text-emerald-900/50">
-        <Link href="/farm" className="hover:text-emerald-700">
+      <div className="flex items-center gap-2 text-sm text-pink-900/50">
+        <Link href="/farm" className="hover:text-pink-700">
           ต้นน้ำ · ฟาร์ม
         </Link>
         <span>/</span>
-        <span className="font-mono text-emerald-700">{supplier.id}</span>
+        <span className="font-mono text-pink-700">{supplier.id}</span>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -101,8 +101,8 @@ export default async function SupplierDetail({
             <Row icon={<Star size={14} />} label="จุดเด่น" value={supplier.highlights} />
 
             {optional.length > 0 ? (
-              <div className="mt-3 border-t border-emerald-900/10 pt-3">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-900/40">
+              <div className="mt-3 border-t border-pink-900/10 pt-3">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-pink-900/40">
                   ข้อมูลใช้คำนวณคาร์บอน
                 </p>
                 {optional.map((o, i) => (
@@ -123,9 +123,9 @@ export default async function SupplierDetail({
               alt={`QR ${supplier.id}`}
               width={180}
               height={180}
-              className="rounded-lg border border-emerald-900/10 bg-white p-2"
+              className="rounded-lg border border-pink-900/10 bg-white p-2"
             />
-            <span className="font-mono text-sm font-semibold text-emerald-700">
+            <span className="font-mono text-sm font-semibold text-pink-700">
               {supplier.id}
             </span>
           </div>
@@ -143,26 +143,26 @@ export default async function SupplierDetail({
 
       {/* Batches list */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-emerald-900/70">
+        <h2 className="text-sm font-semibold text-pink-900/70">
           รอบการตัดทั้งหมด ({batches.length})
         </h2>
         {batches.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-emerald-900/15 px-4 py-6 text-center text-sm text-emerald-900/50">
+          <p className="rounded-xl border border-dashed border-pink-900/15 px-4 py-6 text-center text-sm text-pink-900/50">
             ยังไม่มีรอบการตัด — เพิ่มรอบแรกด้านบน
           </p>
         ) : (
           batches.map((b) => (
             <Card key={b.id}>
-              <div className="flex items-center justify-between gap-3 border-b border-emerald-900/10 px-5 py-2.5">
+              <div className="flex items-center justify-between gap-3 border-b border-pink-900/10 px-5 py-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-emerald-700">
+                  <span className="font-mono text-xs font-semibold text-pink-700">
                     {b.id}
                   </span>
                   <Badge tone="neutral">ตัด {b.cutDate}</Badge>
                 </div>
                 <Link
                   href={`/trace/${b.id}`}
-                  className="flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-800"
+                  className="flex items-center gap-1 text-xs font-medium text-pink-600 hover:text-pink-800"
                 >
                   ดูคาร์บอนพาสปอร์ต <ArrowUpRight size={14} />
                 </Link>

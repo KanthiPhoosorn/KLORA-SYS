@@ -5,7 +5,7 @@ import {
   Factory,
   Package,
   ArrowRight,
-  Leaf,
+  Flower2,
   QrCode,
 } from "lucide-react";
 
@@ -26,17 +26,26 @@ export default async function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Hero */}
-      <section className="rounded-3xl border border-emerald-900/10 bg-white/60 p-8 backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-          <Leaf size={16} /> Carbon Traceability for Cut Flowers
+      <section className="relative overflow-hidden rounded-3xl border border-pink-900/10 bg-white/60 p-8 backdrop-blur-sm">
+        {/* watercolor-bouquet accent, echoing the Klora Flower Boost pack */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-60 blur-2xl"
+          style={{
+            background:
+              "conic-gradient(from 120deg, #f9a8d4, #f0abfc, #fca5a5, #fde68a, #a5b4fc, #f9a8d4)",
+          }}
+        />
+        <div className="relative inline-flex items-center gap-2 rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
+          <Flower2 size={15} /> Klora · ระบบตรวจสอบที่มา &amp; คาร์บอนของดอกไม้
         </div>
-        <h1 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-emerald-950 sm:text-4xl">
+        <h1 className="relative mt-3 max-w-2xl text-3xl font-bold leading-tight text-pink-950 sm:text-4xl">
           ระบบปฏิบัติการการขนส่งดอกไม้
-          <span className="block text-emerald-600">
+          <span className="block text-pink-600">
             รู้คาร์บอน รู้อายุดอกไม้ ตั้งแต่ฟาร์มถึงปลายทาง
           </span>
         </h1>
-        <p className="mt-4 max-w-2xl text-emerald-900/70">
+        <p className="mt-4 max-w-2xl text-pink-900/70">
           ทุกช่อดอกไม้ได้รับ <b>SUP ID</b> และ <b>QR</b> ที่บอกค่า{" "}
           <b>CO₂e ต่อดอก</b> และ <b>อายุหลังตัด</b> — โปร่งใสตลอดสายส่ง
           ต้นน้ำ → กลางน้ำ → ปลายน้ำ
@@ -76,9 +85,9 @@ export default async function Dashboard() {
             title="ต้นน้ำ · ฟาร์ม"
             subtitle="Supplier / Farm"
           />
-          <div className="space-y-2 px-5 py-4 text-sm text-emerald-900/70">
+          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
             <p>สแกน QR → สมัครสมาชิก → กรอกข้อมูลฟาร์ม → ระบบสร้าง SUP ID</p>
-            <p className="text-emerald-900/50">
+            <p className="text-pink-900/50">
               ลงข้อมูลรอบการตัด: จำนวนดอก · วันที่ตัด · ระยะทางปลายทาง
             </p>
             <div className="pt-2">
@@ -95,9 +104,9 @@ export default async function Dashboard() {
             title="กลางน้ำ · KYN×Outsource"
             subtitle="Processing engine"
           />
-          <div className="space-y-2 px-5 py-4 text-sm text-emerald-900/70">
+          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
             <p>รับข้อมูล → คัดแยก → คำนวณคาร์บอน + อายุดอกไม้ → แสดงผล</p>
-            <p className="text-emerald-900/50">
+            <p className="text-pink-900/50">
               CO₂e/ดอก = (ปลูก + ขนส่ง)/จำนวนดอก + ตะกร้า/รอบใช้งาน
             </p>
             <div className="pt-2">
@@ -114,9 +123,9 @@ export default async function Dashboard() {
             title="ปลายน้ำ · Thai Post"
             subtitle="Label & dispatch"
           />
-          <div className="space-y-2 px-5 py-4 text-sm text-emerald-900/70">
+          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
             <p>ค้นหา SUP ID → สร้าง QR Label → พิมพ์ QR ติดพัสดุ</p>
-            <p className="flex items-center gap-1 text-emerald-900/50">
+            <p className="flex items-center gap-1 text-pink-900/50">
               <QrCode size={14} /> QR นำไปยังหน้า “คาร์บอนพาสปอร์ต” ของดอกไม้
             </p>
             <div className="pt-2">

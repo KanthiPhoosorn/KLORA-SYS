@@ -43,10 +43,10 @@ export default async function KynPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-emerald-950">
-          <Factory className="text-emerald-600" /> กลางน้ำ · KYN×Outsource
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-pink-950">
+          <Factory className="text-pink-600" /> กลางน้ำ · KYN×Outsource
         </h1>
-        <p className="mt-1 text-emerald-900/60">
+        <p className="mt-1 text-pink-900/60">
           รับข้อมูล SUP → คัดแยก → คำนวณคาร์บอน + อายุดอกไม้ → รวบรวมและแสดงผล
         </p>
       </div>
@@ -70,7 +70,7 @@ export default async function KynPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-emerald-900/10 text-left text-xs uppercase tracking-wide text-emerald-900/50">
+                <tr className="border-b border-pink-900/10 text-left text-xs uppercase tracking-wide text-pink-900/50">
                   <th className="px-4 py-2 font-medium">Batch</th>
                   <th className="px-4 py-2 font-medium">ฟาร์ม</th>
                   <th className="px-4 py-2 text-right font-medium">ดอก</th>
@@ -83,7 +83,7 @@ export default async function KynPage() {
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-emerald-900/50">
+                    <td colSpan={7} className="px-4 py-8 text-center text-pink-900/50">
                       ยังไม่มีข้อมูลรอบการตัด
                     </td>
                   </tr>
@@ -91,16 +91,16 @@ export default async function KynPage() {
                   rows.map(({ b, s }) => (
                     <tr
                       key={b.id}
-                      className="border-b border-emerald-900/5 hover:bg-emerald-50/50"
+                      className="border-b border-pink-900/5 hover:bg-pink-50/50"
                     >
-                      <td className="px-4 py-2.5 font-mono text-xs text-emerald-700">
+                      <td className="px-4 py-2.5 font-mono text-xs text-pink-700">
                         {b.id}
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="font-medium text-emerald-950">
+                        <div className="font-medium text-pink-950">
                           {s?.farmName ?? "—"}
                         </div>
-                        <div className="text-xs text-emerald-900/50">
+                        <div className="text-xs text-pink-900/50">
                           {s?.flowerType ?? b.supplierId}
                         </div>
                       </td>
@@ -115,13 +115,13 @@ export default async function KynPage() {
                           {b.ageDays} วัน
                         </Badge>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-semibold tabular text-emerald-700">
+                      <td className="px-4 py-2.5 text-right font-semibold tabular text-pink-700">
                         {b.co2ePerFlower.toFixed(4)}
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <Link
                           href={`/trace/${b.id}`}
-                          className="inline-flex text-emerald-500 hover:text-emerald-700"
+                          className="inline-flex text-pink-500 hover:text-pink-700"
                         >
                           <ArrowUpRight size={16} />
                         </Link>
@@ -140,13 +140,13 @@ export default async function KynPage() {
             <CardHeader title="CO₂e รวมรายฟาร์ม" subtitle="kg CO₂e" />
             <div className="space-y-3 px-5 py-4">
               {perFarm.length === 0 ? (
-                <p className="text-sm text-emerald-900/50">ยังไม่มีข้อมูล</p>
+                <p className="text-sm text-pink-900/50">ยังไม่มีข้อมูล</p>
               ) : (
                 perFarm.map(({ s, total }) => (
                   <div key={s.id} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="text-emerald-900/70">{s.farmName}</span>
-                      <span className="font-semibold tabular text-emerald-700">
+                      <span className="text-pink-900/70">{s.farmName}</span>
+                      <span className="font-semibold tabular text-pink-700">
                         {total.toFixed(1)}
                       </span>
                     </div>
@@ -168,11 +168,11 @@ export default async function KynPage() {
               <table className="w-full text-sm">
                 <tbody>
                   {(Object.keys(FACTORS) as (keyof typeof FACTORS)[]).map((k) => (
-                    <tr key={k} className="border-b border-emerald-900/5 last:border-0">
-                      <td className="py-1.5 text-emerald-900/70">
+                    <tr key={k} className="border-b border-pink-900/5 last:border-0">
+                      <td className="py-1.5 text-pink-900/70">
                         {FACTOR_LABELS[k]}
                       </td>
-                      <td className="py-1.5 text-right font-semibold tabular text-emerald-800">
+                      <td className="py-1.5 text-right font-semibold tabular text-pink-800">
                         {FACTORS[k]}
                       </td>
                     </tr>

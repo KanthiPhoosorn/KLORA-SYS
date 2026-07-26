@@ -7,8 +7,8 @@ import { CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import type { Supplier } from "@/lib/types";
 
 const inputCls =
-  "w-full rounded-lg border border-emerald-900/15 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
-const labelCls = "block text-sm font-medium text-emerald-900/80";
+  "w-full rounded-lg border border-pink-900/15 bg-white px-3 py-2 text-sm outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20";
+const labelCls = "block text-sm font-medium text-pink-900/80";
 
 function Field({
   name,
@@ -75,26 +75,26 @@ export default function SupplierForm() {
   if (created) {
     return (
       <div className="space-y-4 px-5 py-6 text-center">
-        <CheckCircle2 className="mx-auto text-emerald-600" size={40} />
+        <CheckCircle2 className="mx-auto text-pink-600" size={40} />
         <div>
-          <p className="text-sm text-emerald-900/60">ระบบสร้าง SUP ID สำเร็จ</p>
-          <p className="mt-1 text-2xl font-bold tabular text-emerald-800">
+          <p className="text-sm text-pink-900/60">ระบบสร้าง SUP ID สำเร็จ</p>
+          <p className="mt-1 text-2xl font-bold tabular text-pink-800">
             {created.id}
           </p>
-          <p className="mt-1 text-sm text-emerald-900/70">
+          <p className="mt-1 text-sm text-pink-900/70">
             {created.farmName}
           </p>
         </div>
         <div className="flex justify-center gap-3">
           <Link
             href={`/farm/${created.id}`}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
           >
             เปิดหน้าฟาร์ม + ลงรอบการตัด <ArrowRight size={16} />
           </Link>
           <button
             onClick={() => setCreated(null)}
-            className="rounded-xl border border-emerald-900/15 bg-white px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-50"
+            className="rounded-xl border border-pink-900/15 bg-white px-4 py-2 text-sm font-medium text-pink-900 hover:bg-pink-50"
           >
             ลงทะเบียนฟาร์มใหม่
           </button>
@@ -106,7 +106,7 @@ export default function SupplierForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-5 px-5 py-5">
       <div>
-        <h3 className="text-sm font-semibold text-emerald-900">
+        <h3 className="text-sm font-semibold text-pink-900">
           ข้อมูลพื้นฐานบังคับ
         </h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -132,8 +132,8 @@ export default function SupplierForm() {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-emerald-900">
-          ข้อมูลใช้คำนวณคาร์บอน <span className="font-normal text-emerald-900/50">(ไม่บังคับ — ตั้งค่าครั้งเดียว)</span>
+        <h3 className="text-sm font-semibold text-pink-900">
+          ข้อมูลใช้คำนวณคาร์บอน <span className="font-normal text-pink-900/50">(ไม่บังคับ — ตั้งค่าครั้งเดียว)</span>
         </h3>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field name="fuelLitres" label="Fuel (ลิตร/รอบ)" type="number" step="any" placeholder="15" />
@@ -153,7 +153,7 @@ export default function SupplierForm() {
       <button
         type="submit"
         disabled={saving}
-        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-xl bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-pink-700 disabled:opacity-60"
       >
         {saving ? <Loader2 className="animate-spin" size={16} /> : null}
         ระบบสร้าง SUP ID
