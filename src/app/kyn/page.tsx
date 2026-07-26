@@ -121,7 +121,7 @@ export default async function KynPage() {
                       <td className="px-4 py-2.5 text-right">
                         <Link
                           href={`/trace/${b.id}`}
-                          className="inline-flex text-pink-500 hover:text-pink-700"
+                          className="inline-flex text-pink-400 hover:text-pink-700"
                         >
                           <ArrowUpRight size={16} />
                         </Link>

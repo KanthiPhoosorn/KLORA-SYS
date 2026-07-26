@@ -114,7 +114,7 @@ export function Bar({
     <div className="flex items-center gap-2">
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-pink-100">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-pink-400 to-pink-600"
+          className="h-full rounded-full bg-gradient-to-r from-pink-200 to-pink-400"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -138,7 +138,7 @@ export function LinkButton({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-pink-500 text-white hover:bg-pink-500"
+      ? "bg-pink-300 text-pink-900 hover:bg-pink-400"
       : "border border-pink-900/15 bg-white/70 text-pink-900 hover:bg-pink-50";
   return (
     <Link

@@ -60,7 +60,7 @@ export default function ThaiPostPage() {
           className="flex gap-2 rounded-2xl border border-pink-900/10 bg-white/80 p-2 shadow-sm"
         >
           <div className="flex flex-1 items-center gap-2 px-3">
-            <Search size={18} className="text-pink-500" />
+            <Search size={18} className="text-pink-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -71,7 +71,7 @@ export default function ThaiPostPage() {
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-pink-500 px-5 py-2 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-pink-300 px-5 py-2 text-sm font-semibold text-pink-900 hover:bg-pink-400 disabled:opacity-60"
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
             ค้นหา

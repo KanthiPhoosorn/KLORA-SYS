@@ -20,7 +20,7 @@ export default function Nav() {
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-pink-200 to-pink-300 text-pink-600 ring-1 ring-pink-400/30">
             <Flower2 size={18} />
           </span>
-          <span className="text-lg font-extrabold tracking-tight text-pink-500">
+          <span className="text-lg font-extrabold tracking-tight text-pink-400">
             KLORA
           </span>
         </Link>
