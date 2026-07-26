@@ -1,0 +1,36 @@
+[
+  {
+    "id": "SUP-2026-0001",
+    "farmName": "สวนดอกไม้ดอยแม่สลอง",
+    "address": "ต.แม่สลองนอก อ.แม่ฟ้าหลวง จ.เชียงราย 57110",
+    "gpsLat": 20.1597,
+    "gpsLng": 99.6361,
+    "owner": "สมชาย ใจดี",
+    "flowerType": "กุหลาบ (Rose)",
+    "highlights": "ปลูกบนดอยสูง อากาศเย็นตลอดปี ลดการใช้สารเคมี",
+    "contact": "โทร 081-234-5678 / LINE @maesalongflower",
+    "fuelLitres": 15,
+    "electricityKwh": 40,
+    "fertilizerKg": 20,
+    "basketId": "BSK-001",
+    "reuseCycles": 10,
+    "createdAt": "2026-07-15T02:30:00.000Z"
+  },
+  {
+    "id": "SUP-2026-0002",
+    "farmName": "ฟาร์มเบญจมาศแม่ริม",
+    "address": "ต.โป่งแยง อ.แม่ริม จ.เชียงใหม่ 50180",
+    "gpsLat": 18.9213,
+    "gpsLng": 98.8543,
+    "owner": "มาลี ศรีสุข",
+    "flowerType": "เบญจมาศ (Chrysanthemum)",
+    "highlights": "ฟาร์มออร์แกนิก ใช้พลังงานแสงอาทิตย์บางส่วน",
+    "contact": "โทร 089-876-5432",
+    "fuelLitres": 8,
+    "electricityKwh": 25,
+    "fertilizerKg": 12,
+    "basketId": "BSK-014",
+    "reuseCycles": 8,
+    "createdAt": "2026-07-16T04:10:00.000Z"
+  }
+]

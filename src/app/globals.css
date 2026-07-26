@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Thai", "Segoe UI", "Sarabun", system-ui, -apple-system,
+    sans-serif;
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-900: #064e3b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #d1fae5 0%, transparent 55%),
+    radial-gradient(900px 500px at -10% 10%, #fef3c7 0%, transparent 50%),
+    #f8faf9;
+  color: #1c2b26;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Number-heavy readouts */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Print: only the QR label should print (Thai Post flow) --- */
+@media print {
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-label {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+  }
+}
+.print-only {
+  display: none;
+}

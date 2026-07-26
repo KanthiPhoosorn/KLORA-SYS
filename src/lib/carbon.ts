@@ -1,0 +1,103 @@
+// Carbon engine — faithful to the flowchart formula:
+//
+//   CO2e/ดอก = (คาร์บอนจากการปลูก + คาร์บอนจากการขนส่ง) / จำนวนดอกไม้ในตะกร้า
+//             + คาร์บอนจากตะกร้าหมุนเวียน / จำนวนรอบการใช้งาน
+//
+//   ระยะเวลา (age) = วันที่ลงข้อมูล − วันที่ตัด
+//
+// Assumption noted here: the basket term is ALSO normalised per-flower (÷ flowerCount)
+// so the whole expression yields a single "kg CO2e per flower" figure. Change the
+// `/ flowerCount` on the basket line below if you want basket carbon reported per-basket.
+
+import type { Supplier, Batch } from "./types";
+
+// --- Emission factors (placeholder defaults — edit freely) ---------------
+// All values in kg CO2e per unit. Replace with audited Thailand-specific factors.
+export const FACTORS = {
+  FUEL: 2.68, // per litre of diesel
+  ELECTRICITY: 0.5, // per kWh (approx. TH grid)
+  FERTILIZER: 1.3, // per kg of fertilizer
+  BASKET: 2.0, // per basket manufactured
+  TRANSPORT: 0.2, // per km (small delivery truck)
+} as const;
+
+export const FACTOR_LABELS: Record<keyof typeof FACTORS, string> = {
+  FUEL: "น้ำมัน (kg CO₂e / ลิตร)",
+  ELECTRICITY: "ไฟฟ้า (kg CO₂e / kWh)",
+  FERTILIZER: "ปุ๋ย (kg CO₂e / kg)",
+  BASKET: "ตะกร้า (kg CO₂e / ใบ)",
+  TRANSPORT: "ขนส่ง (kg CO₂e / km)",
+};
+
+export interface CarbonBreakdown {
+  plantingCarbon: number; // kg CO2e — from fuel + electricity + fertilizer
+  transportCarbon: number; // kg CO2e — from distance
+  basketCarbonPerCycle: number; // kg CO2e — basket amortised over reuse cycles
+  co2ePerFlower: number; // kg CO2e per flower (final)
+}
+
+// คาร์บอนจากการปลูก
+export function plantingCarbon(s: Supplier): number {
+  return (
+    (s.fuelLitres ?? 0) * FACTORS.FUEL +
+    (s.electricityKwh ?? 0) * FACTORS.ELECTRICITY +
+    (s.fertilizerKg ?? 0) * FACTORS.FERTILIZER
+  );
+}
+
+// คาร์บอนจากการขนส่ง
+export function transportCarbon(distanceKm: number): number {
+  return distanceKm * FACTORS.TRANSPORT;
+}
+
+// คาร์บอนจากตะกร้าหมุนเวียน / จำนวนรอบการใช้งาน
+export function basketCarbonPerCycle(reuseCycles?: number): number {
+  const cycles = reuseCycles && reuseCycles > 0 ? reuseCycles : 1;
+  return FACTORS.BASKET / cycles;
+}
+
+export function computeCarbon(
+  s: Supplier,
+  flowerCount: number,
+  distanceKm: number,
+): CarbonBreakdown {
+  const flowers = flowerCount > 0 ? flowerCount : 1;
+  const planting = plantingCarbon(s);
+  const transport = transportCarbon(distanceKm);
+  const basket = basketCarbonPerCycle(s.reuseCycles);
+
+  const co2ePerFlower = (planting + transport) / flowers + basket / flowers;
+
+  return {
+    plantingCarbon: planting,
+    transportCarbon: transport,
+    basketCarbonPerCycle: basket,
+    co2ePerFlower,
+  };
+}
+
+// ระยะเวลาดอกไม้หลังตัด — days between cut date and data-entry date (never negative)
+export function flowerAgeDays(cutDate: string, entryDate: string): number {
+  const cut = new Date(cutDate + "T00:00:00Z").getTime();
+  const entry = new Date(entryDate + "T00:00:00Z").getTime();
+  if (Number.isNaN(cut) || Number.isNaN(entry)) return 0;
+  const days = Math.round((entry - cut) / 86_400_000);
+  return days > 0 ? days : 0;
+}
+
+// Convenience: recompute everything for a batch given its supplier.
+export function enrichBatch(
+  batch: Pick<Batch, "flowerCount" | "distanceKm" | "cutDate" | "entryDate">,
+  supplier: Supplier,
+): { co2ePerFlower: number; ageDays: number; breakdown: CarbonBreakdown } {
+  const breakdown = computeCarbon(
+    supplier,
+    batch.flowerCount,
+    batch.distanceKm,
+  );
+  return {
+    co2ePerFlower: breakdown.co2ePerFlower,
+    ageDays: flowerAgeDays(batch.cutDate, batch.entryDate),
+    breakdown,
+  };
+}
