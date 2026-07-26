@@ -1,4 +1,4 @@
-# KLORA — ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้
+# KLORA ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้
 
 Carbon traceability for cut flowers, from farm to doorstep. Every flower batch is issued a
 **SUP ID** and a **QR code** that reports its **CO₂e per flower** and **freshness age** (days
