@@ -3,6 +3,7 @@
     "id": "SUP-2026-0001",
     "farmName": "สวนดอกไม้ดอยแม่สลอง",
     "address": "ต.แม่สลองนอก อ.แม่ฟ้าหลวง จ.เชียงราย 57110",
+    "province": "เชียงราย",
     "gpsLat": 20.1597,
     "gpsLng": 99.6361,
     "owner": "สมชาย ใจดี",
@@ -14,12 +15,14 @@
     "fertilizerKg": 20,
     "basketId": "BSK-001",
     "reuseCycles": 10,
+    "status": "active",
     "createdAt": "2026-07-15T02:30:00.000Z"
   },
   {
     "id": "SUP-2026-0002",
     "farmName": "ฟาร์มเบญจมาศแม่ริม",
     "address": "ต.โป่งแยง อ.แม่ริม จ.เชียงใหม่ 50180",
+    "province": "เชียงใหม่",
     "gpsLat": 18.9213,
     "gpsLng": 98.8543,
     "owner": "มาลี ศรีสุข",
@@ -31,6 +34,7 @@
     "fertilizerKg": 12,
     "basketId": "BSK-014",
     "reuseCycles": 8,
+    "status": "active",
     "createdAt": "2026-07-16T04:10:00.000Z"
   }
 ]

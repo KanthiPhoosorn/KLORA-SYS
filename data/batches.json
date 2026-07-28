@@ -5,9 +5,13 @@
     "flowerCount": 500,
     "cutDate": "2026-07-24",
     "distanceKm": 785,
+    "destination": "กรุงเทพฯ",
+    "basketId": "BSK-001",
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.4868,
     "ageDays": 2,
+    "status": "computed",
+    "shipmentStatus": "delivered",
     "createdAt": "2026-07-26T01:00:00.000Z"
   },
   {
@@ -16,9 +20,13 @@
     "flowerCount": 800,
     "cutDate": "2026-07-25",
     "distanceKm": 785,
+    "destination": "กรุงเทพฯ",
+    "basketId": "BSK-001",
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.30425,
     "ageDays": 1,
+    "status": "computed",
+    "shipmentStatus": "in_transit",
     "createdAt": "2026-07-26T01:05:00.000Z"
   },
   {
@@ -27,9 +35,43 @@
     "flowerCount": 600,
     "cutDate": "2026-07-23",
     "distanceKm": 700,
+    "destination": "ขอนแก่น",
+    "basketId": "BSK-014",
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.3163167,
     "ageDays": 3,
+    "status": "computed",
+    "shipmentStatus": "delivered",
     "createdAt": "2026-07-26T01:10:00.000Z"
+  },
+  {
+    "id": "BAT-2026-0004",
+    "supplierId": "SUP-2026-0002",
+    "flowerCount": 200,
+    "cutDate": "2026-07-27",
+    "distanceKm": 800,
+    "destination": "กรุงเทพฯ",
+    "basketId": "BSK-014",
+    "entryDate": "2026-07-27",
+    "co2ePerFlower": 1.04895,
+    "ageDays": 0,
+    "status": "computed",
+    "shipmentStatus": "in_transit",
+    "createdAt": "2026-07-27T02:00:00.000Z"
+  },
+  {
+    "id": "BAT-2026-0005",
+    "supplierId": "SUP-2026-0001",
+    "flowerCount": 520,
+    "cutDate": "2026-07-26",
+    "distanceKm": 785,
+    "destination": "กรุงเทพฯ",
+    "basketId": "BSK-001",
+    "entryDate": "2026-07-27",
+    "co2ePerFlower": 0,
+    "ageDays": 1,
+    "status": "submitted",
+    "shipmentStatus": "cutting",
+    "createdAt": "2026-07-27T03:30:00.000Z"
   }
 ]

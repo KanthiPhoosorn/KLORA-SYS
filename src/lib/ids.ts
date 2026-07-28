@@ -1,4 +1,4 @@
-// Sequential, human-readable IDs: SUP-YYYY-NNNN and BAT-YYYY-NNNN.
+// Sequential, human-readable IDs: SUP-YYYY-NNNN, BAT-YYYY-NNNN, USR-NNNN, PRT-NNNN.
 // NNNN is derived from the count of existing records so IDs stay stable and ordered.
 
 function pad(n: number): string {
@@ -11,4 +11,12 @@ export function nextSupplierId(existingCount: number, year: number): string {
 
 export function nextBatchId(existingCount: number, year: number): string {
   return `BAT-${year}-${pad(existingCount + 1)}`;
+}
+
+export function nextUserId(existingCount: number): string {
+  return `USR-${pad(existingCount + 1)}`;
+}
+
+export function nextPrintId(existingCount: number): string {
+  return `PRT-${pad(existingCount + 1)}`;
 }

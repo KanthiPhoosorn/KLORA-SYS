@@ -85,6 +85,42 @@ export function flowerAgeDays(cutDate: string, entryDate: string): number {
   return days > 0 ? days : 0;
 }
 
+// Aggregate carbon by source across a set of batches for one (or many) supplier(s).
+// Used by the farm carbon dashboard's "สัดส่วนที่มาของคาร์บอน" and KYN reports.
+export interface SourceBreakdown {
+  transport: number; // kg CO2e
+  planting: number; // kg CO2e (ปุ๋ย/ไฟฟ้า/น้ำมัน)
+  basket: number; // kg CO2e (บรรจุภัณฑ์/ตะกร้า)
+  total: number;
+  pct: { transport: number; planting: number; basket: number }; // 0..100
+}
+
+export function sourceBreakdown(
+  batches: Pick<Batch, "supplierId" | "distanceKm">[],
+  supplierById: (id: string) => Supplier | undefined,
+): SourceBreakdown {
+  let transport = 0;
+  let planting = 0;
+  let basket = 0;
+  for (const b of batches) {
+    const s = supplierById(b.supplierId);
+    transport += transportCarbon(b.distanceKm);
+    if (s) {
+      planting += plantingCarbon(s);
+      basket += basketCarbonPerCycle(s.reuseCycles);
+    }
+  }
+  const total = transport + planting + basket;
+  const p = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  return {
+    transport,
+    planting,
+    basket,
+    total,
+    pct: { transport: p(transport), planting: p(planting), basket: p(basket) },
+  };
+}
+
 // Convenience: recompute everything for a batch given its supplier.
 export function enrichBatch(
   batch: Pick<Batch, "flowerCount" | "distanceKm" | "cutDate" | "entryDate">,

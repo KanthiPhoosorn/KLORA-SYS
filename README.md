@@ -4,16 +4,25 @@ Carbon traceability for cut flowers, from farm to doorstep. Every flower batch i
 **SUP ID** and a **QR code** that reports its **CO₂e per flower** and **freshness age** (days
 after cutting) — transparent across the whole chain: **ต้นน้ำ → กลางน้ำ → ปลายน้ำ**.
 
-> Implements the flowchart *"ระบบปฏิบัติการการขนส่งดอกไม้"* (upstream farm · midstream KYN×Outsource · downstream Thai Post).
+> Implements the flowchart *"ระบบปฏิบัติการการขนส่งดอกไม้"* (upstream farm · midstream KYN · downstream Thai Post).
 
-## The three lanes
+## Roles & workspaces
 
-| Lane | ผู้เกี่ยวข้อง | หน้าที่ |
-|------|--------------|---------|
-| **ต้นน้ำ / Farm** (`/farm`) | Supplier (ฟาร์ม) | สแกน QR → สมัคร → กรอกข้อมูลฟาร์ม → ระบบสร้าง **SUP ID** → ลงข้อมูลรอบการตัด (จำนวนดอก · วันที่ตัด · ระยะทาง) |
-| **กลางน้ำ / KYN** (`/kyn`) | KYN×Outsource | รับข้อมูล → คัดแยก → **คำนวณคาร์บอน + อายุดอกไม้** → รวบรวมและแสดงผล |
-| **ปลายน้ำ / Thai Post** (`/thaipost`) | Thai Post | ค้นหา **SUP ID** → สร้าง **QR Label** → พิมพ์ติดพัสดุ |
-| **Carbon Passport** (`/trace/[batchId]`) | ผู้บริโภค | หน้าที่ QR พาไป — ที่มา · คาร์บอน · อายุของดอกไม้ |
+| Role | เข้าที่ | หน้าที่ |
+|------|--------|---------|
+| **ต้นน้ำ / SUP (ฟาร์ม)** | `/login` · `/register` → `/app` | สมัคร/เข้าสู่ระบบ → ภาพรวม · กรอกรอบส่งออก (ประมาณระยะทางอัตโนมัติ) · แดชบอร์ดคาร์บอน · ประวัติ · แก้ไขข้อมูลฟาร์ม |
+| **กลางน้ำ / KYN** | `/kyn` | ภาพรวมระบบ · ข้อมูลที่รับเข้า (กด **คำนวณ**) · รายงานสรุป + Export CSV · จัดการ SUP (ระงับ/เปิดใช้) · Shipment/QR log |
+| **ปลายน้ำ / Thai Post** | `/thaipost` | ค้นหา SUP ID → **QR Label** (แบรนด์ KLORA) → พิมพ์ · ประวัติการพิมพ์ · สรุปวันนี้ |
+| **Carbon Passport** | `/trace/[batchId]` | หน้าที่ QR พาไป — ที่มา · คาร์บอน · อายุของดอกไม้ (สำหรับผู้บริโภค) |
+
+The SUP workspace requires login; KYN and Thai Post are operator consoles. Demo account:
+**`farm`** / **`password123`**.
+
+## Flow
+
+SUP submits a round (`status: submitted`, freshness age computed immediately) → KYN receives it in
+**ข้อมูลที่รับเข้า** and runs the carbon calculation (`ยืนยันทั้งหมดที่พร้อมคำนวณ` → `status: computed`) →
+Thai Post prints the QR label (logged to the Shipment/QR log) → the QR resolves to the public passport.
 
 ## Formulas
 
@@ -28,17 +37,16 @@ CO₂e/ดอก = (คาร์บอนปลูก + คาร์บอนข
 อายุ (วัน)   = วันที่ลงข้อมูล − วันที่ตัด
 ```
 
-Emission factors are documented placeholders in [`src/lib/carbon.ts`](src/lib/carbon.ts) — edit
-them there. *(Assumption: the basket term is normalised per-flower so the result is a single
-CO₂e-per-flower figure.)*
+Emission factors are documented placeholders in [`src/lib/carbon.ts`](src/lib/carbon.ts). *(Assumption:
+the basket term is normalised per-flower so the result is a single CO₂e-per-flower figure.)*
 
 ## Stack
 
-- **Next.js 16** (App Router) · **TypeScript** · **React 19**
-- **Tailwind CSS v4** · **lucide-react** icons
-- **`qrcode`** for server-side QR (`/api/qr`)
-- **No database** — a JSON-file store at [`data/`](data/) (`suppliers.json`, `batches.json`).
-  Swap [`src/lib/store.ts`](src/lib/store.ts) for SQLite/Drizzle later without touching the UI.
+- **Next.js 16** (App Router) · **TypeScript** · **React 19** · **Tailwind CSS v4** · **lucide-react**
+- **Real auth, no database** — passwords are scrypt-hashed and the session is a tamper-proof signed
+  cookie ([`src/lib/auth.ts`](src/lib/auth.ts)); users/suppliers/batches/prints live in a JSON-file
+  store at [`data/`](data/). Swap [`src/lib/store.ts`](src/lib/store.ts) for a real DB without touching the UI.
+- **`qrcode`** for server-side QR (`/api/qr`).
 
 ## Run
 
@@ -47,31 +55,35 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-The repo ships with seed farms + batches so every screen renders on first run.
+Set `KLORA_SESSION_SECRET` in production (a dev fallback is used otherwise). The repo ships with
+seed farms, batches, a demo user and print logs so every screen renders on first run.
 
 ## Project layout
 
 ```
 src/
   app/
-    page.tsx                 ภาพรวม / dashboard
-    farm/                    ต้นน้ำ — register + batch entry
-    kyn/                     กลางน้ำ — results table + aggregate + factors
-    thaipost/                ปลายน้ำ — search + printable QR label
+    page.tsx                 landing / role chooser
+    (auth)/login · register  SUP sign-in / sign-up
+    app/                     SUP workspace (guarded): overview · new · dashboard · history · farm
+    kyn/                     KYN console: overview · incoming · report · suppliers · qrlog
+    thaipost/                Thai Post console: search+print · history · today
     trace/[batchId]/         public carbon passport (QR target)
-    api/                     suppliers · batches · qr route handlers
-  components/                Nav · ui · SupplierForm · BatchForm · CarbonResult · QrLabel
-  lib/                       types · store · ids · carbon · qr
-data/                        JSON store (seeded)
+    api/                     auth · suppliers · batches · prints · qr
+  components/                ConsoleShell · SidebarNav · ui · forms · QrLabel · …
+  lib/                       types · store · auth · ids · carbon · geo · format · status · qr
+data/                        JSON store (seeded): suppliers · batches · users · prints
 ```
 
 ## API
 
 | Method | Route | ทำอะไร |
 |--------|-------|--------|
-| `GET` | `/api/suppliers` | รายชื่อฟาร์ม |
-| `POST` | `/api/suppliers` | ลงทะเบียนฟาร์ม → ออก SUP ID |
-| `GET` | `/api/suppliers/[id]` | ฟาร์ม + รอบการตัดของฟาร์มนั้น |
-| `GET` | `/api/batches` | รอบการตัด (กรองด้วย `?supplierId=`) |
-| `POST` | `/api/batches` | เพิ่มรอบการตัด → คำนวณคาร์บอน + อายุ |
+| `POST` | `/api/auth/register` | สร้างฟาร์ม + บัญชี → ออก SUP ID → เข้าสู่ระบบ |
+| `POST` | `/api/auth/login` · `/api/auth/logout` | เข้าสู่ระบบ / ออกจากระบบ |
+| `GET` | `/api/suppliers` · `/api/suppliers/[id]` | รายชื่อฟาร์ม / ฟาร์ม + รอบการตัด |
+| `PATCH` | `/api/suppliers/[id]` | แก้ไขข้อมูลฟาร์ม / ตั้งค่าคำนวณ / ระงับ-เปิดใช้ |
+| `GET` · `POST` | `/api/batches` | รายการรอบ / เพิ่มรอบ (session-scoped) |
+| `PATCH` | `/api/batches/[id]` | `action: compute` (KYN) หรืออัปเดตสถานะขนส่ง |
+| `GET` · `POST` | `/api/prints` | Shipment/QR log |
 | `GET` | `/api/qr?data=…` | QR code (SVG) |

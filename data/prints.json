@@ -1,0 +1,20 @@
+[
+  {
+    "id": "PRT-0001",
+    "supplierId": "SUP-2026-0002",
+    "batchId": "BAT-2026-0003",
+    "destination": "ขอนแก่น",
+    "printedBy": "Thaipost",
+    "sortingPoint": "จุดคัดแยก 1",
+    "printedAt": "2026-07-26T02:10:00.000Z"
+  },
+  {
+    "id": "PRT-0002",
+    "supplierId": "SUP-2026-0001",
+    "batchId": "BAT-2026-0002",
+    "destination": "กรุงเทพฯ",
+    "printedBy": "Thaipost",
+    "sortingPoint": "จุดคัดแยก 3",
+    "printedAt": "2026-07-26T07:32:00.000Z"
+  }
+]

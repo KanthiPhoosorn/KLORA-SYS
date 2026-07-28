@@ -9,16 +9,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Neutral operational shell (SUP & KYN & Thai Post consoles) */
 body {
-  /* Soft blush, echoing the Klora Flower Boost product photography */
+  background: #f6f7f9;
+  color: #1e293b; /* slate-800 */
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* Pink Klora brand surface — used only on the landing hero, the QR label and the
+   public /trace carbon passport. Apply `.brand-bg` to opt a section into the blush. */
+.brand-bg {
   background:
     radial-gradient(1100px 620px at 85% -12%, #fbcfe8 0%, transparent 55%),
     radial-gradient(820px 520px at -10% 0%, #fae8ff 0%, transparent 46%),
     radial-gradient(1000px 760px at 50% 120%, #ffe4e6 0%, transparent 60%),
     #fdf2f5;
-  color: #4a2c39;
-  font-family: var(--font-sans);
-  min-height: 100vh;
 }
 
 /* Number-heavy readouts */

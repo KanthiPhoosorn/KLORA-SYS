@@ -1,141 +1,69 @@
-import { getSuppliers, getBatches } from "@/lib/store";
-import { Card, CardHeader, Stat, LinkButton } from "@/components/ui";
-import {
-  Sprout,
-  Factory,
-  Package,
-  ArrowRight,
-  Flower2,
-  QrCode,
-} from "lucide-react";
+import Link from "next/link";
+import { Sprout, Factory, Package, ArrowRight } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+const LANES = [
+  {
+    href: "/login",
+    icon: Sprout,
+    tag: "ต้นน้ำ · SUP",
+    title: "ฟาร์ม / Supplier",
+    desc: "สมัครสมาชิก → กรอกข้อมูลฟาร์ม → รับ SUP ID → ลงรอบส่งออกทุกครั้ง",
+    cta: "เข้าสู่ระบบฟาร์ม",
+  },
+  {
+    href: "/kyn",
+    icon: Factory,
+    tag: "กลางน้ำ · KYN",
+    title: "ระบบคำนวณคาร์บอน",
+    desc: "รับข้อมูล → คัดแยก → คำนวณ CO₂e + อายุดอกไม้ → รายงานสรุป",
+    cta: "เปิดคอนโซล KYN",
+  },
+  {
+    href: "/thaipost",
+    icon: Package,
+    tag: "ปลายน้ำ · Thai Post",
+    title: "ออกฉลาก & QR",
+    desc: "ค้นหา SUP ID → สร้าง QR Label → พิมพ์ติดพัสดุ",
+    cta: "เปิดคอนโซล Thai Post",
+  },
+];
 
-export default async function Dashboard() {
-  const [suppliers, batches] = await Promise.all([
-    getSuppliers(),
-    getBatches(),
-  ]);
-
-  const totalFlowers = batches.reduce((n, b) => n + b.flowerCount, 0);
-  const avgCo2e =
-    batches.length > 0
-      ? batches.reduce((n, b) => n + b.co2ePerFlower, 0) / batches.length
-      : 0;
-
+export default function Landing() {
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-pink-900/10 bg-white/60 p-8 backdrop-blur-sm">
-        {/* watercolor-bouquet accent, echoing the Klora Flower Boost pack */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-60 blur-2xl"
-          style={{
-            background:
-              "conic-gradient(from 120deg, #f9a8d4, #f0abfc, #fca5a5, #fde68a, #a5b4fc, #f9a8d4)",
-          }}
-        />
-        <div className="relative inline-flex items-center gap-2 rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
-          <Flower2 size={15} /> Klora · ระบบตรวจสอบที่มา &amp; คาร์บอนของดอกไม้
-        </div>
-        <h1 className="relative mt-3 max-w-2xl text-3xl font-bold leading-tight text-pink-700 sm:text-4xl">
-          ระบบปฏิบัติการการขนส่งดอกไม้
-          <span className="block text-pink-600">
-            รู้คาร์บอน รู้อายุดอกไม้ ตั้งแต่ฟาร์มถึงปลายทาง
-          </span>
-        </h1>
-        <p className="mt-4 max-w-2xl text-pink-900/70">
-          ทุกช่อดอกไม้ได้รับ <b>SUP ID</b> และ <b>QR</b> ที่บอกค่า{" "}
-          <b>CO₂e ต่อดอก</b> และ <b>อายุหลังตัด</b> — โปร่งใสตลอดสายส่ง
-          ต้นน้ำ → กลางน้ำ → ปลายน้ำ
+    <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12">
+      <header className="mb-8">
+        <div className="text-3xl font-extrabold tracking-tight text-pink-500">KLORA</div>
+        <p className="mt-1 text-sm text-slate-500">
+          ระบบปฏิบัติการการขนส่งดอกไม้ · เลือกบทบาทเพื่อเข้าใช้งาน
         </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <LinkButton href="/farm">
-            <Sprout size={16} /> เริ่มที่ฟาร์ม (ลงทะเบียน SUP)
-          </LinkButton>
-          <LinkButton href="/kyn" variant="ghost">
-            ดูผลคำนวณคาร์บอน <ArrowRight size={16} />
-          </LinkButton>
-        </div>
-      </section>
+      </header>
 
-      {/* Stats */}
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="ฟาร์ม (SUP)" value={suppliers.length} />
-        <Stat label="รอบการตัด (Batch)" value={batches.length} tone="blue" />
-        <Stat
-          label="ดอกไม้รวม"
-          value={totalFlowers.toLocaleString()}
-          unit="ดอก"
-          tone="amber"
-        />
-        <Stat
-          label="CO₂e เฉลี่ย/ดอก"
-          value={avgCo2e.toFixed(3)}
-          unit="kg"
-        />
-      </section>
+      <div className="grid gap-4 md:grid-cols-3">
+        {LANES.map((l) => {
+          const Icon = l.icon;
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+            >
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-600">
+                <Icon size={20} />
+              </span>
+              <div className="mt-4 text-xs font-medium text-slate-400">{l.tag}</div>
+              <div className="mt-0.5 text-lg font-bold text-slate-900">{l.title}</div>
+              <p className="mt-2 text-sm text-slate-500">{l.desc}</p>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 group-hover:gap-2.5">
+                {l.cta} <ArrowRight size={15} />
+              </span>
+            </Link>
+          );
+        })}
+      </div>
 
-      {/* The three lanes */}
-      <section className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader
-            icon={<Sprout size={18} />}
-            title="ต้นน้ำ · ฟาร์ม"
-            subtitle="Supplier / Farm"
-          />
-          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
-            <p>สแกน QR → สมัครสมาชิก → กรอกข้อมูลฟาร์ม → ระบบสร้าง SUP ID</p>
-            <p className="text-pink-900/50">
-              ลงข้อมูลรอบการตัด: จำนวนดอก · วันที่ตัด · ระยะทางปลายทาง
-            </p>
-            <div className="pt-2">
-              <LinkButton href="/farm" variant="ghost">
-                ไปที่ฟาร์ม <ArrowRight size={14} />
-              </LinkButton>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            icon={<Factory size={18} />}
-            title="กลางน้ำ · KYN×Outsource"
-            subtitle="Processing engine"
-          />
-          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
-            <p>รับข้อมูล → คัดแยก → คำนวณคาร์บอน + อายุดอกไม้ → แสดงผล</p>
-            <p className="text-pink-900/50">
-              CO₂e/ดอก = (ปลูก + ขนส่ง)/จำนวนดอก + ตะกร้า/รอบใช้งาน
-            </p>
-            <div className="pt-2">
-              <LinkButton href="/kyn" variant="ghost">
-                ดูผลคำนวณ <ArrowRight size={14} />
-              </LinkButton>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            icon={<Package size={18} />}
-            title="ปลายน้ำ · Thai Post"
-            subtitle="Label & dispatch"
-          />
-          <div className="space-y-2 px-5 py-4 text-sm text-pink-900/70">
-            <p>ค้นหา SUP ID → สร้าง QR Label → พิมพ์ QR ติดพัสดุ</p>
-            <p className="flex items-center gap-1 text-pink-900/50">
-              <QrCode size={14} /> QR นำไปยังหน้า “คาร์บอนพาสปอร์ต” ของดอกไม้
-            </p>
-            <div className="pt-2">
-              <LinkButton href="/thaipost" variant="ghost">
-                สร้างฉลาก <ArrowRight size={14} />
-              </LinkButton>
-            </div>
-          </div>
-        </Card>
-      </section>
+      <p className="mt-8 text-center text-xs text-slate-400">
+        บัญชีทดลอง (ฟาร์ม): <b>farm</b> / <b>password123</b>
+      </p>
     </div>
   );
 }

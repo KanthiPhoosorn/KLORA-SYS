@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatches, getBatchesBySupplier, addBatch } from "@/lib/store";
-import type { BatchInput } from "@/lib/types";
+import { getCurrentUser } from "@/lib/auth";
+import type { BatchStatus } from "@/lib/types";
 
 export async function GET(req: Request) {
   const supplierId = new URL(req.url).searchParams.get("supplierId");
@@ -10,35 +11,43 @@ export async function GET(req: Request) {
   return NextResponse.json(batches);
 }
 
+// POST /api/batches — the logged-in SUP logs a new cutting round for their own farm.
+// supplierId is taken from the session, never from the body.
 export async function POST(req: Request) {
-  let body: Partial<BatchInput>;
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  }
+
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง (invalid JSON)" }, { status: 400 });
   }
 
-  if (!body.supplierId) {
-    return NextResponse.json({ error: "ต้องระบุ supplierId" }, { status: 400 });
-  }
   if (!body.cutDate) {
-    return NextResponse.json({ error: "ต้องระบุวันที่ตัด (cutDate)" }, { status: 400 });
+    return NextResponse.json({ error: "ต้องระบุวันที่ตัด" }, { status: 400 });
+  }
+  const flowerCount = Number(body.flowerCount) || 0;
+  if (flowerCount <= 0) {
+    return NextResponse.json({ error: "จำนวนดอกไม้ต้องมากกว่า 0" }, { status: 400 });
   }
 
-  const input: BatchInput = {
-    supplierId: String(body.supplierId),
-    flowerCount: Number(body.flowerCount) || 0,
-    cutDate: String(body.cutDate),
-    distanceKm: Number(body.distanceKm) || 0,
-  };
+  const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 
   try {
-    const batch = await addBatch(input);
+    const batch = await addBatch({
+      supplierId: user.supplierId,
+      flowerCount,
+      cutDate: String(body.cutDate),
+      distanceKm: Number(body.distanceKm) || 0,
+      destination: body.destination ? String(body.destination) : undefined,
+      basketId: body.basketId ? String(body.basketId) : undefined,
+      status,
+    });
     return NextResponse.json(batch, { status: 201 });
   } catch (err) {
-    return NextResponse.json(
-      { error: (err as Error).message },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
 }

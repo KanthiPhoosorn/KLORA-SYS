@@ -1,0 +1,11 @@
+[
+  {
+    "id": "USR-0001",
+    "supplierId": "SUP-2026-0001",
+    "email": "farm@maesalong.co.th",
+    "username": "farm",
+    "salt": "0c06444db969e1e756c4940600df88e3",
+    "passwordHash": "453a9f4d7104cdeec7ecd56baeaa959b03d7d4834e26503bcb311e8d6a0428541bbee95b3845fcdd3e432a1c10c6998bc0bf93236ad04078b2f2ff2852001fac",
+    "createdAt": "2026-07-15T02:35:00.000Z"
+  }
+]
