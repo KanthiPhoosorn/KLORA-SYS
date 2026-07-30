@@ -13,8 +13,6 @@
     "fuelLitres": 15,
     "electricityKwh": 40,
     "fertilizerKg": 20,
-    "basketId": "BSK-001",
-    "reuseCycles": 10,
     "status": "active",
     "createdAt": "2026-07-15T02:30:00.000Z"
   },
@@ -32,8 +30,6 @@
     "fuelLitres": 8,
     "electricityKwh": 25,
     "fertilizerKg": 12,
-    "basketId": "BSK-014",
-    "reuseCycles": 8,
     "status": "active",
     "createdAt": "2026-07-16T04:10:00.000Z"
   }

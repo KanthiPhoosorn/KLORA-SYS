@@ -50,28 +50,36 @@ export function transportCarbon(distanceKm: number): number {
   return distanceKm * FACTORS.TRANSPORT;
 }
 
-// คาร์บอนจากตะกร้าหมุนเวียน / จำนวนรอบการใช้งาน
-export function basketCarbonPerCycle(reuseCycles?: number): number {
-  const cycles = reuseCycles && reuseCycles > 0 ? reuseCycles : 1;
-  return FACTORS.BASKET / cycles;
+// คาร์บอนจากตะกร้าหมุนเวียน สำหรับ 1 รอบ.
+// ระบบนับจำนวนการใช้ซ้ำของแต่ละตะกร้าเอง (reuseCountOf) — ยิ่งใช้ซ้ำมาก คาร์บอน/รอบยิ่งน้อย.
+// basketCarbonForRound = Σ (BASKET / จำนวนครั้งที่ตะกร้าใบนั้นถูกใช้)
+export function basketCarbonForRound(
+  basketIds: string[],
+  reuseCountOf: (id: string) => number,
+): number {
+  return (basketIds ?? []).reduce((sum, id) => {
+    const uses = Math.max(1, reuseCountOf(id));
+    return sum + FACTORS.BASKET / uses;
+  }, 0);
 }
 
 export function computeCarbon(
   s: Supplier,
   flowerCount: number,
   distanceKm: number,
+  basketCarbonRound: number,
 ): CarbonBreakdown {
   const flowers = flowerCount > 0 ? flowerCount : 1;
   const planting = plantingCarbon(s);
   const transport = transportCarbon(distanceKm);
-  const basket = basketCarbonPerCycle(s.reuseCycles);
 
-  const co2ePerFlower = (planting + transport) / flowers + basket / flowers;
+  const co2ePerFlower =
+    (planting + transport + basketCarbonRound) / flowers;
 
   return {
     plantingCarbon: planting,
     transportCarbon: transport,
-    basketCarbonPerCycle: basket,
+    basketCarbonPerCycle: basketCarbonRound,
     co2ePerFlower,
   };
 }
@@ -96,8 +104,9 @@ export interface SourceBreakdown {
 }
 
 export function sourceBreakdown(
-  batches: Pick<Batch, "supplierId" | "distanceKm">[],
+  batches: Pick<Batch, "supplierId" | "distanceKm" | "basketIds">[],
   supplierById: (id: string) => Supplier | undefined,
+  reuseCountOf: (id: string) => number,
 ): SourceBreakdown {
   let transport = 0;
   let planting = 0;
@@ -105,10 +114,8 @@ export function sourceBreakdown(
   for (const b of batches) {
     const s = supplierById(b.supplierId);
     transport += transportCarbon(b.distanceKm);
-    if (s) {
-      planting += plantingCarbon(s);
-      basket += basketCarbonPerCycle(s.reuseCycles);
-    }
+    basket += basketCarbonForRound(b.basketIds ?? [], reuseCountOf);
+    if (s) planting += plantingCarbon(s);
   }
   const total = transport + planting + basket;
   const p = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
@@ -121,19 +128,36 @@ export function sourceBreakdown(
   };
 }
 
-// Convenience: recompute everything for a batch given its supplier.
+// Convenience: recompute everything for a batch given its supplier + a basket
+// reuse-count lookup (how many rounds each basket has been used in).
 export function enrichBatch(
-  batch: Pick<Batch, "flowerCount" | "distanceKm" | "cutDate" | "entryDate">,
+  batch: Pick<Batch, "flowerCount" | "distanceKm" | "cutDate" | "entryDate" | "basketIds">,
   supplier: Supplier,
+  reuseCountOf: (id: string) => number,
 ): { co2ePerFlower: number; ageDays: number; breakdown: CarbonBreakdown } {
+  const basketCarbonRound = basketCarbonForRound(batch.basketIds ?? [], reuseCountOf);
   const breakdown = computeCarbon(
     supplier,
     batch.flowerCount,
     batch.distanceKm,
+    basketCarbonRound,
   );
   return {
     co2ePerFlower: breakdown.co2ePerFlower,
     ageDays: flowerAgeDays(batch.cutDate, batch.entryDate),
     breakdown,
   };
+}
+
+// Count how many of a supplier's rounds used each basket id (the reuse count).
+export function basketReuseCounts(
+  batches: Pick<Batch, "basketIds">[],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const b of batches) {
+    for (const id of b.basketIds ?? []) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return counts;
 }

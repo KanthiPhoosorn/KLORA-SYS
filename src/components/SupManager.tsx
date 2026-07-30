@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search, Plus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui";
+import Modal from "@/components/Modal";
+import FarmSettingsForm from "@/components/FarmSettingsForm";
 import { SUP_STATUS } from "@/lib/status";
 import type { Supplier } from "@/lib/types";
 
@@ -12,6 +14,7 @@ export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editSup, setEditSup] = useState<Supplier | null>(null);
 
   const rows = suppliers.filter(
     (s) =>
@@ -76,9 +79,9 @@ export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
                 </td>
                 <td className="px-5 py-2.5 text-right">
                   <div className="inline-flex items-center gap-3">
-                    <Link href={`/kyn/suppliers/${s.id}`} className="text-blue-600 hover:underline">
+                    <button onClick={() => setEditSup(s)} className="text-blue-600 hover:underline">
                       แก้ไข
-                    </Link>
+                    </button>
                     <button
                       onClick={() => toggle(s)}
                       disabled={busyId === s.id}
@@ -94,6 +97,17 @@ export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={!!editSup}
+        onClose={() => setEditSup(null)}
+        title={editSup ? `แก้ไขข้อมูล ${editSup.id}` : ""}
+        wide
+      >
+        {editSup ? (
+          <FarmSettingsForm supplier={editSup} onDone={() => setEditSup(null)} />
+        ) : null}
+      </Modal>
     </div>
   );
 }

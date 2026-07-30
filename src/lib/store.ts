@@ -18,7 +18,7 @@ import {
   nextUserId,
   nextPrintId,
 } from "./ids";
-import { enrichBatch, flowerAgeDays } from "./carbon";
+import { enrichBatch, flowerAgeDays, basketReuseCounts } from "./carbon";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const SUPPLIERS_FILE = path.join(DATA_DIR, "suppliers.json");
@@ -115,10 +115,11 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     id: nextBatchId(all.length, now.getUTCFullYear()),
     supplierId: input.supplierId,
     flowerCount: input.flowerCount,
+    variety: input.variety,
     cutDate: input.cutDate,
     distanceKm: input.distanceKm,
     destination: input.destination,
-    basketId: input.basketId || supplier.basketId,
+    basketIds: (input.basketIds ?? []).filter(Boolean),
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
@@ -131,8 +132,9 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
   return batch;
 }
 
-// KYN engine: run the carbon calculation and mark the batch computed. Also advances a
-// "cutting" shipment to "in_transit". No-op if the batch is missing a basket.
+// KYN engine: run the carbon calculation and mark the batch computed. The basket
+// reuse count is derived automatically from how many of the farm's rounds used each
+// basket. Also advances a "cutting" shipment to "in_transit".
 export async function computeBatch(id: string): Promise<Batch | null> {
   const all = await getBatches();
   const idx = all.findIndex((b) => b.id === id);
@@ -141,7 +143,12 @@ export async function computeBatch(id: string): Promise<Batch | null> {
   const supplier = await getSupplier(b.supplierId);
   if (!supplier) return null;
 
-  const { co2ePerFlower, ageDays } = enrichBatch(b, supplier);
+  const reuse = basketReuseCounts(all.filter((x) => x.supplierId === b.supplierId));
+  const { co2ePerFlower, ageDays } = enrichBatch(
+    b,
+    supplier,
+    (bid) => reuse.get(bid) ?? 0,
+  );
   all[idx] = {
     ...b,
     co2ePerFlower,
@@ -215,4 +222,17 @@ export async function addPrint(
   all.push(log);
   await writeJson(PRINTS_FILE, all);
   return log;
+}
+
+// Patch a print log (e.g. mark it cancelled after a misprint).
+export async function updatePrint(
+  id: string,
+  patch: Partial<Omit<PrintLog, "id">>,
+): Promise<PrintLog | null> {
+  const all = await getPrints();
+  const idx = all.findIndex((p) => p.id === id);
+  if (idx < 0) return null;
+  all[idx] = { ...all[idx], ...patch, id: all[idx].id };
+  await writeJson(PRINTS_FILE, all);
+  return all[idx];
 }

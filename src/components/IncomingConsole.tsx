@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Search, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui";
-import { computeCarbon } from "@/lib/carbon";
+import { computeCarbon, basketCarbonForRound, basketReuseCounts } from "@/lib/carbon";
 import { thaiDateShort } from "@/lib/format";
 import type { Supplier, Batch } from "@/lib/types";
 
@@ -52,7 +52,9 @@ export default function IncomingConsole({
         .filter((b) => b.supplierId === selected.id)
         .sort((a, b) => b.cutDate.localeCompare(a.cutDate))
     : [];
-  const ready = selectedBatches.filter((b) => b.status === "submitted" && b.basketId);
+  const ready = selectedBatches.filter(
+    (b) => b.status === "submitted" && (b.basketIds?.length ?? 0) > 0,
+  );
   const pendingSubmitted = selectedBatches.filter((b) => b.status === "submitted");
 
   async function confirmAll() {
@@ -71,11 +73,21 @@ export default function IncomingConsole({
     router.refresh();
   }
 
-  // Preview figures from the newest submitted batch.
+  // Preview figures from the newest submitted batch (basket reuse counted across the farm).
   const preview = pendingSubmitted[0];
   const previewCo2e =
     preview && selected
-      ? computeCarbon(selected, preview.flowerCount, preview.distanceKm).co2ePerFlower
+      ? (() => {
+          const reuse = basketReuseCounts(
+            batches.filter((b) => b.supplierId === selected.id),
+          );
+          const basketRound = basketCarbonForRound(
+            preview.basketIds ?? [],
+            (id) => reuse.get(id) ?? 0,
+          );
+          return computeCarbon(selected, preview.flowerCount, preview.distanceKm, basketRound)
+            .co2ePerFlower;
+        })()
       : null;
 
   return (
@@ -171,10 +183,10 @@ export default function IncomingConsole({
                     <td className="px-3 py-2.5">
                       {b.status === "computed" ? (
                         <Badge tone="green">คำนวณแล้ว</Badge>
-                      ) : b.basketId ? (
+                      ) : (b.basketIds?.length ?? 0) > 0 ? (
                         <Badge tone="green">ครบ · พร้อมคำนวณ</Badge>
                       ) : (
-                        <Badge tone="amber">ขาด Basket ID</Badge>
+                        <Badge tone="amber">ขาดตะกร้า</Badge>
                       )}
                     </td>
                   </tr>

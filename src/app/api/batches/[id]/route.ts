@@ -25,9 +25,9 @@ export async function PATCH(
   }
 
   if (body.action === "compute") {
-    if (!batch.basketId) {
+    if (!batch.basketIds || batch.basketIds.length === 0) {
       return NextResponse.json(
-        { error: "ขาด Basket ID — คำนวณไม่ได้" },
+        { error: "ขาดตะกร้า (Basket) — คำนวณไม่ได้" },
         { status: 422 },
       );
     }

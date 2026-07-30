@@ -46,9 +46,6 @@ export async function POST(req: Request) {
       body.electricityKwh != null ? Number(body.electricityKwh) : undefined,
     fertilizerKg:
       body.fertilizerKg != null ? Number(body.fertilizerKg) : undefined,
-    basketId: body.basketId ? String(body.basketId) : undefined,
-    reuseCycles:
-      body.reuseCycles != null ? Number(body.reuseCycles) : undefined,
   };
 
   const supplier = await addSupplier(input);

@@ -18,11 +18,11 @@ export interface Supplier {
   contact: string; // ช่องทางติดต่อ
 
   // --- ข้อมูลพื้นฐานไม่บังคับ / ใช้คำนวณ (optional, set once) ---
+  // Basket reuse is now tracked per-round (Batch.basketIds) and counted automatically —
+  // it no longer lives on the farm profile.
   fuelLitres?: number; // Fuel — litres of diesel per cutting round
   electricityKwh?: number; // Electricity — kWh per cutting round
   fertilizerKg?: number; // Fertilizer — kg per cutting round
-  basketId?: string; // Basket ID (farm default)
-  reuseCycles?: number; // Reuse Cycle — how many trips one basket survives
 
   status: SupplierStatus; // ใช้งาน / ระงับ (managed by KYN)
   createdAt: string; // ISO
@@ -39,10 +39,11 @@ export interface Batch {
 
   // --- ข้อมูลที่ใช้คำนวณ (ลงใหม่ทุกครั้ง / entered every round) ---
   flowerCount: number; // จำนวนดอกไม้ (ในตะกร้า)
+  variety?: string; // พันธุ์ดอกไม้ (เช่น Red Naomi) — เลือกจาก dropdown ที่โตจากประวัติของฟาร์ม
   cutDate: string; // วันที่ตัด (YYYY-MM-DD)
   distanceKm: number; // ระยะทาง (ปลายทาง)
   destination?: string; // ปลายทาง เช่น กรุงเทพฯ
-  basketId?: string; // ตะกร้าที่ใช้รอบนี้ (ถ้าไม่ระบุ ใช้ค่าของฟาร์ม)
+  basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
 
   entryDate: string; // วันที่ลงข้อมูล (auto, YYYY-MM-DD)
 
@@ -75,6 +76,7 @@ export interface PrintLog {
   printedBy: string; // เช่น "Thaipost"
   sortingPoint?: string; // จุดคัดแยก
   printedAt: string; // ISO
+  cancelled?: boolean; // ยกเลิก (พิมพ์ผิด) — batch นั้นกลับมา "ยังไม่ได้พิมพ์" อีกครั้ง
 }
 
 // Payloads accepted by the API (server fills id / computed / timestamps / status).
@@ -83,8 +85,9 @@ export type BatchInput = Pick<
   Batch,
   "supplierId" | "flowerCount" | "cutDate" | "distanceKm"
 > & {
+  variety?: string;
   destination?: string;
-  basketId?: string;
+  basketIds?: string[];
   status?: BatchStatus; // "draft" | "submitted"
 };
 

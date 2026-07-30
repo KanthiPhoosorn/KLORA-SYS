@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Send } from "lucide-react";
+import { Loader2, Save, Send, Plus, X } from "lucide-react";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
 import type { Supplier } from "@/lib/types";
 
@@ -10,19 +10,45 @@ const inputCls =
   "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
 const labelCls = "text-sm font-medium text-slate-600";
 
-export default function RoundForm({ supplier }: { supplier: Supplier }) {
+const COMMON_VARIETIES = [
+  "Red Naomi",
+  "Freedom",
+  "Avalanche",
+  "Mondial",
+  "Anastasia White",
+  "Zembla",
+  "Lily Oriental",
+  "Carnation",
+];
+
+export default function RoundForm({
+  supplier,
+  varietyOptions = [],
+  basketOptions = [],
+  onDone,
+}: {
+  supplier: Supplier;
+  varietyOptions?: string[];
+  basketOptions?: string[];
+  onDone?: () => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<"submit" | "draft" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [distanceEdited, setDistanceEdited] = useState(false);
 
   const [flowerCount, setFlowerCount] = useState("");
+  const [variety, setVariety] = useState("");
   const [cutDate, setCutDate] = useState("");
   const [destination, setDestination] = useState("");
   const [distanceKm, setDistanceKm] = useState("");
-  const [basketId, setBasketId] = useState(supplier.basketId ?? "");
 
-  // When the destination changes, auto-fill the distance (unless manually edited).
+  // Multiple baskets per round.
+  const [baskets, setBaskets] = useState<string[]>([]);
+  const [basketDraft, setBasketDraft] = useState("");
+
+  const varieties = Array.from(new Set([...varietyOptions, ...COMMON_VARIETIES]));
+
   function onDestination(value: string) {
     setDestination(value);
     if (!distanceEdited) {
@@ -31,7 +57,16 @@ export default function RoundForm({ supplier }: { supplier: Supplier }) {
     }
   }
 
+  function addBasket() {
+    const id = basketDraft.trim();
+    if (id && !baskets.includes(id)) setBaskets([...baskets, id]);
+    setBasketDraft("");
+  }
+
   async function save(status: "submitted" | "draft") {
+    if (status === "submitted" && !cutDate) return setError("กรุณาระบุวันที่ตัด");
+    if (status === "submitted" && baskets.length === 0)
+      return setError("กรุณาเพิ่มตะกร้าอย่างน้อย 1 ใบ");
     setBusy(status === "draft" ? "draft" : "submit");
     setError(null);
     try {
@@ -40,31 +75,32 @@ export default function RoundForm({ supplier }: { supplier: Supplier }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           flowerCount: Number(flowerCount) || 0,
+          variety,
           cutDate,
           destination,
           distanceKm: Number(distanceKm) || 0,
-          basketId,
+          basketIds: baskets,
           status,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
-      router.push("/app/history");
       router.refresh();
+      onDone?.();
     } catch (err) {
       setError((err as Error).message);
       setBusy(null);
     }
   }
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!cutDate) return setError("กรุณาระบุวันที่ตัด");
-    save("submitted");
-  }
-
   return (
-    <form onSubmit={onSubmit} className="max-w-xl space-y-5">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        save("submitted");
+      }}
+      className="space-y-4"
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className={labelCls}>จำนวนดอกไม้ (ก้าน)</span>
@@ -90,50 +126,108 @@ export default function RoundForm({ supplier }: { supplier: Supplier }) {
       </div>
 
       <label className="block space-y-1">
-        <span className={labelCls}>ปลายทาง</span>
+        <span className={labelCls}>พันธุ์ดอกไม้ (variety)</span>
         <input
-          list="destinations"
-          value={destination}
-          onChange={(e) => onDestination(e.target.value)}
-          placeholder="กรุงเทพฯ"
+          list="varieties"
+          value={variety}
+          onChange={(e) => setVariety(e.target.value)}
+          placeholder="เลือกหรือพิมพ์ เช่น Red Naomi"
           className={inputCls}
         />
-        <datalist id="destinations">
-          {DESTINATIONS.map((d) => (
-            <option key={d.name} value={d.name} />
+        <datalist id="varieties">
+          {varieties.map((v) => (
+            <option key={v} value={v} />
           ))}
         </datalist>
       </label>
 
-      <label className="block space-y-1">
-        <span className={labelCls}>ระยะทาง (กม.) — ประมาณการอัตโนมัติ</span>
-        <input
-          type="number"
-          value={distanceKm}
-          onChange={(e) => {
-            setDistanceKm(e.target.value);
-            setDistanceEdited(true);
-          }}
-          placeholder="640"
-          className={inputCls}
-        />
-      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className={labelCls}>ปลายทาง</span>
+          <input
+            list="destinations"
+            value={destination}
+            onChange={(e) => onDestination(e.target.value)}
+            placeholder="กรุงเทพฯ"
+            className={inputCls}
+          />
+          <datalist id="destinations">
+            {DESTINATIONS.map((d) => (
+              <option key={d.name} value={d.name} />
+            ))}
+          </datalist>
+        </label>
+        <label className="block space-y-1">
+          <span className={labelCls}>ระยะทาง (กม.) — ประมาณอัตโนมัติ</span>
+          <input
+            type="number"
+            value={distanceKm}
+            onChange={(e) => {
+              setDistanceKm(e.target.value);
+              setDistanceEdited(true);
+            }}
+            placeholder="640"
+            className={inputCls}
+          />
+        </label>
+      </div>
 
-      <label className="block space-y-1">
-        <span className={labelCls}>ตะกร้าที่ใช้ (Basket ID)</span>
-        <input
-          value={basketId}
-          onChange={(e) => setBasketId(e.target.value)}
-          placeholder="BSK-014"
-          className={inputCls}
-        />
-      </label>
+      {/* Multi-basket */}
+      <div className="space-y-1.5">
+        <span className={labelCls}>ตะกร้าที่ใช้ (Basket ID) — เพิ่มได้หลายใบ</span>
+        <div className="flex gap-2">
+          <input
+            list="baskets"
+            value={basketDraft}
+            onChange={(e) => setBasketDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addBasket();
+              }
+            }}
+            placeholder="BSK-014"
+            className={inputCls}
+          />
+          <datalist id="baskets">
+            {basketOptions.map((b) => (
+              <option key={b} value={b} />
+            ))}
+          </datalist>
+          <button
+            type="button"
+            onClick={addBasket}
+            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <Plus size={15} /> เพิ่ม
+          </button>
+        </div>
+        {baskets.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {baskets.map((b) => (
+              <span
+                key={b}
+                className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
+              >
+                {b}
+                <button type="button" onClick={() => setBaskets(baskets.filter((x) => x !== b))}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">
+            ระบบจะนับจำนวนการใช้ซ้ำของแต่ละตะกร้าให้เองเพื่อคิดคาร์บอน
+          </p>
+        )}
+      </div>
 
       {error ? (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       ) : null}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-1">
         <button
           type="submit"
           disabled={busy !== null}
@@ -152,7 +246,6 @@ export default function RoundForm({ supplier }: { supplier: Supplier }) {
           บันทึกร่าง
         </button>
       </div>
-
       <p className="text-xs text-slate-400">
         ข้อมูลจะถูกส่งไปที่ระบบ KYN ทันทีเพื่อคำนวณคาร์บอนฟุตพรินท์
       </p>

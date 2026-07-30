@@ -50,7 +50,6 @@ export async function PATCH(
     "flowerType",
     "highlights",
     "contact",
-    "basketId",
   ];
   for (const k of strFields) {
     if (body[k] != null) (patch as Record<string, unknown>)[k] = String(body[k]);
@@ -61,7 +60,6 @@ export async function PATCH(
     "fuelLitres",
     "electricityKwh",
     "fertilizerKg",
-    "reuseCycles",
   ];
   for (const k of numFields) {
     if (body[k] != null && body[k] !== "")

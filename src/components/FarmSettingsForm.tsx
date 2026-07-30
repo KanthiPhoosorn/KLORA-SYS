@@ -9,7 +9,7 @@ const inputCls =
   "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
 const labelCls = "text-sm font-medium text-slate-600";
 
-function useSaver(id: string) {
+function useSaver(id: string, onDone?: () => void) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -29,6 +29,7 @@ function useSaver(id: string) {
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
       setDone(true);
       router.refresh();
+      onDone?.();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -51,9 +52,15 @@ function SaveButton({ busy, done }: { busy: boolean; done: boolean }) {
   );
 }
 
-export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
-  const profile = useSaver(supplier.id);
-  const calc = useSaver(supplier.id);
+export default function FarmSettingsForm({
+  supplier,
+  onDone,
+}: {
+  supplier: Supplier;
+  onDone?: () => void;
+}) {
+  const profile = useSaver(supplier.id, onDone);
+  const calc = useSaver(supplier.id, onDone);
 
   const [farmName, setFarmName] = useState(supplier.farmName);
   const [address, setAddress] = useState(supplier.address);
@@ -63,8 +70,6 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const [fuelLitres, setFuel] = useState(supplier.fuelLitres?.toString() ?? "");
   const [electricityKwh, setElec] = useState(supplier.electricityKwh?.toString() ?? "");
   const [fertilizerKg, setFert] = useState(supplier.fertilizerKg?.toString() ?? "");
-  const [basketId, setBasket] = useState(supplier.basketId ?? "");
-  const [reuseCycles, setReuse] = useState(supplier.reuseCycles?.toString() ?? "");
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -103,7 +108,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          calc.save({ fuelLitres, electricityKwh, fertilizerKg, basketId, reuseCycles });
+          calc.save({ fuelLitres, electricityKwh, fertilizerKg });
         }}
         className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
       >
@@ -117,19 +122,14 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             <span className={labelCls}>Electricity (kWh)</span>
             <input type="number" step="any" value={electricityKwh} onChange={(e) => setElec(e.target.value)} className={inputCls} />
           </label>
-          <label className="block space-y-1">
+          <label className="block space-y-1 sm:col-span-2">
             <span className={labelCls}>Fertilizer (กก.)</span>
             <input type="number" step="any" value={fertilizerKg} onChange={(e) => setFert(e.target.value)} className={inputCls} />
           </label>
-          <label className="block space-y-1">
-            <span className={labelCls}>Basket ID</span>
-            <input value={basketId} onChange={(e) => setBasket(e.target.value)} className={inputCls} />
-          </label>
-          <label className="block space-y-1 sm:col-span-2">
-            <span className={labelCls}>Reuse Cycle (รอบการใช้ซ้ำตะกร้า)</span>
-            <input type="number" step="any" value={reuseCycles} onChange={(e) => setReuse(e.target.value)} className={inputCls} />
-          </label>
         </div>
+        <p className="text-xs text-slate-400">
+          ตะกร้า (Basket) ย้ายไปกรอกในแต่ละรอบส่งออกแล้ว — ระบบนับจำนวนการใช้ซ้ำให้เอง
+        </p>
         {calc.error ? (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{calc.error}</p>
         ) : null}

@@ -37,13 +37,17 @@ export async function POST(req: Request) {
   const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 
   try {
+    const basketIds = Array.isArray(body.basketIds)
+      ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+      : [];
     const batch = await addBatch({
       supplierId: user.supplierId,
       flowerCount,
+      variety: body.variety ? String(body.variety) : undefined,
       cutDate: String(body.cutDate),
       distanceKm: Number(body.distanceKm) || 0,
       destination: body.destination ? String(body.destination) : undefined,
-      basketId: body.basketId ? String(body.basketId) : undefined,
+      basketIds,
       status,
     });
     return NextResponse.json(batch, { status: 201 });

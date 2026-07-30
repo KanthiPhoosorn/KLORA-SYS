@@ -8,15 +8,21 @@ after cutting) — transparent across the whole chain: **ต้นน้ำ → 
 
 ## Roles & workspaces
 
+Each role is **one page, no sidebar** — a slim top bar with modals/tabs (fewest clicks).
+
 | Role | เข้าที่ | หน้าที่ |
 |------|--------|---------|
-| **ต้นน้ำ / SUP (ฟาร์ม)** | `/login` · `/register` → `/app` | สมัคร/เข้าสู่ระบบ → ภาพรวม · กรอกรอบส่งออก (ประมาณระยะทางอัตโนมัติ) · แดชบอร์ดคาร์บอน · ประวัติ · แก้ไขข้อมูลฟาร์ม |
-| **กลางน้ำ / KYN** | `/kyn` | ภาพรวมระบบ · ข้อมูลที่รับเข้า (กด **คำนวณ**) · รายงานสรุป + Export CSV · จัดการ SUP (ระงับ/เปิดใช้) · Shipment/QR log |
-| **ปลายน้ำ / Thai Post** | `/thaipost` | ค้นหา SUP ID → **QR Label** (แบรนด์ KLORA) → พิมพ์ · ประวัติการพิมพ์ · สรุปวันนี้ |
+| **ต้นน้ำ / SUP (ฟาร์ม)** | `/login` · `/register` → `/app` | หน้าเดียว: ภาพรวม + แนวโน้ม + สัดส่วนคาร์บอน + ประวัติ. ปุ่มบนแถบบนเปิด **modal**: กรอกรอบส่งออก (พันธุ์ดอกไม้แบบ dropdown, **หลายตะกร้า/รอบ**, ประมาณระยะทางอัตโนมัติ) และ ตั้งค่าฟาร์ม |
+| **กลางน้ำ / KYN** | `/kyn` | หน้าเดียว แท็บบนสุด: ภาพรวม · ข้อมูลที่รับเข้า (กด **คำนวณ**) · รายงานสรุป + Export CSV · จัดการ SUP (ระงับ/เปิดใช้, แก้ไขใน modal) · QR log |
+| **ปลายน้ำ / Thai Post** | `/thaipost` | หน้าเดียว: ค้นหา **ชื่อฟาร์ม/SUP** (โชว์เฉพาะที่ยังไม่พิมพ์) → **QR Label** (แบรนด์ KLORA) → พิมพ์ → **ยืนยันอีกครั้งกัน human error** · ประวัติพิมพ์ที่ **ยกเลิก/พิมพ์ใหม่** ได้ |
 | **Carbon Passport** | `/trace/[batchId]` | หน้าที่ QR พาไป — ที่มา · คาร์บอน · อายุของดอกไม้ (สำหรับผู้บริโภค) |
 
 The SUP workspace requires login; KYN and Thai Post are operator consoles. Demo account:
-**`farm`** / **`password123`**.
+**`farm`** / **`password123`**. A **ช่วยเหลือ** button (contact admin) sits in every top bar.
+
+Basket reuse is tracked **per round** (`Batch.basketIds`, multiple per round) and the reuse count
+is derived automatically to amortise basket carbon — the more a basket is reused, the lower its
+per-round CO₂e.
 
 ## Flow
 
@@ -32,7 +38,7 @@ CO₂e/ดอก = (คาร์บอนปลูก + คาร์บอนข
 
 คาร์บอนปลูก  = Fuel·2.68 + Electricity·0.50 + Fertilizer·1.30   (kg CO₂e)
 คาร์บอนขนส่ง = ระยะทาง(km)·0.20
-คาร์บอนตะกร้า = 2.0 / Reuse Cycle
+คาร์บอนตะกร้า = Σ (2.0 / จำนวนครั้งที่ตะกร้าใบนั้นถูกใช้)   ← นับการใช้ซ้ำอัตโนมัติ ต่อรอบ
 
 อายุ (วัน)   = วันที่ลงข้อมูล − วันที่ตัด
 ```
@@ -65,12 +71,12 @@ src/
   app/
     page.tsx                 landing / role chooser
     (auth)/login · register  SUP sign-in / sign-up
-    app/                     SUP workspace (guarded): overview · new · dashboard · history · farm
-    kyn/                     KYN console: overview · incoming · report · suppliers · qrlog
-    thaipost/                Thai Post console: search+print · history · today
+    app/                     SUP — single page + round/settings modals (top bar, no sidebar)
+    kyn/                     KYN — single page, in-page tabs (overview/incoming/report/suppliers/qrlog)
+    thaipost/                Thai Post — single page (search/print + confirm + history)
     trace/[batchId]/         public carbon passport (QR target)
-    api/                     auth · suppliers · batches · prints · qr
-  components/                ConsoleShell · SidebarNav · ui · forms · QrLabel · …
+    api/                     auth · suppliers · batches · prints(+[id]) · qr
+  components/                TopBar · Modal · HelpButton · KynConsole · ThaiPostConsole · forms · QrLabel · …
   lib/                       types · store · auth · ids · carbon · geo · format · status · qr
 data/                        JSON store (seeded): suppliers · batches · users · prints
 ```
@@ -86,4 +92,5 @@ data/                        JSON store (seeded): suppliers · batches · users 
 | `GET` · `POST` | `/api/batches` | รายการรอบ / เพิ่มรอบ (session-scoped) |
 | `PATCH` | `/api/batches/[id]` | `action: compute` (KYN) หรืออัปเดตสถานะขนส่ง |
 | `GET` · `POST` | `/api/prints` | Shipment/QR log |
+| `PATCH` | `/api/prints/[id]` | ยกเลิกการพิมพ์ (พิมพ์ผิด) → พิมพ์ใหม่ได้ |
 | `GET` | `/api/qr?data=…` | QR code (SVG) |

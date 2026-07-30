@@ -75,8 +75,6 @@ export default function RegisterForm() {
       fuelLitres: fd.get("fuelLitres") || undefined,
       electricityKwh: fd.get("electricityKwh") || undefined,
       fertilizerKg: fd.get("fertilizerKg") || undefined,
-      basketId: fd.get("basketId") || undefined,
-      reuseCycles: fd.get("reuseCycles") || undefined,
       email: fd.get("email"),
       username: fd.get("username"),
       password: fd.get("password"),
@@ -160,9 +158,10 @@ export default function RegisterForm() {
           <Field name="fuelLitres" label="Fuel (ลิตร/เดือน)" type="number" step="any" placeholder="18" />
           <Field name="electricityKwh" label="Electricity (kWh)" type="number" step="any" placeholder="120" />
           <Field name="fertilizerKg" label="Fertilizer (กก.)" type="number" step="any" placeholder="25" />
-          <Field name="basketId" label="Basket ID" placeholder="BSK-014" />
-          <Field name="reuseCycles" label="Reuse Cycle (รอบ/ตะกร้า)" type="number" step="any" placeholder="5" />
         </div>
+        <p className="text-xs text-slate-400">
+          ตะกร้า (Basket) กรอกตอนลงรอบส่งออกแต่ละครั้ง เพิ่มได้หลายใบ
+        </p>
       </section>
 
       {/* Account */}

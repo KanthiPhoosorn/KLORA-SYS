@@ -1,10 +1,7 @@
-import { getBatches, getSuppliers } from "@/lib/store";
 import { StatCard, Card, Bar, BarChart } from "@/components/ui";
 import ExportCsvButton from "@/components/ExportCsvButton";
 import { buildMonthSeries } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 function groupBy<T>(items: T[], key: (t: T) => string) {
   const m = new Map<string, T[]>();
@@ -15,64 +12,53 @@ function groupBy<T>(items: T[], key: (t: T) => string) {
   return m;
 }
 
-export default async function ReportPage() {
-  const [batches, suppliers] = await Promise.all([getBatches(), getSuppliers()]);
+export default function KynReportSection({
+  suppliers,
+  batches,
+}: {
+  suppliers: Supplier[];
+  batches: Batch[];
+}) {
   const supById = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
   const computed = batches.filter((b) => b.status === "computed");
 
   const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
   const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
-  const avgAge = computed.length
-    ? computed.reduce((n, b) => n + b.ageDays, 0) / computed.length
-    : 0;
+  const avgAge = computed.length ? computed.reduce((n, b) => n + b.ageDays, 0) / computed.length : 0;
   const activeFarms = suppliers.filter((s) => s.status === "active").length;
 
-  const co2eSeries = buildMonthSeries(
-    computed,
-    (b) => b.cutDate,
-    (b) => b.co2ePerFlower * b.flowerCount,
-    5,
-  );
+  const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.co2ePerFlower * b.flowerCount, 5);
 
-  // Destination province stats.
-  const byProvince = [...groupBy(computed, (b) => b.destination ?? "—")].map(
-    ([province, bs]) => {
+  const byProvince = [...groupBy(computed, (b) => b.destination ?? "—")]
+    .map(([province, bs]) => {
       const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
       const co2e = bs.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
       const km = bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length;
-      const perFlower = flowers ? co2e / flowers : 0;
-      return { province, rounds: bs.length, flowers, km, co2e, perFlower };
-    },
-  ).sort((a, b) => b.flowers - a.flowers);
+      return { province, rounds: bs.length, flowers, km, perFlower: flowers ? co2e / flowers : 0 };
+    })
+    .sort((a, b) => b.flowers - a.flowers);
 
-  // Flower-type breakdown.
-  const byType = [...groupBy(computed, (b) => supById.get(b.supplierId)?.flowerType ?? "—")].map(
-    ([type, bs]) => {
-      const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
-      const avg = bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length;
-      return { type, flowers, avg };
-    },
-  ).sort((a, b) => b.flowers - a.flowers);
+  const byType = [...groupBy(computed, (b) => supById.get(b.supplierId)?.flowerType ?? "—")]
+    .map(([type, bs]) => ({
+      type,
+      flowers: bs.reduce((n, b) => n + b.flowerCount, 0),
+      avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length,
+    }))
+    .sort((a, b) => b.flowers - a.flowers);
   const maxType = Math.max(1, ...byType.map((t) => t.flowers));
 
-  // Freshness distribution.
   const buckets = [
     { label: "0-1 วัน", test: (a: number) => a <= 1 },
     { label: "2-3 วัน", test: (a: number) => a >= 2 && a <= 3 },
     { label: "4+ วัน", test: (a: number) => a >= 4 },
-  ].map((bk) => ({
-    label: bk.label,
-    count: computed.filter((b) => bk.test(b.ageDays)).length,
-  }));
+  ].map((bk) => ({ label: bk.label, count: computed.filter((b) => bk.test(b.ageDays)).length }));
   const freshTotal = Math.max(1, computed.length);
 
-  // Lowest-carbon farm ranking.
   const ranking = suppliers
     .map((s) => {
       const bs = computed.filter((b) => b.supplierId === s.id);
       const avg = bs.length ? bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length : Infinity;
-      const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
-      return { s, avg, flowers, rounds: bs.length };
+      return { s, avg, rounds: bs.length };
     })
     .filter((r) => Number.isFinite(r.avg))
     .sort((a, b) => a.avg - b.avg);
@@ -80,6 +66,7 @@ export default async function ReportPage() {
   const csvRows = computed.map((b: Batch) => ({
     Batch: b.id,
     ฟาร์ม: supById.get(b.supplierId)?.farmName ?? "",
+    พันธุ์: b.variety ?? "",
     จังหวัด: supById.get(b.supplierId)?.province ?? "",
     ปลายทาง: b.destination ?? "",
     ดอก: b.flowerCount,
@@ -109,11 +96,8 @@ export default async function ReportPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Province stats */}
         <Card className="overflow-x-auto">
-          <div className="border-b border-slate-100 px-5 py-3 text-base font-semibold text-slate-800">
-            สถิติจังหวัดปลายทาง
-          </div>
+          <div className="border-b border-slate-100 px-5 py-3 text-base font-semibold text-slate-800">สถิติจังหวัดปลายทาง</div>
           <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
@@ -138,7 +122,6 @@ export default async function ReportPage() {
           </table>
         </Card>
 
-        {/* Flower-type breakdown */}
         <Card className="p-5">
           <h2 className="mb-4 text-base font-semibold text-slate-800">สัดส่วนประเภทดอกไม้</h2>
           <div className="space-y-3">
@@ -146,9 +129,7 @@ export default async function ReportPage() {
               <div key={t.type} className="space-y-1.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">{t.type}</span>
-                  <span className="tabular text-slate-500">
-                    {t.flowers.toLocaleString()} · {t.avg.toFixed(3)} กก./ดอก
-                  </span>
+                  <span className="tabular text-slate-500">{t.flowers.toLocaleString()} · {t.avg.toFixed(3)} กก./ดอก</span>
                 </div>
                 <Bar value={t.flowers} max={maxType} />
               </div>
@@ -156,7 +137,6 @@ export default async function ReportPage() {
           </div>
         </Card>
 
-        {/* Freshness distribution */}
         <Card className="p-5">
           <h2 className="mb-4 text-base font-semibold text-slate-800">การกระจายความสด (ระยะเวลาหลังตัด)</h2>
           <div className="space-y-3">
@@ -164,9 +144,7 @@ export default async function ReportPage() {
               <div key={bk.label} className="space-y-1.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">{bk.label}</span>
-                  <span className="font-semibold tabular text-slate-800">
-                    {Math.round((bk.count / freshTotal) * 100)}%
-                  </span>
+                  <span className="font-semibold tabular text-slate-800">{Math.round((bk.count / freshTotal) * 100)}%</span>
                 </div>
                 <Bar value={bk.count} max={freshTotal} className="bg-emerald-500" />
               </div>
@@ -174,12 +152,9 @@ export default async function ReportPage() {
           </div>
         </Card>
 
-        {/* Lowest-carbon ranking */}
         <Card className="overflow-x-auto">
-          <div className="border-b border-slate-100 px-5 py-3 text-base font-semibold text-slate-800">
-            อันดับฟาร์มที่ปล่อยคาร์บอนต่ำสุด
-          </div>
-          <table className="w-full min-w-[380px] text-sm">
+          <div className="border-b border-slate-100 px-5 py-3 text-base font-semibold text-slate-800">อันดับฟาร์มที่ปล่อยคาร์บอนต่ำสุด</div>
+          <table className="w-full min-w-[360px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
                 <th className="px-5 py-2 font-medium">#</th>
@@ -194,9 +169,7 @@ export default async function ReportPage() {
                   <td className="px-5 py-2 tabular text-slate-500">{i + 1}</td>
                   <td className="px-5 py-2 text-slate-700">{r.s.farmName}</td>
                   <td className="px-5 py-2 text-right tabular">{r.rounds}</td>
-                  <td className="px-5 py-2 text-right font-semibold tabular text-emerald-600">
-                    {r.avg.toFixed(3)}
-                  </td>
+                  <td className="px-5 py-2 text-right font-semibold tabular text-emerald-600">{r.avg.toFixed(3)}</td>
                 </tr>
               ))}
             </tbody>

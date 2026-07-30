@@ -65,8 +65,6 @@ export async function POST(req: Request) {
     fuelLitres: n("fuelLitres"),
     electricityKwh: n("electricityKwh"),
     fertilizerKg: n("fertilizerKg"),
-    basketId: s("basketId") || undefined,
-    reuseCycles: n("reuseCycles"),
   };
 
   const supplier = await addSupplier(input);
