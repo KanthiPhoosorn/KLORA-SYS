@@ -1,0 +1,18 @@
+[
+  {
+    "id": "INV-0001",
+    "supplierId": "SUP-2026-0001",
+    "email": "somsak@maesalong.co.th",
+    "role": "member",
+    "invitedAt": "2026-07-26T10:00:00.000Z",
+    "status": "pending"
+  },
+  {
+    "id": "INV-0002",
+    "supplierId": "SUP-2026-0001",
+    "email": "nid@maesalong.co.th",
+    "role": "member",
+    "invitedAt": "2026-07-27T11:30:00.000Z",
+    "status": "pending"
+  }
+]

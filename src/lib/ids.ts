@@ -20,3 +20,11 @@ export function nextUserId(existingCount: number): string {
 export function nextPrintId(existingCount: number): string {
   return `PRT-${pad(existingCount + 1)}`;
 }
+
+export function nextMemberId(existingCount: number): string {
+  return `MEM-${pad(existingCount + 1)}`;
+}
+
+export function nextInviteId(existingCount: number): string {
+  return `INV-${pad(existingCount + 1)}`;
+}

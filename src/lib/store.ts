@@ -11,12 +11,17 @@ import type {
   BatchInput,
   User,
   PrintLog,
+  Member,
+  Invite,
+  MemberRole,
 } from "./types";
 import {
   nextSupplierId,
   nextBatchId,
   nextUserId,
   nextPrintId,
+  nextMemberId,
+  nextInviteId,
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts } from "./carbon";
 
@@ -218,6 +223,64 @@ export async function updateUser(
   if (idx < 0) return null;
   all[idx] = { ...all[idx], ...patch, id: all[idx].id, createdAt: all[idx].createdAt };
   await writeJson(USERS_FILE, all);
+  return all[idx];
+}
+
+// --- Team members + invites (จัดการระบบ) ----------------------------------
+const MEMBERS_FILE = path.join(DATA_DIR, "members.json");
+const INVITES_FILE = path.join(DATA_DIR, "invites.json");
+
+export async function getMembers(supplierId?: string): Promise<Member[]> {
+  const all = await readJson<Member>(MEMBERS_FILE);
+  return supplierId ? all.filter((m) => m.supplierId === supplierId) : all;
+}
+export async function addMember(input: Omit<Member, "id" | "createdAt">): Promise<Member> {
+  const all = await readJson<Member>(MEMBERS_FILE);
+  const m: Member = { ...input, id: nextMemberId(all.length), createdAt: new Date().toISOString() };
+  all.push(m);
+  await writeJson(MEMBERS_FILE, all);
+  return m;
+}
+export async function updateMember(id: string, patch: Partial<Pick<Member, "role" | "name" | "email">>): Promise<Member | null> {
+  const all = await readJson<Member>(MEMBERS_FILE);
+  const idx = all.findIndex((m) => m.id === id);
+  if (idx < 0) return null;
+  all[idx] = { ...all[idx], ...patch, id: all[idx].id };
+  await writeJson(MEMBERS_FILE, all);
+  return all[idx];
+}
+export async function removeMember(id: string): Promise<boolean> {
+  const all = await readJson<Member>(MEMBERS_FILE);
+  const next = all.filter((m) => m.id !== id);
+  if (next.length === all.length) return false;
+  await writeJson(MEMBERS_FILE, next);
+  return true;
+}
+
+export async function getInvites(supplierId?: string): Promise<Invite[]> {
+  const all = await readJson<Invite>(INVITES_FILE);
+  return supplierId ? all.filter((i) => i.supplierId === supplierId) : all;
+}
+export async function addInvite(supplierId: string, email: string, role: MemberRole): Promise<Invite> {
+  const all = await readJson<Invite>(INVITES_FILE);
+  const inv: Invite = {
+    id: nextInviteId(all.length),
+    supplierId,
+    email,
+    role,
+    invitedAt: new Date().toISOString(),
+    status: "pending",
+  };
+  all.push(inv);
+  await writeJson(INVITES_FILE, all);
+  return inv;
+}
+export async function updateInvite(id: string, status: Invite["status"]): Promise<Invite | null> {
+  const all = await readJson<Invite>(INVITES_FILE);
+  const idx = all.findIndex((i) => i.id === id);
+  if (idx < 0) return null;
+  all[idx] = { ...all[idx], status };
+  await writeJson(INVITES_FILE, all);
   return all[idx];
 }
 

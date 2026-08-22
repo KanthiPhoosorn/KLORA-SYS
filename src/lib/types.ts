@@ -91,6 +91,28 @@ export interface User {
   createdAt: string; // ISO
 }
 
+// Team management (จัดการระบบ) — members + invites, scoped to an org (supplierId).
+export type MemberRole = "org_admin" | "member";
+
+export interface Member {
+  id: string; // MEM-NNNN
+  supplierId: string; // org
+  name: string;
+  email: string;
+  role: MemberRole;
+  lastActiveAt?: string; // ISO
+  createdAt: string;
+}
+
+export interface Invite {
+  id: string; // INV-NNNN
+  supplierId: string;
+  email: string;
+  role: MemberRole;
+  invitedAt: string;
+  status: "pending" | "cancelled" | "accepted";
+}
+
 // A record that a QR label was printed (Thai Post → KYN Shipment/QR log).
 export interface PrintLog {
   id: string; // PRT-NNNN

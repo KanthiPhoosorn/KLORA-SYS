@@ -1,0 +1,38 @@
+[
+  {
+    "id": "MEM-0001",
+    "supplierId": "SUP-2026-0001",
+    "name": "สมชาย ใจดี",
+    "email": "farm@maesalong.co.th",
+    "role": "org_admin",
+    "lastActiveAt": "2026-07-27T08:30:00.000Z",
+    "createdAt": "2026-07-15T02:35:00.000Z"
+  },
+  {
+    "id": "MEM-0002",
+    "supplierId": "SUP-2026-0001",
+    "name": "สมหมาย วิชัย",
+    "email": "sommaiv@gmail.com",
+    "role": "org_admin",
+    "lastActiveAt": "2026-07-26T14:10:00.000Z",
+    "createdAt": "2026-07-16T03:00:00.000Z"
+  },
+  {
+    "id": "MEM-0003",
+    "supplierId": "SUP-2026-0001",
+    "name": "มาลี ศรีสุข",
+    "email": "malee@maesalong.co.th",
+    "role": "member",
+    "lastActiveAt": "2026-07-25T09:20:00.000Z",
+    "createdAt": "2026-07-18T05:00:00.000Z"
+  },
+  {
+    "id": "MEM-0004",
+    "supplierId": "SUP-2026-0001",
+    "name": "อนันต์ พงษ์ไพร",
+    "email": "anan@maesalong.co.th",
+    "role": "member",
+    "lastActiveAt": "2026-07-24T16:45:00.000Z",
+    "createdAt": "2026-07-20T05:00:00.000Z"
+  }
+]
