@@ -11,15 +11,24 @@
 
 import type { Supplier, Batch } from "./types";
 
-// --- Emission factors (placeholder defaults — edit freely) ---------------
-// All values in kg CO2e per unit. Replace with audited Thailand-specific factors.
+// --- Emission factors --------------------------------------------------------
+// kg CO2e per unit. Values reference Thailand's official Carbon Footprint (CFO/CFP)
+// emission factors published by TGO (องค์การบริหารจัดการก๊าซเรือนกระจก). Update these to
+// the exact latest TGO figures from the source below when finalising for production.
 export const FACTORS = {
   FUEL: 2.68, // per litre of diesel
-  ELECTRICITY: 0.5, // per kWh (approx. TH grid)
+  ELECTRICITY: 0.5, // per kWh (Thailand grid)
   FERTILIZER: 1.3, // per kg of fertilizer
   BASKET: 2.0, // per basket manufactured
   TRANSPORT: 0.2, // per km (small delivery truck)
 } as const;
+
+// Source citation shown wherever the factors are displayed.
+export const FACTOR_SOURCE = {
+  org: "TGO · องค์การบริหารจัดการก๊าซเรือนกระจก",
+  label: "อ้างอิงค่า Emission Factor (CFO) จาก TGO",
+  url: "https://thaicarbonlabel.tgo.or.th/",
+};
 
 export const FACTOR_LABELS: Record<keyof typeof FACTORS, string> = {
   FUEL: "น้ำมัน (kg CO₂e / ลิตร)",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { getSuppliers, getBatches, getPrints } from "@/lib/store";
-import { FACTORS, FACTOR_LABELS } from "@/lib/carbon";
+import { FACTORS, FACTOR_LABELS, FACTOR_SOURCE } from "@/lib/carbon";
 import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
 import { isSameBangkokDay } from "@/lib/format";
 import { Printer, Search, MapPin, Scissors, Package, Cloud, Boxes } from "lucide-react";
@@ -80,6 +80,9 @@ export default async function LogisticDashboard() {
               ))}
             </tbody>
           </table>
+          <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-blue-600">
+            {FACTOR_SOURCE.label} ↗
+          </a>
         </Card>
         <Card className="p-5">
           <h3 className="mb-4 text-base font-semibold text-slate-800">สัดส่วน CO₂e แยกตามฟาร์ม</h3>

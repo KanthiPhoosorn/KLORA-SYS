@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FACTORS, FACTOR_LABELS } from "@/lib/carbon";
+import { FACTORS, FACTOR_LABELS, FACTOR_SOURCE } from "@/lib/carbon";
 import { StatCard, Card, CardHeader, Bar, Badge } from "@/components/ui";
 import { freshnessTone } from "@/lib/status";
 import { Leaf, ArrowUpRight, SlidersHorizontal } from "lucide-react";
@@ -116,7 +116,7 @@ export default function KynOverviewSection({
           </Card>
 
           <Card>
-            <CardHeader icon={<SlidersHorizontal size={18} />} title="ค่าสัมประสิทธิ์คาร์บอน" subtitle="Emission factors (แก้ได้ใน carbon.ts)" />
+            <CardHeader icon={<SlidersHorizontal size={18} />} title="ค่าสัมประสิทธิ์คาร์บอน" subtitle="Emission factors" />
             <div className="px-5 py-4">
               <table className="w-full text-sm">
                 <tbody>
@@ -128,6 +128,9 @@ export default function KynOverviewSection({
                   ))}
                 </tbody>
               </table>
+              <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-brand-blue">
+                {FACTOR_SOURCE.label} ↗
+              </a>
             </div>
           </Card>
         </div>

@@ -44,9 +44,9 @@ export interface PortalNavItem {
 }
 
 const ACCENT: Record<Accent, { brand: string; active: string; dot: string }> = {
-  pink: { brand: "text-emerald-700", active: "bg-pink-500 text-white shadow-sm", dot: "text-pink-600" },
-  blue: { brand: "text-blue-600", active: "bg-blue-600 text-white shadow-sm", dot: "text-blue-600" },
-  slate: { brand: "text-slate-900", active: "bg-slate-800 text-white shadow-sm", dot: "text-slate-700" },
+  pink: { brand: "text-[#018e46]", active: "bg-[#e1478a] text-white shadow-sm", dot: "text-slate-400" },
+  blue: { brand: "text-blue-600", active: "bg-blue-600 text-white shadow-sm", dot: "text-slate-400" },
+  slate: { brand: "text-slate-900", active: "bg-slate-800 text-white shadow-sm", dot: "text-slate-400" },
 };
 
 export default function PortalShell({
