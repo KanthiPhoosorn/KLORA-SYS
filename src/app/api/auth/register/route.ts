@@ -17,12 +17,24 @@ export async function POST(req: Request) {
   const s = (k: string) => (body[k] != null ? String(body[k]).trim() : "");
   const n = (k: string) => (body[k] != null && body[k] !== "" ? Number(body[k]) : undefined);
 
+  // Multi-step register maps onto the supplier profile:
+  //  contactName → owner · phone+lineId → contact · details → highlights
+  const contactName = s("contactName") || s("owner");
+  const phone = s("phone");
+  const lineId = s("lineId");
+  const contact = s("contact") || [phone && `โทร ${phone}`, lineId && `LINE ${lineId}`].filter(Boolean).join(" / ");
+  const highlights = s("highlights") || s("details");
+  const varieties = Array.isArray(body.varieties)
+    ? (body.varieties as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+    : undefined;
+
   // Mandatory farm profile.
-  const requiredFarm = ["farmName", "address", "owner", "flowerType", "highlights", "contact"];
-  const missingFarm = requiredFarm.filter((k) => !s(k));
-  if (missingFarm.length) {
+  const farmName = s("farmName");
+  const address = s("address");
+  const flowerType = s("flowerType");
+  if (!farmName || !address || !contactName || !flowerType) {
     return NextResponse.json(
-      { error: `กรอกข้อมูลฟาร์มไม่ครบ: ${missingFarm.join(", ")}` },
+      { error: "กรอกข้อมูลผู้ผลิตไม่ครบ (ชื่อแหล่งผลิต / ผู้ติดต่อ / ที่อยู่ / ชนิดดอกไม้)" },
       { status: 400 },
     );
   }
@@ -51,20 +63,37 @@ export async function POST(req: Request) {
     );
   }
 
-  const address = s("address");
+  // GPS may arrive as "lat, lng" in a single field.
+  let gpsLat = n("gpsLat") ?? 0;
+  let gpsLng = n("gpsLng") ?? 0;
+  const gpsStr = s("gps");
+  if (gpsStr && (!gpsLat || !gpsLng)) {
+    const [la, ln] = gpsStr.split(",").map((x) => Number(x.trim()));
+    if (!Number.isNaN(la)) gpsLat = la;
+    if (!Number.isNaN(ln)) gpsLng = ln;
+  }
+
   const input: SupplierInput = {
-    farmName: s("farmName"),
+    farmName,
     address,
     province: provinceFromAddress(address) || undefined,
-    gpsLat: n("gpsLat") ?? 0,
-    gpsLng: n("gpsLng") ?? 0,
-    owner: s("owner"),
-    flowerType: s("flowerType"),
-    highlights: s("highlights"),
-    contact: s("contact"),
+    gpsLat,
+    gpsLng,
+    owner: contactName,
+    contactName,
+    phone: phone || undefined,
+    lineId: lineId || undefined,
+    flowerType,
+    varieties,
+    highlights: highlights || "—",
+    contact: contact || "—",
     fuelLitres: n("fuelLitres"),
     electricityKwh: n("electricityKwh"),
     fertilizerKg: n("fertilizerKg"),
+    agriChemicalsKg: n("agriChemicalsKg"),
+    waterM3: n("waterM3"),
+    wasteKg: n("wasteKg"),
+    flowersPerMonth: n("flowersPerMonth"),
   };
 
   const supplier = await addSupplier(input);

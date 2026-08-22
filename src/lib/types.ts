@@ -23,6 +23,16 @@ export interface Supplier {
   fuelLitres?: number; // Fuel — litres of diesel per cutting round
   electricityKwh?: number; // Electricity — kWh per cutting round
   fertilizerKg?: number; // Fertilizer — kg per cutting round
+  agriChemicalsKg?: number; // สารเคมีทางการเกษตร (kg/เดือน)
+  waterM3?: number; // ปริมาณน้ำ (ลบ.ม./เดือน)
+  wasteKg?: number; // ปริมาณของเสีย (kg/เดือน)
+  flowersPerMonth?: number; // จำนวนดอกที่ปลูกต่อเดือน
+
+  // --- extended producer profile (from multi-step register) ---
+  contactName?: string; // ชื่อผู้ติดต่อ
+  phone?: string; // เบอร์โทร
+  lineId?: string; // Line ID
+  varieties?: string[]; // พันธุ์ดอกไม้ที่ปลูก
 
   // --- consumer passport extras (optional) ---
   description?: string; // คำโปรยหน้า passport
