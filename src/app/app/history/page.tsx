@@ -1,25 +1,37 @@
 import { requireRole } from "@/lib/auth";
-import { getBatchesBySupplier } from "@/lib/store";
+import { getBatchesBySupplier, getPrints } from "@/lib/store";
 import HistoryTable, { type HistoryRow } from "@/components/HistoryTable";
 import { thaiDateShort } from "@/lib/format";
-import { CALC_STATUS, SHIP_STATUS } from "@/lib/status";
+import type { Tone } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
   const user = await requireRole("supplier");
-  const batches = await getBatchesBySupplier(user.supplierId!);
-  const sorted = [...batches].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const rows: HistoryRow[] = sorted.map((b) => ({
-    id: b.id,
-    dateLabel: thaiDateShort(b.cutDate),
-    flowerCount: b.flowerCount,
-    destination: b.destination ?? "",
-    calcLabel: CALC_STATUS[b.status].label,
-    calcTone: CALC_STATUS[b.status].tone,
-    shipLabel: SHIP_STATUS[b.shipmentStatus].label,
-    shipTone: SHIP_STATUS[b.shipmentStatus].tone,
-  }));
+  const [batches, prints] = await Promise.all([
+    getBatchesBySupplier(user.supplierId!),
+    getPrints(),
+  ]);
+  const printed = new Set(prints.filter((p) => !p.cancelled).map((p) => p.batchId));
+
+  const rows: HistoryRow[] = [...batches]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((b) => {
+      let statusLabel = "รอดำเนินการ";
+      let statusTone: Tone = "neutral";
+      if (printed.has(b.id)) { statusLabel = "พิมพ์ QR Code แล้ว"; statusTone = "green"; }
+      else if (b.status === "computed") { statusLabel = "รอพิมพ์ QR Code"; statusTone = "amber"; }
+      else if (b.status === "draft") { statusLabel = "ร่าง"; statusTone = "neutral"; }
+      return {
+        id: b.id,
+        shipDate: thaiDateShort(b.entryDate),
+        cutDate: thaiDateShort(b.cutDate),
+        flowerCount: b.flowerCount,
+        destination: b.destination ?? "",
+        statusLabel,
+        statusTone,
+      };
+    });
 
   return (
     <div className="space-y-6">
