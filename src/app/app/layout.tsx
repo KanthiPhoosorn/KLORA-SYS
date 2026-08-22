@@ -42,10 +42,10 @@ export default async function SupplierLayout({
         >
           <LifeBuoy size={16} /> Help center
         </Link>
-        <button className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" title="แจ้งเตือน">
+        <Link href="/app/notifications" className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" title="แจ้งเตือน">
           <Bell size={18} />
-        </button>
-        <AccountButton label="SUP ID" id={supplier.id} />
+        </Link>
+        <AccountButton label="SUP ID" id={supplier.id} profileHref="/app/profile" />
       </div>
     </>
   );

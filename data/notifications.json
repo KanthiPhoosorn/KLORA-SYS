@@ -1,0 +1,29 @@
+[
+  {
+    "id": "NTF-0001",
+    "supplierId": "SUP-2026-0001",
+    "title": "คำนวณคาร์บอนเสร็จแล้ว",
+    "body": "รอบ BAT-2026-0002 ได้รับการคำนวณคาร์บอนเรียบร้อยแล้ว (0.3048 kgCO₂e/ดอก)",
+    "kind": "success",
+    "createdAt": "2026-07-26T02:00:00.000Z",
+    "read": false
+  },
+  {
+    "id": "NTF-0002",
+    "supplierId": "SUP-2026-0001",
+    "title": "พิมพ์ QR สำเร็จ",
+    "body": "Thaipost พิมพ์ฉลาก QR สำหรับ BAT-2026-0002 แล้ว",
+    "kind": "info",
+    "createdAt": "2026-07-26T07:32:00.000Z",
+    "read": false
+  },
+  {
+    "id": "NTF-0003",
+    "supplierId": "SUP-2026-0001",
+    "title": "มีรอบรอคำนวณ",
+    "body": "รอบ BAT-2026-0005 ถูกส่งเข้าระบบ KYN และกำลังรอการคำนวณ",
+    "kind": "warning",
+    "createdAt": "2026-07-27T03:30:00.000Z",
+    "read": true
+  }
+]

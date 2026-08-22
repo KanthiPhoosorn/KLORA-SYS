@@ -113,6 +113,17 @@ export interface Invite {
   status: "pending" | "cancelled" | "accepted";
 }
 
+// Notification (bell / Noti screen).
+export interface Notification {
+  id: string;
+  supplierId?: string;
+  title: string;
+  body: string;
+  kind: "info" | "success" | "warning";
+  createdAt: string;
+  read?: boolean;
+}
+
 // A record that a QR label was printed (Thai Post → KYN Shipment/QR log).
 export interface PrintLog {
   id: string; // PRT-NNNN

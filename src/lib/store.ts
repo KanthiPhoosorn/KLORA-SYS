@@ -226,6 +226,14 @@ export async function updateUser(
   return all[idx];
 }
 
+// --- Notifications --------------------------------------------------------
+const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
+export async function getNotifications(supplierId?: string): Promise<import("./types").Notification[]> {
+  const all = await readJson<import("./types").Notification>(NOTIF_FILE);
+  const scoped = supplierId ? all.filter((n) => !n.supplierId || n.supplierId === supplierId) : all;
+  return scoped.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 // --- Team members + invites (จัดการระบบ) ----------------------------------
 const MEMBERS_FILE = path.join(DATA_DIR, "members.json");
 const INVITES_FILE = path.join(DATA_DIR, "invites.json");
