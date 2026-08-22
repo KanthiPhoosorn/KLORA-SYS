@@ -44,13 +44,19 @@ export async function POST(req: Request) {
     const basketIds = Array.isArray(body.basketIds)
       ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
       : [];
+    const str = (k: string) => (body[k] ? String(body[k]) : undefined);
     const batch = await addBatch({
       supplierId,
       flowerCount,
-      variety: body.variety ? String(body.variety) : undefined,
+      variety: str("variety"),
       cutDate: String(body.cutDate),
       distanceKm: Number(body.distanceKm) || 0,
-      destination: body.destination ? String(body.destination) : undefined,
+      destination: str("destination"),
+      carrier: str("carrier"),
+      postalCode: str("postalCode"),
+      branch: str("branch"),
+      boxMaterial: str("boxMaterial"),
+      weightKg: body.weightKg != null && body.weightKg !== "" ? Number(body.weightKg) : undefined,
       basketIds,
       status,
     });

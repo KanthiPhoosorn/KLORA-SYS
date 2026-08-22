@@ -58,7 +58,10 @@ export interface Batch {
   cutDate: string; // วันที่ตัด (YYYY-MM-DD)
   distanceKm: number; // ระยะทาง (ปลายทาง)
   destination?: string; // ปลายทาง เช่น กรุงเทพฯ
-  carrier?: string; // ขนส่ง เช่น cold chain / ปณ. / Exportor
+  carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ / Cold Chain / Exporter
+  postalCode?: string; // รหัสไปรษณีย์ปลายทาง
+  branch?: string; // สาขาที่นำส่ง
+  boxMaterial?: string; // วัสดุภายในกล่อง (บรรจุภัณฑ์)
   weightKg?: number; // น้ำหนักรวม (kg) — passport
   basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
 
@@ -109,6 +112,9 @@ export type BatchInput = Pick<
   variety?: string;
   destination?: string;
   carrier?: string;
+  postalCode?: string;
+  branch?: string;
+  boxMaterial?: string;
   weightKg?: number;
   basketIds?: string[];
   status?: BatchStatus; // "draft" | "submitted"
