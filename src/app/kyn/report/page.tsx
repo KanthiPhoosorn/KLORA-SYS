@@ -1,11 +1,11 @@
 import { requireRole } from "@/lib/auth";
 import { getSuppliers, getBatches } from "@/lib/store";
-import KynOverviewSection from "@/components/KynOverviewSection";
+import KynReportSection from "@/components/KynReportSection";
 
 export const dynamic = "force-dynamic";
 
-export default async function KynOverviewPage() {
+export default async function KynReportPage() {
   await requireRole("kyn");
   const [suppliers, batches] = await Promise.all([getSuppliers(), getBatches()]);
-  return <KynOverviewSection suppliers={suppliers} batches={batches} />;
+  return <KynReportSection suppliers={suppliers} batches={batches} />;
 }

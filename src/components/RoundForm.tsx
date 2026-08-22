@@ -86,7 +86,8 @@ export default function RoundForm({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
       router.refresh();
-      onDone?.();
+      if (onDone) onDone();
+      else router.push("/app/history");
     } catch (err) {
       setError((err as Error).message);
       setBusy(null);

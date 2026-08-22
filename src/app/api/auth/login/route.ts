@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserByLogin, getSupplier } from "@/lib/store";
-import { verifyPassword, setSessionCookie } from "@/lib/auth";
+import { verifyPassword, setSessionCookie, homeForRole } from "@/lib/auth";
 
 // POST /api/auth/login — { login (username or email), password }
 export async function POST(req: Request) {
@@ -26,14 +26,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const supplier = await getSupplier(user.supplierId);
-  if (supplier?.status === "suspended") {
-    return NextResponse.json(
-      { error: "บัญชีฟาร์มนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN" },
-      { status: 403 },
-    );
+  if (user.role === "supplier" && user.supplierId) {
+    const supplier = await getSupplier(user.supplierId);
+    if (supplier?.status === "suspended") {
+      return NextResponse.json(
+        { error: "บัญชีฟาร์มนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN" },
+        { status: 403 },
+      );
+    }
   }
 
   await setSessionCookie(user.id);
-  return NextResponse.json({ ok: true, supplierId: user.supplierId });
+  return NextResponse.json({
+    ok: true,
+    role: user.role,
+    supplierId: user.supplierId,
+    redirect: homeForRole(user.role),
+  });
 }

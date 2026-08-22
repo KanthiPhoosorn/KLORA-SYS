@@ -1,69 +1,78 @@
 import Link from "next/link";
-import { Sprout, Factory, Package, ArrowRight } from "lucide-react";
+import { Sprout, Boxes, Factory, ArrowRight, Flower2 } from "lucide-react";
 
-const LANES = [
+const PORTALS = [
   {
-    href: "/login",
+    tag: "ต้นน้ำ · Supplier",
+    title: "ฟาร์ม / ผู้ผลิต",
+    desc: "ลงรอบส่งออก ดูแดชบอร์ดคาร์บอน และติดตามสถานะ",
     icon: Sprout,
-    tag: "ต้นน้ำ · SUP",
-    title: "ฟาร์ม / Supplier",
-    desc: "สมัครสมาชิก → กรอกข้อมูลฟาร์ม → รับ SUP ID → ลงรอบส่งออกทุกครั้ง",
-    cta: "เข้าสู่ระบบฟาร์ม",
+    color: "from-emerald-400 to-emerald-600",
+    demo: "farm / password123",
   },
   {
-    href: "/kyn",
-    icon: Factory,
     tag: "กลางน้ำ · KYN",
-    title: "ระบบคำนวณคาร์บอน",
-    desc: "รับข้อมูล → คัดแยก → คำนวณ CO₂e + อายุดอกไม้ → รายงานสรุป",
-    cta: "เปิดคอนโซล KYN",
+    title: "KYN × Outsource",
+    desc: "คำนวณคาร์บอน จัดการ SUP และรายงานสรุป",
+    icon: Factory,
+    color: "from-slate-700 to-slate-900",
+    demo: "kyn / password123",
   },
   {
-    href: "/thaipost",
-    icon: Package,
-    tag: "ปลายน้ำ · Thai Post",
-    title: "ออกฉลาก & QR",
-    desc: "ค้นหา SUP ID → สร้าง QR Label → พิมพ์ติดพัสดุ",
-    cta: "เปิดคอนโซล Thai Post",
+    tag: "ปลายน้ำ · Logistic",
+    title: "โรงคัดแยก / ขนส่ง",
+    desc: "ค้นหาพัสดุ พิมพ์ QR label และติดตามการพิมพ์",
+    icon: Boxes,
+    color: "from-blue-500 to-blue-700",
+    demo: "logistic / password123",
   },
 ];
 
 export default function Landing() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-4 py-12">
-      <header className="mb-8">
-        <div className="text-3xl font-extrabold tracking-tight text-pink-500">KLORA</div>
-        <p className="mt-1 text-sm text-slate-500">
-          ระบบปฏิบัติการการขนส่งดอกไม้ · เลือกบทบาทเพื่อเข้าใช้งาน
+    <div className="min-h-screen bg-slate-50">
+      <section className="brand-bg border-b border-pink-900/10">
+        <div className="mx-auto max-w-5xl px-5 py-14">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm font-medium text-pink-600">
+            <Flower2 size={15} /> ระบบตรวจสอบที่มา &amp; คาร์บอนของดอกไม้
+          </div>
+          <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-pink-600">KLORA</h1>
+          <p className="mt-2 max-w-2xl text-lg font-semibold text-pink-700">
+            ระบบปฏิบัติการการขนส่งดอกไม้ — เลือกพอร์ทัลตามบทบาทเพื่อเข้าใช้งาน
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-5 py-12">
+        <div className="grid gap-4 md:grid-cols-3">
+          {PORTALS.map((p) => {
+            const Icon = p.icon;
+            return (
+              <Link
+                key={p.title}
+                href="/login"
+                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+              >
+                <span className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${p.color} text-white`}>
+                  <Icon size={22} />
+                </span>
+                <div className="mt-4 text-xs font-medium text-slate-400">{p.tag}</div>
+                <div className="mt-0.5 text-lg font-bold text-slate-900">{p.title}</div>
+                <p className="mt-2 text-sm text-slate-500">{p.desc}</p>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] text-slate-500">{p.demo}</span>
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-900 group-hover:gap-2">
+                    เข้าสู่ระบบ <ArrowRight size={15} />
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-8 text-center text-xs text-slate-400">
+          ฟาร์มใหม่สามารถ <Link href="/register" className="font-medium text-pink-600 hover:underline">สมัครสมาชิก</Link> เพื่อรับ SUP ID
         </p>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {LANES.map((l) => {
-          const Icon = l.icon;
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-600">
-                <Icon size={20} />
-              </span>
-              <div className="mt-4 text-xs font-medium text-slate-400">{l.tag}</div>
-              <div className="mt-0.5 text-lg font-bold text-slate-900">{l.title}</div>
-              <p className="mt-2 text-sm text-slate-500">{l.desc}</p>
-              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 group-hover:gap-2.5">
-                {l.cta} <ArrowRight size={15} />
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      <p className="mt-8 text-center text-xs text-slate-400">
-        บัญชีทดลอง (ฟาร์ม): <b>farm</b> / <b>password123</b>
-      </p>
+      </section>
     </div>
   );
 }

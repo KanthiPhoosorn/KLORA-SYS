@@ -6,7 +6,7 @@ import { scryptSync, randomBytes, timingSafeEqual, createHmac } from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUsers } from "./store";
-import type { User } from "./types";
+import type { User, UserRole } from "./types";
 
 const SECRET =
   process.env.KLORA_SESSION_SECRET || "klora-dev-secret-change-in-production";
@@ -94,9 +94,25 @@ export async function getCurrentUser(): Promise<User | null> {
   return users.find((u) => u.id === userId) ?? null;
 }
 
-// Guard for SUP-only server components: returns the user or redirects to /login.
+// Guard: returns the signed-in user or redirects to /login.
 export async function requireUser(): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   return user;
+}
+
+// Guard for a specific portal role. Wrong role → bounced to that role's home
+// (or /login if signed out). Keeps each portal isolated to its role.
+export async function requireRole(role: UserRole): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (user.role !== role) redirect(homeForRole(user.role));
+  return user;
+}
+
+// Where each role lands after login.
+export function homeForRole(role: UserRole): string {
+  if (role === "logistic") return "/logistic";
+  if (role === "kyn") return "/kyn";
+  return "/app";
 }

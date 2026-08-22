@@ -29,3 +29,4 @@ yarn-error.log*
 # runtime JSON store (seed files are committed; live writes are ignored)
 /data/*.local.json
 /data/*.tmp
+/data/otp.json

@@ -24,6 +24,11 @@ export interface Supplier {
   electricityKwh?: number; // Electricity — kWh per cutting round
   fertilizerKg?: number; // Fertilizer — kg per cutting round
 
+  // --- consumer passport extras (optional) ---
+  description?: string; // คำโปรยหน้า passport
+  careTips?: string; // การดูแลเบื้องต้น
+  photoUrl?: string; // รูปฟาร์ม (data URI or path)
+
   status: SupplierStatus; // ใช้งาน / ระงับ (managed by KYN)
   createdAt: string; // ISO
 }
@@ -43,6 +48,8 @@ export interface Batch {
   cutDate: string; // วันที่ตัด (YYYY-MM-DD)
   distanceKm: number; // ระยะทาง (ปลายทาง)
   destination?: string; // ปลายทาง เช่น กรุงเทพฯ
+  carrier?: string; // ขนส่ง เช่น cold chain / ปณ. / Exportor
+  weightKg?: number; // น้ำหนักรวม (kg) — passport
   basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
 
   entryDate: string; // วันที่ลงข้อมูล (auto, YYYY-MM-DD)
@@ -56,10 +63,14 @@ export interface Batch {
   createdAt: string; // ISO
 }
 
-// User account for the SUP (farm) role. Password is scrypt-hashed (see lib/auth).
+// Portal roles. Each account belongs to exactly one.
+export type UserRole = "supplier" | "logistic" | "kyn";
+
+// User account (any role). Password is scrypt-hashed (see lib/auth).
 export interface User {
   id: string; // USR-NNNN
-  supplierId: string; // → Supplier.id
+  role: UserRole; // which portal this account signs into
+  supplierId?: string; // → Supplier.id (only for role "supplier")
   email: string;
   username: string;
   passwordHash: string; // hex
@@ -87,6 +98,8 @@ export type BatchInput = Pick<
 > & {
   variety?: string;
   destination?: string;
+  carrier?: string;
+  weightKg?: number;
   basketIds?: string[];
   status?: BatchStatus; // "draft" | "submitted"
 };

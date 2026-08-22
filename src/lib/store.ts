@@ -204,6 +204,42 @@ export async function addUser(
   return user;
 }
 
+export async function updateUser(
+  id: string,
+  patch: Partial<Omit<User, "id" | "createdAt">>,
+): Promise<User | null> {
+  const all = await getUsers();
+  const idx = all.findIndex((u) => u.id === id);
+  if (idx < 0) return null;
+  all[idx] = { ...all[idx], ...patch, id: all[idx].id, createdAt: all[idx].createdAt };
+  await writeJson(USERS_FILE, all);
+  return all[idx];
+}
+
+// --- OTP (password reset) — email is stubbed; the code is surfaced in the API
+// response/log for the demo. Stored in data/otp.json with a 10-minute expiry. ----
+interface OtpRec { email: string; code: string; expiresAt: number }
+const OTP_FILE = path.join(DATA_DIR, "otp.json");
+
+export async function setOtp(email: string, code: string, ttlMs = 10 * 60 * 1000): Promise<void> {
+  const all = await readJson<OtpRec>(OTP_FILE);
+  const rest = all.filter((o) => o.email.toLowerCase() !== email.toLowerCase());
+  rest.push({ email, code, expiresAt: Date.now() + ttlMs });
+  await writeJson(OTP_FILE, rest);
+}
+
+export async function checkOtp(email: string, code: string): Promise<boolean> {
+  const all = await readJson<OtpRec>(OTP_FILE);
+  return all.some(
+    (o) => o.email.toLowerCase() === email.toLowerCase() && o.code === code && o.expiresAt > Date.now(),
+  );
+}
+
+export async function clearOtp(email: string): Promise<void> {
+  const all = await readJson<OtpRec>(OTP_FILE);
+  await writeJson(OTP_FILE, all.filter((o) => o.email.toLowerCase() !== email.toLowerCase()));
+}
+
 // --- Print logs (Thai Post → KYN Shipment/QR log) -------------------------
 
 export async function getPrints(): Promise<PrintLog[]> {

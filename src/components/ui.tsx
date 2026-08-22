@@ -110,6 +110,59 @@ export function StatCard({
   );
 }
 
+// --- MetricCard (labelled value + icon + sub-note) — the portal dashboard card
+
+const METRIC_ICON: Record<string, string> = {
+  green: "bg-emerald-50 text-emerald-600",
+  blue: "bg-blue-50 text-blue-600",
+  orange: "bg-orange-50 text-orange-500",
+  pink: "bg-pink-50 text-pink-600",
+  slate: "bg-slate-100 text-slate-500",
+};
+const METRIC_VALUE: Record<string, string> = {
+  green: "text-emerald-600",
+  blue: "text-blue-600",
+  orange: "text-orange-500",
+  pink: "text-pink-600",
+  slate: "text-slate-900",
+};
+
+export function MetricCard({
+  label,
+  value,
+  unit,
+  note,
+  icon,
+  tone = "slate",
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  unit?: string;
+  note?: ReactNode;
+  icon?: ReactNode;
+  tone?: keyof typeof METRIC_ICON;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-500">{label}</div>
+          <div className={`mt-1 text-3xl font-bold tabular ${METRIC_VALUE[tone]}`}>
+            {value}
+            {unit ? <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span> : null}
+          </div>
+        </div>
+        {icon ? (
+          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${METRIC_ICON[tone]}`}>
+            {icon}
+          </span>
+        ) : null}
+      </div>
+      {note ? <div className="mt-2 text-xs text-slate-400">{note}</div> : null}
+    </div>
+  );
+}
+
 // --- Bar (horizontal progress) --------------------------------------------
 
 export function Bar({
@@ -134,9 +187,11 @@ export function Bar({
 export function BarChart({
   data,
   height = 140,
+  barClassName = "bg-blue-500/90",
 }: {
   data: { label: string; value: number }[];
   height?: number;
+  barClassName?: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
@@ -145,7 +200,7 @@ export function BarChart({
         <div key={i} className="flex flex-1 flex-col items-center gap-2">
           <div className="flex w-full flex-1 items-end">
             <div
-              className="w-full rounded-t-md bg-blue-500/90"
+              className={`w-full rounded-t-md ${barClassName}`}
               style={{ height: `${(d.value / max) * 100}%` }}
               title={`${d.label}: ${d.value}`}
             />
@@ -153,6 +208,56 @@ export function BarChart({
           <span className="text-xs text-slate-500">{d.label}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// --- Donut (conic-gradient, no chart lib) ---------------------------------
+
+export const DONUT_COLORS = ["#10b981", "#3b82f6", "#22c55e", "#5eead4", "#f59e0b", "#a78bfa"];
+
+export function Donut({
+  segments,
+  centerTop,
+  centerValue,
+  centerUnit,
+}: {
+  segments: { label: string; pct: number; color: string }[];
+  centerTop?: string;
+  centerValue?: ReactNode;
+  centerUnit?: string;
+}) {
+  let acc = 0;
+  const stops = segments
+    .map((s) => {
+      const from = acc;
+      acc += s.pct;
+      return `${s.color} ${from}% ${acc}%`;
+    })
+    .join(", ");
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div
+        className="relative h-44 w-44 shrink-0 rounded-full"
+        style={{ background: segments.length ? `conic-gradient(${stops})` : "#e2e8f0" }}
+      >
+        <div className="absolute inset-[24%] grid place-items-center rounded-full bg-white text-center shadow-sm">
+          <div>
+            {centerTop ? <div className="text-[11px] text-slate-400">{centerTop}</div> : null}
+            <div className="text-2xl font-bold text-slate-900">{centerValue}</div>
+            {centerUnit ? <div className="text-[11px] text-slate-400">{centerUnit}</div> : null}
+          </div>
+        </div>
+      </div>
+      <ul className="space-y-2 text-sm">
+        {segments.map((s, i) => (
+          <li key={i} className="flex items-center gap-2.5">
+            <span className="h-3 w-3 rounded-full" style={{ background: s.color }} />
+            <span className="text-slate-600">{s.label}</span>
+            <span className="ml-3 tabular font-medium text-slate-800">{s.pct}%</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

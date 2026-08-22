@@ -70,6 +70,7 @@ export async function POST(req: Request) {
   const supplier = await addSupplier(input);
   const { hash, salt } = hashPassword(password);
   const user = await addUser({
+    role: "supplier",
     supplierId: supplier.id,
     email,
     username,

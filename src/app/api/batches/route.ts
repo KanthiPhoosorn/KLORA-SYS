@@ -18,6 +18,10 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
+  if (user.role !== "supplier" || !user.supplierId) {
+    return NextResponse.json({ error: "เฉพาะบัญชีฟาร์มเท่านั้น" }, { status: 403 });
+  }
+  const supplierId = user.supplierId;
 
   let body: Record<string, unknown>;
   try {
@@ -41,7 +45,7 @@ export async function POST(req: Request) {
       ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
       : [];
     const batch = await addBatch({
-      supplierId: user.supplierId,
+      supplierId,
       flowerCount,
       variety: body.variety ? String(body.variety) : undefined,
       cutDate: String(body.cutDate),

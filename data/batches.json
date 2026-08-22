@@ -7,13 +7,17 @@
     "cutDate": "2026-07-24",
     "distanceKm": 785,
     "destination": "กรุงเทพฯ",
-    "basketIds": ["BSK-001"],
+    "basketIds": [
+      "BSK-001"
+    ],
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.487733,
     "ageDays": 2,
     "status": "computed",
     "shipmentStatus": "delivered",
-    "createdAt": "2026-07-26T01:00:00.000Z"
+    "createdAt": "2026-07-26T01:00:00.000Z",
+    "carrier": "cold chain",
+    "weightKg": 26
   },
   {
     "id": "BAT-2026-0002",
@@ -23,13 +27,17 @@
     "cutDate": "2026-07-25",
     "distanceKm": 785,
     "destination": "กรุงเทพฯ",
-    "basketIds": ["BSK-001"],
+    "basketIds": [
+      "BSK-001"
+    ],
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.304833,
     "ageDays": 1,
     "status": "computed",
     "shipmentStatus": "in_transit",
-    "createdAt": "2026-07-26T01:05:00.000Z"
+    "createdAt": "2026-07-26T01:05:00.000Z",
+    "carrier": "ปณ.",
+    "weightKg": 41.6
   },
   {
     "id": "BAT-2026-0003",
@@ -39,13 +47,17 @@
     "cutDate": "2026-07-23",
     "distanceKm": 700,
     "destination": "ขอนแก่น",
-    "basketIds": ["BSK-014"],
+    "basketIds": [
+      "BSK-014"
+    ],
     "entryDate": "2026-07-26",
     "co2ePerFlower": 0.317567,
     "ageDays": 3,
     "status": "computed",
     "shipmentStatus": "delivered",
-    "createdAt": "2026-07-26T01:10:00.000Z"
+    "createdAt": "2026-07-26T01:10:00.000Z",
+    "carrier": "Exportor",
+    "weightKg": 31.2
   },
   {
     "id": "BAT-2026-0004",
@@ -55,13 +67,17 @@
     "cutDate": "2026-07-27",
     "distanceKm": 800,
     "destination": "กรุงเทพฯ",
-    "basketIds": ["BSK-014"],
+    "basketIds": [
+      "BSK-014"
+    ],
     "entryDate": "2026-07-27",
     "co2ePerFlower": 1.0527,
     "ageDays": 0,
     "status": "computed",
     "shipmentStatus": "in_transit",
-    "createdAt": "2026-07-27T02:00:00.000Z"
+    "createdAt": "2026-07-27T02:00:00.000Z",
+    "carrier": "cold chain",
+    "weightKg": 10.4
   },
   {
     "id": "BAT-2026-0005",
@@ -71,12 +87,16 @@
     "cutDate": "2026-07-26",
     "distanceKm": 785,
     "destination": "กรุงเทพฯ",
-    "basketIds": ["BSK-001"],
+    "basketIds": [
+      "BSK-001"
+    ],
     "entryDate": "2026-07-27",
     "co2ePerFlower": 0,
     "ageDays": 1,
     "status": "submitted",
     "shipmentStatus": "cutting",
-    "createdAt": "2026-07-27T03:30:00.000Z"
+    "createdAt": "2026-07-27T03:30:00.000Z",
+    "carrier": "ปณ.",
+    "weightKg": 27
   }
 ]

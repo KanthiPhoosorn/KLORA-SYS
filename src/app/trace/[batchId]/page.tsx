@@ -1,9 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBatch, getSupplier } from "@/lib/store";
-import { Leaf, Clock, MapPin, Sprout, Star, Truck, ArrowLeft } from "lucide-react";
+import { thaiDateShort } from "@/lib/format";
+import { Flower2, MapPin, Phone, ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0">
+      <span className="text-sm text-slate-400">{label}</span>
+      <span className="text-sm font-medium text-slate-800">{value}</span>
+    </div>
+  );
+}
 
 export default async function TracePage({
   params,
@@ -16,92 +25,68 @@ export default async function TracePage({
   const supplier = await getSupplier(batch.supplierId);
   if (!supplier) notFound();
 
-  const freshness =
-    batch.ageDays <= 2
-      ? { label: "สดใหม่มาก", cls: "bg-pink-100 text-pink-800" }
-      : batch.ageDays <= 5
-        ? { label: "ยังสด", cls: "bg-amber-100 text-amber-800" }
-        : { label: "ควรรีบใช้", cls: "bg-red-100 text-red-700" };
+  const productName = batch.variety || supplier.flowerType;
+  const weight = batch.weightKg ?? Math.round(batch.flowerCount * 0.052 * 10) / 10;
+  const careTips =
+    supplier.careTips ||
+    "เปลี่ยนน้ำทุก 2 วัน ตัดปลายก้าน 1–2 ซม. หลีกเลี่ยงแสงแดดและความร้อนจัด";
+  const description = supplier.description || supplier.highlights;
 
   return (
-    <div className="brand-bg min-h-screen px-4 py-10">
-      <div className="mx-auto max-w-xl space-y-6">
-        <Link
-          href="/"
-          className="no-print inline-flex items-center gap-1 text-sm text-pink-700 hover:text-pink-900"
-        >
-          <ArrowLeft size={14} /> KLORA
-        </Link>
-
-        <div className="overflow-hidden rounded-3xl border border-pink-900/10 bg-white/80 shadow-sm">
-          <div className="bg-gradient-to-br from-pink-100 to-pink-200 px-6 py-6 text-pink-800">
-            <div className="flex items-center gap-2 text-sm font-medium text-pink-600">
-              <Leaf size={16} /> Carbon Passport · คาร์บอนพาสปอร์ต
-            </div>
-            <h1 className="mt-2 text-2xl font-bold text-pink-700">{supplier.farmName}</h1>
-            <p className="text-pink-700/80">{supplier.flowerType}</p>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-white/70 px-2.5 py-1 font-mono text-pink-700">{batch.id}</span>
-              <span className="rounded-full bg-white/70 px-2.5 py-1 font-mono text-pink-700">{supplier.id}</span>
-            </div>
+    <div className="min-h-screen bg-slate-100 py-6">
+      <div className="mx-auto max-w-md space-y-5 px-5">
+        {/* Brand + product */}
+        <div>
+          <div className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight text-pink-500">
+            <Flower2 size={20} /> KLORA
           </div>
-
-          <div className="grid grid-cols-2 gap-px bg-pink-900/10">
-            <div className="bg-white px-6 py-5">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-pink-900/50">
-                <Leaf size={13} /> คาร์บอนต่อดอก
-              </div>
-              <div className="mt-1 text-3xl font-bold tabular text-pink-700">
-                {batch.co2ePerFlower.toFixed(4)}
-              </div>
-              <div className="text-xs text-pink-900/50">kg CO₂e / ดอก</div>
-            </div>
-            <div className="bg-white px-6 py-5">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-pink-900/50">
-                <Clock size={13} /> อายุหลังตัด
-              </div>
-              <div className="mt-1 text-3xl font-bold tabular text-pink-700">
-                {batch.ageDays} <span className="text-base font-medium text-pink-900/50">วัน</span>
-              </div>
-              <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${freshness.cls}`}>
-                {freshness.label}
-              </span>
-            </div>
-          </div>
+          <h1 className="mt-3 text-2xl font-bold text-slate-900">{productName}</h1>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">{description}</p>
         </div>
 
-        <div className="rounded-2xl border border-pink-900/10 bg-white/80 p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-pink-900/70">ที่มาของดอกไม้</h2>
-          <ul className="space-y-3 text-sm text-pink-900/80">
-            <li className="flex gap-3">
-              <Sprout size={16} className="mt-0.5 text-pink-600" />
-              <span><b>ฟาร์ม:</b> {supplier.farmName} · เจ้าของ {supplier.owner}</span>
-            </li>
-            <li className="flex gap-3">
-              <MapPin size={16} className="mt-0.5 text-pink-600" />
-              <span><b>ที่ตั้ง:</b> {supplier.address} ({supplier.gpsLat}, {supplier.gpsLng})</span>
-            </li>
-            <li className="flex gap-3">
-              <Star size={16} className="mt-0.5 text-pink-600" />
-              <span><b>จุดเด่น:</b> {supplier.highlights}</span>
-            </li>
-            <li className="flex gap-3">
-              <Truck size={16} className="mt-0.5 text-pink-600" />
-              <span>
-                <b>การขนส่ง:</b> ตัดเมื่อ {batch.cutDate} ·{" "}
-                {batch.destination ? `ปลายทาง ${batch.destination} · ` : ""}
-                ระยะทาง {batch.distanceKm.toLocaleString()} km · {batch.flowerCount.toLocaleString()} ดอกในรอบนี้
-              </span>
-            </li>
-          </ul>
-          <p className="mt-4 border-t border-pink-900/10 pt-3 text-xs text-pink-900/50">
-            ติดต่อฟาร์ม: {supplier.contact}
+        {/* Origin */}
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">แหล่งที่มา</h2>
+          <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="grid h-20 w-24 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 text-3xl">
+              🌷
+            </div>
+            <div className="min-w-0">
+              <div className="font-semibold text-slate-800">{supplier.farmName}</div>
+              <div className="mt-0.5 flex items-start gap-1 text-xs text-slate-500">
+                <MapPin size={13} className="mt-0.5 shrink-0" /> {supplier.address}
+              </div>
+              <div className="mt-1 flex items-center gap-1 text-xs text-slate-600">
+                <Phone size={13} /> {supplier.contact}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Product details */}
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">รายละเอียดสินค้า</h2>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-1 shadow-sm">
+            <Row label="ชนิดดอกไม้" value={productName} />
+            <Row label="จำนวนดอก" value={`${batch.flowerCount.toLocaleString()} ดอก`} />
+            <Row label="Co2e ต่อดอก" value={`${batch.co2ePerFlower.toFixed(4)} Kg`} />
+            <Row label="น้ำหนักรวม" value={`${weight} kg.`} />
+            <Row label="วันที่ตัด" value={thaiDateShort(batch.cutDate)} />
+            <Row label="อายุหลังตัด" value={`${batch.ageDays} วัน`} />
+          </div>
+        </section>
+
+        {/* Care */}
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">การดูแลเบื้องต้น</h2>
+          <p className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm">
+            {careTips}
           </p>
-        </div>
+        </section>
 
-        <p className="no-print text-center text-xs text-pink-900/40">
-          คำนวณโดย KLORA — (คาร์บอนปลูก + ขนส่ง)/จำนวนดอก + คาร์บอนตะกร้า/รอบใช้งาน
-        </p>
+        <div className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-slate-400">
+          <ShieldCheck size={13} /> ข้อมูลนี้ยืนยันโดย klora system · {supplier.id} · {batch.id}
+        </div>
       </div>
     </div>
   );
