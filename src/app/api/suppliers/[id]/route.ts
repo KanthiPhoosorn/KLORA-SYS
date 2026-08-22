@@ -50,6 +50,9 @@ export async function PATCH(
     "flowerType",
     "highlights",
     "contact",
+    "contactName",
+    "phone",
+    "lineId",
   ];
   for (const k of strFields) {
     if (body[k] != null) (patch as Record<string, unknown>)[k] = String(body[k]);
@@ -60,10 +63,17 @@ export async function PATCH(
     "fuelLitres",
     "electricityKwh",
     "fertilizerKg",
+    "agriChemicalsKg",
+    "waterM3",
+    "wasteKg",
+    "flowersPerMonth",
   ];
   for (const k of numFields) {
     if (body[k] != null && body[k] !== "")
       (patch as Record<string, unknown>)[k] = Number(body[k]);
+  }
+  if (Array.isArray(body.varieties)) {
+    patch.varieties = (body.varieties as unknown[]).map((x) => String(x).trim()).filter(Boolean);
   }
   if (typeof patch.address === "string") {
     patch.province = provinceFromAddress(patch.address) || supplier.province;
