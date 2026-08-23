@@ -14,7 +14,9 @@ Status as of 2026-08-24. Live at **https://klora-two.vercel.app** (Vercel + Neon
 
 ## Deferred to "later" (owner's call, 24 Aug) — do when picked up
 Account self-deletion (PDPA erasure) · Sentry (needs DSN) · Preview-DB Neon branch · Billing
-(Stripe/Omise) · PDPA privacy notice + consent · Gmail-SMTP no-domain email · full visual-diff pass.
+(Stripe/Omise) · PDPA privacy notice + consent · Gmail-SMTP no-domain email · full visual-diff pass ·
+**Real Google login (OAuth)** — the placeholder button was removed from the login 24 Aug; wiring real
+Google sign-in needs a Google Cloud OAuth app + redirect URIs + token exchange + account linking.
 
 ## Tier-1 finish (small, needs one action each)
 | Item | What | Action needed |
