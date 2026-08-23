@@ -1,7 +1,13 @@
 import { Lock, TrendingUp, Leaf } from "lucide-react";
 
-// Freemium paywall shown on Pro-only features (e.g. the carbon dashboard) for free-plan farms.
-export default function ProLock() {
+// Freemium paywall shown on Pro-only features (carbon dashboard, export history) for free-plan farms.
+export default function ProLock({
+  title = "ปลดล็อกแดชบอร์ดคาร์บอน",
+  desc = "อัปเกรดเพื่อดูภาพรวมการปล่อย CO₂e วิเคราะห์แนวโน้ม และติดตามผลการลดคาร์บอนของฟาร์มได้ในที่เดียว",
+}: {
+  title?: string;
+  desc?: string;
+}) {
   return (
     <div className="mx-auto max-w-md py-10 text-center">
       <div className="relative mx-auto mb-6 grid h-40 w-52 place-items-center rounded-2xl bg-gradient-to-br from-brand-pink-light to-emerald-50">
@@ -16,11 +22,9 @@ export default function ProLock() {
       </div>
 
       <span className="inline-block rounded-full bg-brand-pink-light px-3 py-1 text-xs font-medium text-brand-pink">ฟีเจอร์สำหรับสมาชิก</span>
-      <h1 className="mt-4 text-2xl font-bold text-brand-pink">ปลดล็อกแดชบอร์ดคาร์บอน</h1>
+      <h1 className="mt-4 text-2xl font-bold text-brand-pink">{title}</h1>
       <p className="mt-1 text-sm font-semibold text-emerald-600">ฟีเจอร์นี้รวมอยู่ในแพ็กเกจ Pro</p>
-      <p className="mx-auto mt-3 max-w-sm text-sm text-slate-500">
-        อัปเกรดเพื่อดูภาพรวมการปล่อย CO₂e วิเคราะห์แนวโน้ม และติดตามผลการลดคาร์บอนของฟาร์มได้ในที่เดียว
-      </p>
+      <p className="mx-auto mt-3 max-w-sm text-sm text-slate-500">{desc}</p>
       <button className="mt-6 w-full max-w-xs rounded-[8px] bg-brand-pink px-6 py-3 text-sm font-semibold text-white hover:opacity-90">
         ดูแพ็กเกจและอัปเกรด
       </button>

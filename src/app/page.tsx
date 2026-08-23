@@ -12,7 +12,7 @@ const PORTALS = [
   },
   {
     tag: "กลางน้ำ · KYN",
-    title: "KYN × Outsource",
+    title: "KYN",
     desc: "คำนวณคาร์บอน จัดการ SUP และรายงานสรุป",
     icon: Factory,
     color: "from-slate-700 to-slate-900",

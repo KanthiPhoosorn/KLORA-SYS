@@ -24,10 +24,10 @@ export default async function KynLayout({ children }: { children: React.ReactNod
 
   const header = (
     <>
-      <div className="text-lg font-semibold text-slate-800">KYN × Outsource Console</div>
+      <div className="text-lg font-semibold text-slate-800">KYN Console</div>
       <div className="ml-auto flex items-center gap-4">
         <button className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><Bell size={18} /></button>
-        <AccountButton label="KYN ID" id={user.username} />
+        <AccountButton label="KYN ID" id={user.username} profileHref="/kyn/profile" />
       </div>
     </>
   );
