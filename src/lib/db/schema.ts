@@ -126,3 +126,10 @@ export const otp = pgTable("otp", {
   code: text("code").notNull(),
   expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
 });
+
+// Fixed-window rate limiter (serverless-safe: shared state lives in Postgres, not memory).
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  windowStart: bigint("window_start", { mode: "number" }).notNull(),
+});

@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { addSupplier, addUser, getUserByLogin } from "@/lib/store";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { provinceFromAddress } from "@/lib/geo";
+import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { SupplierInput } from "@/lib/types";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
 export async function POST(req: Request) {
+  const rl = await rateLimit(`register:ip:${clientIp(req)}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) return tooMany(rl.retryAfter);
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

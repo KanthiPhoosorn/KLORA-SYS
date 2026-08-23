@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserByLogin, getSupplier } from "@/lib/store";
 import { verifyPassword, setSessionCookie, homeForRole } from "@/lib/auth";
+import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 
 // POST /api/auth/login — { login (username or email), password }
 export async function POST(req: Request) {
@@ -16,6 +17,13 @@ export async function POST(req: Request) {
   if (!login || !password) {
     return NextResponse.json({ error: "กรอกชื่อผู้ใช้และรหัสผ่าน" }, { status: 400 });
   }
+
+  // Brute-force / credential-stuffing protection: cap by source IP AND by target account.
+  const ip = clientIp(req);
+  const byIp = await rateLimit(`login:ip:${ip}`, 10, 5 * 60 * 1000);
+  if (!byIp.allowed) return tooMany(byIp.retryAfter);
+  const byAcct = await rateLimit(`login:acct:${login.toLowerCase()}`, 20, 15 * 60 * 1000);
+  if (!byAcct.allowed) return tooMany(byAcct.retryAfter);
 
   const user = await getUserByLogin(login);
   // Same error for unknown user vs wrong password (don't leak which).

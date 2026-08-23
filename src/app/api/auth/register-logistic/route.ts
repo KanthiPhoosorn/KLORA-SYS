@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { addUser, getUserByLogin } from "@/lib/store";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
+import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 
 // POST /api/auth/register-logistic — creates a logistic (โรงคัดแยก/ขนส่ง) account and signs in.
 // { username, email, company, password, confirmPassword }
 export async function POST(req: Request) {
+  const rl = await rateLimit(`register:ip:${clientIp(req)}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) return tooMany(rl.retryAfter);
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
