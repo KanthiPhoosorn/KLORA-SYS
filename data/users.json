@@ -5,8 +5,8 @@
     "supplierId": "SUP-2026-0001",
     "email": "farm@maesalong.co.th",
     "username": "farm",
-    "salt": "6b2ac04fbbba4f153b74aa62a8c47588",
-    "passwordHash": "eac79f9f824426f09097f9cbd50379a1024c2a3abd29c9949919452dedf953354b5718eb44d82ce1215df1c2b3bd7728f01ae4baff20029061eb02f01ef8a560",
+    "salt": "b0df365d18becc2f7583bf90165d58e0",
+    "passwordHash": "547c226e499fcab65f2dcf704f91216176e0c937c67d36628824d7056dce6c3091497fc83f1f1d9a242726c8c21ea90c0917053899344434e2d4c47532090d57",
     "createdAt": "2026-07-15T02:35:00.000Z"
   },
   {
@@ -14,8 +14,8 @@
     "role": "logistic",
     "email": "sommai@logistic.co.th",
     "username": "logistic",
-    "salt": "1bbd2ce7e648f25c80f1fa5ecb7c72bf",
-    "passwordHash": "56d6abfc813e1ac0d9dfd0066d99d900cc6a3bf6d24f61148eaca9fba7527f064f6ef2b8326ade95f61973109e2f730d1d353260b9e4b94719db386f83cffd15",
+    "salt": "111da5ba11a8c19351533b67a5972a15",
+    "passwordHash": "a45aab2c3b7974675dc64fd7379b7d079d9d4567a613a814721c997c38ce2d03de45c22cd6142c4c3b417f6be44aedabed1e59ba97bef1e6d648b9f4595d572c",
     "createdAt": "2026-07-15T02:36:00.000Z"
   },
   {
@@ -23,8 +23,8 @@
     "role": "kyn",
     "email": "admin@kyn.co.th",
     "username": "kyn",
-    "salt": "6dc2e3282dabcb9ef3e85c57ecbaa158",
-    "passwordHash": "b2d678d5bf9a74b5561772eb76ca0b53190e6d3bb2b2c788efa7059cbb5c962cced01ebced5420d33a09fe408fd74c42303c873b30d94fc1f5fead92145f9838",
+    "salt": "9c219a95707856826fc9d992789ec8d5",
+    "passwordHash": "2b59d0079b9a25a07c60f6dbd2f0e3aa418364afed0de8c86b2c9be905a2c0ce5ff2feb42f50bfe408c576132b2b033502c5cf4ac915d03fe2a6808532f53565",
     "createdAt": "2026-07-15T02:37:00.000Z"
   }
 ]

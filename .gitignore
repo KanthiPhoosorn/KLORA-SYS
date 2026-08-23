@@ -39,3 +39,7 @@ yarn-error.log*
 KLORA-SYS.env.local
 .claude/
 skills-lock.json
+
+# rotated login credentials (local only)
+CREDENTIALS.local.txt
+*.local.txt
