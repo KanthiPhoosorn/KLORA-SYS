@@ -85,6 +85,7 @@ export interface User {
   id: string; // USR-NNNN
   role: UserRole; // which portal this account signs into
   supplierId?: string; // → Supplier.id (only for role "supplier")
+  company?: string; // ชื่อบริษัท (logistic accounts)
   email: string;
   username: string;
   passwordHash: string; // hex
