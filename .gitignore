@@ -30,3 +30,12 @@ yarn-error.log*
 /data/*.local.json
 /data/*.tmp
 /data/otp.json
+
+# installed agent skills (third-party — keep out of the portfolio repo)
+.agents/
+
+# stray/local secret + tooling (never commit)
+*.env.local
+KLORA-SYS.env.local
+.claude/
+skills-lock.json
