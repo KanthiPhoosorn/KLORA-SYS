@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier } from "@/lib/store";
 import { FACTORS, transportCarbon, basketCarbonForRound, basketReuseCounts } from "@/lib/carbon";
 import { MetricCard, Card, Donut } from "@/components/ui";
+import ProLock from "@/components/ProLock";
 import { thaiDateShort } from "@/lib/format";
 import { Leaf, Trophy, TrendingDown, TrendingUp } from "lucide-react";
 import type { Batch } from "@/lib/types";
@@ -24,6 +25,16 @@ export default async function CarbonDashboardPage() {
     getSupplier(user.supplierId!),
     getBatchesBySupplier(user.supplierId!),
   ]);
+  // Carbon dashboard is a Pro feature (freemium).
+  if (supplier && supplier.plan !== "pro") {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-slate-900">แดชบอร์ดคาร์บอน</h1>
+        <ProLock />
+      </div>
+    );
+  }
+
   const { getSuppliers, getBatches } = await import("@/lib/store");
   const [allSuppliers, allBatches] = await Promise.all([getSuppliers(), getBatches()]);
 

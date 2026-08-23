@@ -39,6 +39,7 @@ export interface Supplier {
   careTips?: string; // การดูแลเบื้องต้น
   photoUrl?: string; // รูปฟาร์ม (data URI or path)
 
+  plan?: "free" | "pro"; // แพ็กเกจ — carbon dashboard เป็นฟีเจอร์ Pro
   status: SupplierStatus; // ใช้งาน / ระงับ (managed by KYN)
   createdAt: string; // ISO
 }

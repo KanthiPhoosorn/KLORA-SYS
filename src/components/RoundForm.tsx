@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2, Lock } from "lucide-react";
+import Modal from "@/components/Modal";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
 import type { Supplier } from "@/lib/types";
 
@@ -46,6 +47,7 @@ export default function RoundForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [distEdited, setDistEdited] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const [flowerType, setFlowerType] = useState(supplier.flowerType || "");
   const [variety, setVariety] = useState("");
@@ -79,11 +81,20 @@ export default function RoundForm({
   const setPack = (i: number, k: keyof Pack, v: string) =>
     setPacks((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
 
-  async function save() {
+  const basketIdsSel = packs.filter((p) => p.kind === "ตะกร้า" && p.basketNo.trim()).map((p) => p.basketNo.trim());
+
+  // "ตรวจสอบ" — validate then open the confirm popup.
+  function review() {
     setError(null);
     if (!flowerCount || !cutDate) return setError("กรอกจำนวนดอกไม้และวันที่ตัด");
-    const basketIds = packs.filter((p) => p.kind === "ตะกร้า" && p.basketNo.trim()).map((p) => p.basketNo.trim());
-    if (basketIds.length === 0) return setError("ระบุหมายเลขตะกร้าอย่างน้อย 1 ใบ");
+    if (basketIdsSel.length === 0) return setError("ระบุหมายเลขตะกร้าอย่างน้อย 1 ใบ");
+    setConfirmOpen(true);
+  }
+
+  async function save() {
+    setError(null);
+    const basketIds = basketIdsSel;
+    if (!flowerCount || !cutDate || basketIds.length === 0) return;
     setBusy(true);
     try {
       const res = await fetch("/api/batches", {
@@ -237,10 +248,35 @@ export default function RoundForm({
 
       <div className="flex justify-end gap-3">
         <button type="button" onClick={() => router.push("/app")} className="h-[38px] rounded-[5px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
-        <button type="button" onClick={save} disabled={busy} className="inline-flex h-[38px] items-center gap-2 rounded-[5px] bg-brand-pink px-8 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">
+        <button type="button" onClick={review} disabled={busy} className="inline-flex h-[38px] items-center gap-2 rounded-[5px] bg-brand-pink px-8 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">
           {busy ? <Loader2 size={16} className="animate-spin" /> : null} บันทึก
         </button>
       </div>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="ตรวจสอบข้อมูลก่อนบันทึก">
+        <div className="space-y-2 text-[13px]">
+          {[
+            ["ชนิด / พันธุ์", `${flowerType || "—"}${variety ? ` · ${variety}` : ""}`],
+            ["จำนวนดอกไม้", flowerCount ? `${Number(flowerCount).toLocaleString()} ดอก` : "—"],
+            ["วันที่ตัด", cutDate || "—"],
+            ["ตะกร้า", basketIdsSel.join(", ") || "—"],
+            ["ปลายทาง", destination || "—"],
+            ["ระยะทาง", distanceKm ? `${distanceKm} กม.` : "—"],
+            ["รูปแบบการขนส่ง", carrier],
+          ].map(([k, v]) => (
+            <div key={k} className="flex justify-between border-b border-slate-100 py-1.5 last:border-0">
+              <span className="text-slate-400">{k}</span>
+              <span className="font-medium text-slate-800">{v}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 flex gap-3">
+          <button onClick={() => setConfirmOpen(false)} className="h-[38px] flex-1 rounded-[5px] border border-gray-300 text-[14px] font-medium text-slate-700 hover:bg-gray-100">แก้ไข</button>
+          <button onClick={() => { setConfirmOpen(false); save(); }} disabled={busy} className="inline-flex h-[38px] flex-1 items-center justify-center gap-2 rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">
+            {busy ? <Loader2 size={16} className="animate-spin" /> : null} ยืนยันและบันทึก
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
