@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 const ITEMS: PortalNavItem[] = [
   { href: "/logistic", label: "ภาพรวม", icon: "home", exact: true },
   { href: "/logistic/search", label: "ค้นหา / พิมพ์ QR", icon: "search" },
+  { href: "/logistic/scan", label: "สแกน QR Code", icon: "qr" },
+  { href: "/logistic/status", label: "สถานะพัสดุ", icon: "inbox" },
   { href: "/logistic/history", label: "ประวัติการพิมพ์", icon: "history" },
   { href: "/logistic/settings", label: "จัดการระบบ", icon: "settings" },
 ];
