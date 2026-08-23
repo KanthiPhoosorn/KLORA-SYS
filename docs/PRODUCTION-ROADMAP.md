@@ -9,6 +9,12 @@ Status as of 2026-08-24. Live at **https://klora-two.vercel.app** (Vercel + Neon
 - **Tier-1 security:** Postgres-backed rate limiting (login by IP+account, register, forgot),
   spoof-safe IP keying, real reset email via Resend with graceful fallback, OTP no longer leaked
   in production.
+- **Passwords rotated** off `password123` (strong random; creds in gitignored `CREDENTIALS.local.txt`).
+- **Region pinned** to `sin1` (co-located with Neon). **Error boundaries** added (error/global-error/404).
+
+## Deferred to "later" (owner's call, 24 Aug) — do when picked up
+Account self-deletion (PDPA erasure) · Sentry (needs DSN) · Preview-DB Neon branch · Billing
+(Stripe/Omise) · PDPA privacy notice + consent · Gmail-SMTP no-domain email · full visual-diff pass.
 
 ## Tier-1 finish (small, needs one action each)
 | Item | What | Action needed |
