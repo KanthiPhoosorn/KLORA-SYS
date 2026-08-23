@@ -13,7 +13,7 @@ Status as of 2026-08-24. Live at **https://klora-two.vercel.app** (Vercel + Neon
 ## Tier-1 finish (small, needs one action each)
 | Item | What | Action needed |
 |---|---|---|
-| Working password reset | Code is done; needs a provider key | Create Resend account → add `RESEND_API_KEY` (+ `EMAIL_FROM`) to Vercel env + `.env.local`. For real sender, verify a domain in Resend (DNS); until then `onboarding@resend.dev` delivers only to the Resend account owner. |
+| Working password reset | Done; Resend key set — delivers only to the Resend owner (no domain yet) | To email ANY user without buying a domain: **Gmail SMTP fallback** — add a nodemailer path to `email.ts`, set `GMAIL_USER` + `GMAIL_APP_PASSWORD` (Google App Password) in Vercel. Sends from the personal Gmail, ~500/day, good deliverability. OR verify a real domain in Resend later for branded `noreply@domain`. |
 | DB/function latency | Pin Vercel functions to the Neon region | Add `vercel.json` `{ "regions": ["sin1"] }` (or the code matching your Neon region). |
 | Demo lockdown | Rotate seeded passwords, drop the demo-cred hint from the login page | Product decision (deferred by owner). |
 
