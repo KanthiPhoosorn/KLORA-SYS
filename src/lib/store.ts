@@ -1,9 +1,12 @@
-// JSON-file-backed store — no database (per project decision).
-// Reads/writes data/*.json with an atomic write (write temp file, then rename) so a
-// crash mid-write can't corrupt the store.
+// Postgres (Neon) store via Drizzle. The public function signatures are identical to the
+// previous JSON-file store, so API routes and pages need no changes.
+//
+// Convention: nullable columns come back from Drizzle as `null`; the domain types use
+// optional (`?`, i.e. `undefined`). `clean()` converts null -> undefined on every row read.
 
-import { promises as fs } from "fs";
-import path from "path";
+import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
+import { db } from "./db";
+import { suppliers, batches, users, members, invites, notifications, prints, otp } from "./db/schema";
 import type {
   Supplier,
   Batch,
@@ -14,6 +17,7 @@ import type {
   Member,
   Invite,
   MemberRole,
+  Notification,
 } from "./types";
 import {
   nextSupplierId,
@@ -25,99 +29,81 @@ import {
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts } from "./carbon";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const SUPPLIERS_FILE = path.join(DATA_DIR, "suppliers.json");
-const BATCHES_FILE = path.join(DATA_DIR, "batches.json");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-const PRINTS_FILE = path.join(DATA_DIR, "prints.json");
-
-async function readJson<T>(file: string): Promise<T[]> {
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw err;
-  }
+// null -> undefined so rows match the domain types' optional fields.
+function clean<T>(row: Record<string, unknown>): T {
+  const out: Record<string, unknown> = {};
+  for (const k in row) out[k] = row[k] === null ? undefined : row[k];
+  return out as T;
 }
 
-async function writeJson<T>(file: string, data: T[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
-  await fs.rename(tmp, file);
-}
+const trailingNum = (id: string): number => {
+  const m = /(\d+)$/.exec(id);
+  return m ? parseInt(m[1], 10) : 0;
+};
 
 // --- Suppliers ------------------------------------------------------------
 
 export async function getSuppliers(): Promise<Supplier[]> {
-  return readJson<Supplier>(SUPPLIERS_FILE);
+  const rows = await db.select().from(suppliers);
+  return rows.map((r) => clean<Supplier>(r));
 }
 
 export async function getSupplier(id: string): Promise<Supplier | null> {
-  const all = await getSuppliers();
-  return all.find((s) => s.id === id) ?? null;
+  const r = await db.select().from(suppliers).where(eq(suppliers.id, id)).limit(1);
+  return r[0] ? clean<Supplier>(r[0]) : null;
 }
 
 export async function addSupplier(input: SupplierInput): Promise<Supplier> {
-  const all = await getSuppliers();
   const now = new Date();
-  const supplier: Supplier = {
+  const ids = await db.select({ id: suppliers.id }).from(suppliers);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = {
     ...input,
-    id: nextSupplierId(all.length, now.getUTCFullYear()),
-    status: "active",
+    id: nextSupplierId(maxN, now.getUTCFullYear()),
+    status: "active" as const,
     createdAt: now.toISOString(),
   };
-  all.push(supplier);
-  await writeJson(SUPPLIERS_FILE, all);
-  return supplier;
+  const [inserted] = await db.insert(suppliers).values(row).returning();
+  return clean<Supplier>(inserted);
 }
 
-// Patch farm profile / calc settings / status. Id + createdAt are never changed.
 export async function updateSupplier(
   id: string,
   patch: Partial<Omit<Supplier, "id" | "createdAt">>,
 ): Promise<Supplier | null> {
-  const all = await getSuppliers();
-  const idx = all.findIndex((s) => s.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch, id: all[idx].id, createdAt: all[idx].createdAt };
-  await writeJson(SUPPLIERS_FILE, all);
-  return all[idx];
+  const [updated] = await db.update(suppliers).set(patch).where(eq(suppliers.id, id)).returning();
+  return updated ? clean<Supplier>(updated) : null;
 }
 
 // --- Batches --------------------------------------------------------------
 
 export async function getBatches(): Promise<Batch[]> {
-  return readJson<Batch>(BATCHES_FILE);
+  const rows = await db.select().from(batches);
+  return rows.map((r) => clean<Batch>(r));
 }
 
 export async function getBatch(id: string): Promise<Batch | null> {
-  const all = await getBatches();
-  return all.find((b) => b.id === id) ?? null;
+  const r = await db.select().from(batches).where(eq(batches.id, id)).limit(1);
+  return r[0] ? clean<Batch>(r[0]) : null;
 }
 
-export async function getBatchesBySupplier(
-  supplierId: string,
-): Promise<Batch[]> {
-  const all = await getBatches();
-  return all.filter((b) => b.supplierId === supplierId);
+export async function getBatchesBySupplier(supplierId: string): Promise<Batch[]> {
+  const rows = await db.select().from(batches).where(eq(batches.supplierId, supplierId));
+  return rows.map((r) => clean<Batch>(r));
 }
 
-// SUP logs a round. Age (freshness) is computed immediately; the carbon figure is
-// deferred to the KYN "คำนวณ" step (computeBatch), matching the flowchart.
 export async function addBatch(input: BatchInput): Promise<Batch> {
   const supplier = await getSupplier(input.supplierId);
   if (!supplier) throw new Error(`ไม่พบฟาร์ม: ${input.supplierId}`);
   if (supplier.status === "suspended") throw new Error("ฟาร์มนี้ถูกระงับการใช้งาน");
 
-  const all = await getBatches();
   const now = new Date();
-  const entryDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const entryDate = now.toISOString().slice(0, 10);
+  const ids = await db.select({ id: batches.id }).from(batches);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
 
-  const batch: Batch = {
-    id: nextBatchId(all.length, now.getUTCFullYear()),
+  const row = {
+    id: nextBatchId(maxN, now.getUTCFullYear()),
     supplierId: input.supplierId,
     flowerCount: input.flowerCount,
     variety: input.variety,
@@ -133,218 +119,196 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
-    status: input.status ?? "submitted",
-    shipmentStatus: "cutting",
+    status: input.status ?? ("submitted" as const),
+    shipmentStatus: "cutting" as const,
     createdAt: now.toISOString(),
   };
-  all.push(batch);
-  await writeJson(BATCHES_FILE, all);
-  return batch;
+  const [inserted] = await db.insert(batches).values(row).returning();
+  return clean<Batch>(inserted);
 }
 
-// KYN engine: run the carbon calculation and mark the batch computed. The basket
-// reuse count is derived automatically from how many of the farm's rounds used each
-// basket. Also advances a "cutting" shipment to "in_transit".
 export async function computeBatch(id: string): Promise<Batch | null> {
-  const all = await getBatches();
-  const idx = all.findIndex((b) => b.id === id);
-  if (idx < 0) return null;
-  const b = all[idx];
+  const b = await getBatch(id);
+  if (!b) return null;
   const supplier = await getSupplier(b.supplierId);
   if (!supplier) return null;
 
-  const reuse = basketReuseCounts(all.filter((x) => x.supplierId === b.supplierId));
-  const { co2ePerFlower, ageDays } = enrichBatch(
-    b,
-    supplier,
-    (bid) => reuse.get(bid) ?? 0,
-  );
-  all[idx] = {
-    ...b,
-    co2ePerFlower,
-    ageDays,
-    status: "computed",
-    shipmentStatus: b.shipmentStatus === "cutting" ? "in_transit" : b.shipmentStatus,
-  };
-  await writeJson(BATCHES_FILE, all);
-  return all[idx];
+  const siblings = await getBatchesBySupplier(b.supplierId);
+  const reuse = basketReuseCounts(siblings);
+  const { co2ePerFlower, ageDays } = enrichBatch(b, supplier, (bid) => reuse.get(bid) ?? 0);
+
+  const [updated] = await db
+    .update(batches)
+    .set({
+      co2ePerFlower,
+      ageDays,
+      status: "computed",
+      shipmentStatus: b.shipmentStatus === "cutting" ? "in_transit" : b.shipmentStatus,
+    })
+    .where(eq(batches.id, id))
+    .returning();
+  return updated ? clean<Batch>(updated) : null;
 }
 
-// Generic patch (e.g. shipment status update). Recomputes nothing.
 export async function updateBatch(
   id: string,
   patch: Partial<Omit<Batch, "id" | "supplierId" | "createdAt">>,
 ): Promise<Batch | null> {
-  const all = await getBatches();
-  const idx = all.findIndex((b) => b.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch, id: all[idx].id, supplierId: all[idx].supplierId, createdAt: all[idx].createdAt };
-  await writeJson(BATCHES_FILE, all);
-  return all[idx];
+  const [updated] = await db.update(batches).set(patch).where(eq(batches.id, id)).returning();
+  return updated ? clean<Batch>(updated) : null;
 }
 
 // --- Users ----------------------------------------------------------------
 
 export async function getUsers(): Promise<User[]> {
-  return readJson<User>(USERS_FILE);
+  const rows = await db.select().from(users);
+  return rows.map((r) => clean<User>(r));
 }
 
 // Match by username OR email, case-insensitive.
 export async function getUserByLogin(login: string): Promise<User | null> {
   const q = login.trim().toLowerCase();
-  const all = await getUsers();
-  return (
-    all.find(
-      (u) => u.username.toLowerCase() === q || u.email.toLowerCase() === q,
-    ) ?? null
-  );
+  const r = await db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.username}) = ${q} or lower(${users.email}) = ${q}`)
+    .limit(1);
+  return r[0] ? clean<User>(r[0]) : null;
 }
 
-export async function addUser(
-  input: Omit<User, "id" | "createdAt">,
-): Promise<User> {
-  const all = await getUsers();
-  const user: User = {
-    ...input,
-    id: nextUserId(all.length),
-    createdAt: new Date().toISOString(),
-  };
-  all.push(user);
-  await writeJson(USERS_FILE, all);
-  return user;
+export async function addUser(input: Omit<User, "id" | "createdAt">): Promise<User> {
+  const ids = await db.select({ id: users.id }).from(users);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = { ...input, id: nextUserId(maxN), createdAt: new Date().toISOString() };
+  const [inserted] = await db.insert(users).values(row).returning();
+  return clean<User>(inserted);
 }
 
 export async function updateUser(
   id: string,
   patch: Partial<Omit<User, "id" | "createdAt">>,
 ): Promise<User | null> {
-  const all = await getUsers();
-  const idx = all.findIndex((u) => u.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch, id: all[idx].id, createdAt: all[idx].createdAt };
-  await writeJson(USERS_FILE, all);
-  return all[idx];
+  const [updated] = await db.update(users).set(patch).where(eq(users.id, id)).returning();
+  return updated ? clean<User>(updated) : null;
 }
 
 // --- Notifications --------------------------------------------------------
-const NOTIF_FILE = path.join(DATA_DIR, "notifications.json");
-export async function getNotifications(supplierId?: string): Promise<import("./types").Notification[]> {
-  const all = await readJson<import("./types").Notification>(NOTIF_FILE);
-  const scoped = supplierId ? all.filter((n) => !n.supplierId || n.supplierId === supplierId) : all;
-  return scoped.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+export async function getNotifications(supplierId?: string): Promise<Notification[]> {
+  const rows = await db
+    .select()
+    .from(notifications)
+    .where(supplierId ? or(isNull(notifications.supplierId), eq(notifications.supplierId, supplierId)) : undefined)
+    .orderBy(desc(notifications.createdAt));
+  return rows.map((r) => clean<Notification>(r));
 }
 
 // --- Team members + invites (จัดการระบบ) ----------------------------------
-const MEMBERS_FILE = path.join(DATA_DIR, "members.json");
-const INVITES_FILE = path.join(DATA_DIR, "invites.json");
 
 export async function getMembers(supplierId?: string): Promise<Member[]> {
-  const all = await readJson<Member>(MEMBERS_FILE);
-  return supplierId ? all.filter((m) => m.supplierId === supplierId) : all;
+  const rows = await db
+    .select()
+    .from(members)
+    .where(supplierId ? eq(members.supplierId, supplierId) : undefined);
+  return rows.map((r) => clean<Member>(r));
 }
+
 export async function addMember(input: Omit<Member, "id" | "createdAt">): Promise<Member> {
-  const all = await readJson<Member>(MEMBERS_FILE);
-  const m: Member = { ...input, id: nextMemberId(all.length), createdAt: new Date().toISOString() };
-  all.push(m);
-  await writeJson(MEMBERS_FILE, all);
-  return m;
+  const ids = await db.select({ id: members.id }).from(members);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = { ...input, id: nextMemberId(maxN), createdAt: new Date().toISOString() };
+  const [inserted] = await db.insert(members).values(row).returning();
+  return clean<Member>(inserted);
 }
-export async function updateMember(id: string, patch: Partial<Pick<Member, "role" | "name" | "email">>): Promise<Member | null> {
-  const all = await readJson<Member>(MEMBERS_FILE);
-  const idx = all.findIndex((m) => m.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch, id: all[idx].id };
-  await writeJson(MEMBERS_FILE, all);
-  return all[idx];
+
+export async function updateMember(
+  id: string,
+  patch: Partial<Pick<Member, "role" | "name" | "email">>,
+): Promise<Member | null> {
+  const [updated] = await db.update(members).set(patch).where(eq(members.id, id)).returning();
+  return updated ? clean<Member>(updated) : null;
 }
+
 export async function removeMember(id: string): Promise<boolean> {
-  const all = await readJson<Member>(MEMBERS_FILE);
-  const next = all.filter((m) => m.id !== id);
-  if (next.length === all.length) return false;
-  await writeJson(MEMBERS_FILE, next);
-  return true;
+  const deleted = await db.delete(members).where(eq(members.id, id)).returning({ id: members.id });
+  return deleted.length > 0;
 }
 
 export async function getInvites(supplierId?: string): Promise<Invite[]> {
-  const all = await readJson<Invite>(INVITES_FILE);
-  return supplierId ? all.filter((i) => i.supplierId === supplierId) : all;
+  const rows = await db
+    .select()
+    .from(invites)
+    .where(supplierId ? eq(invites.supplierId, supplierId) : undefined);
+  return rows.map((r) => clean<Invite>(r));
 }
+
 export async function addInvite(supplierId: string, email: string, role: MemberRole): Promise<Invite> {
-  const all = await readJson<Invite>(INVITES_FILE);
-  const inv: Invite = {
-    id: nextInviteId(all.length),
+  const ids = await db.select({ id: invites.id }).from(invites);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = {
+    id: nextInviteId(maxN),
     supplierId,
     email,
     role,
     invitedAt: new Date().toISOString(),
-    status: "pending",
+    status: "pending" as const,
   };
-  all.push(inv);
-  await writeJson(INVITES_FILE, all);
-  return inv;
-}
-export async function updateInvite(id: string, status: Invite["status"]): Promise<Invite | null> {
-  const all = await readJson<Invite>(INVITES_FILE);
-  const idx = all.findIndex((i) => i.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], status };
-  await writeJson(INVITES_FILE, all);
-  return all[idx];
+  const [inserted] = await db.insert(invites).values(row).returning();
+  return clean<Invite>(inserted);
 }
 
-// --- OTP (password reset) — email is stubbed; the code is surfaced in the API
-// response/log for the demo. Stored in data/otp.json with a 10-minute expiry. ----
-interface OtpRec { email: string; code: string; expiresAt: number }
-const OTP_FILE = path.join(DATA_DIR, "otp.json");
+export async function updateInvite(id: string, status: Invite["status"]): Promise<Invite | null> {
+  const [updated] = await db.update(invites).set({ status }).where(eq(invites.id, id)).returning();
+  return updated ? clean<Invite>(updated) : null;
+}
+
+// --- OTP (password reset) — email stubbed; code surfaced in the API for the demo. --------
 
 export async function setOtp(email: string, code: string, ttlMs = 10 * 60 * 1000): Promise<void> {
-  const all = await readJson<OtpRec>(OTP_FILE);
-  const rest = all.filter((o) => o.email.toLowerCase() !== email.toLowerCase());
-  rest.push({ email, code, expiresAt: Date.now() + ttlMs });
-  await writeJson(OTP_FILE, rest);
+  await db
+    .insert(otp)
+    .values({ email, code, expiresAt: Date.now() + ttlMs })
+    .onConflictDoUpdate({ target: otp.email, set: { code, expiresAt: Date.now() + ttlMs } });
 }
 
 export async function checkOtp(email: string, code: string): Promise<boolean> {
-  const all = await readJson<OtpRec>(OTP_FILE);
-  return all.some(
-    (o) => o.email.toLowerCase() === email.toLowerCase() && o.code === code && o.expiresAt > Date.now(),
-  );
+  const r = await db
+    .select()
+    .from(otp)
+    .where(sql`lower(${otp.email}) = ${email.toLowerCase()} and ${otp.code} = ${code} and ${otp.expiresAt} > ${Date.now()}`)
+    .limit(1);
+  return r.length > 0;
 }
 
 export async function clearOtp(email: string): Promise<void> {
-  const all = await readJson<OtpRec>(OTP_FILE);
-  await writeJson(OTP_FILE, all.filter((o) => o.email.toLowerCase() !== email.toLowerCase()));
+  await db.delete(otp).where(sql`lower(${otp.email}) = ${email.toLowerCase()}`);
 }
 
 // --- Print logs (Thai Post → KYN Shipment/QR log) -------------------------
 
 export async function getPrints(): Promise<PrintLog[]> {
-  return readJson<PrintLog>(PRINTS_FILE);
+  const rows = await db.select().from(prints);
+  return rows.map((r) => clean<PrintLog>(r));
 }
 
 export async function addPrint(
   input: Omit<PrintLog, "id" | "printedAt"> & { printedAt?: string },
 ): Promise<PrintLog> {
-  const all = await getPrints();
-  const log: PrintLog = {
+  const ids = await db.select({ id: prints.id }).from(prints);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = {
     ...input,
-    id: nextPrintId(all.length),
+    id: nextPrintId(maxN),
     printedAt: input.printedAt ?? new Date().toISOString(),
   };
-  all.push(log);
-  await writeJson(PRINTS_FILE, all);
-  return log;
+  const [inserted] = await db.insert(prints).values(row).returning();
+  return clean<PrintLog>(inserted);
 }
 
-// Patch a print log (e.g. mark it cancelled after a misprint).
 export async function updatePrint(
   id: string,
   patch: Partial<Omit<PrintLog, "id">>,
 ): Promise<PrintLog | null> {
-  const all = await getPrints();
-  const idx = all.findIndex((p) => p.id === id);
-  if (idx < 0) return null;
-  all[idx] = { ...all[idx], ...patch, id: all[idx].id };
-  await writeJson(PRINTS_FILE, all);
-  return all[idx];
+  const [updated] = await db.update(prints).set(patch).where(eq(prints.id, id)).returning();
+  return updated ? clean<PrintLog>(updated) : null;
 }
