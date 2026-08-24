@@ -4,7 +4,7 @@ import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 
 // POST /api/auth/register-logistic — creates a logistic (โรงคัดแยก/ขนส่ง) account and signs in.
-// { username, email, company, password, confirmPassword }
+// { username, email, company, branch, password, confirmPassword }
 export async function POST(req: Request) {
   const rl = await rateLimit(`register:ip:${clientIp(req)}`, 5, 15 * 60 * 1000);
   if (!rl.allowed) return tooMany(rl.retryAfter);
@@ -20,11 +20,12 @@ export async function POST(req: Request) {
   const username = s("username");
   const email = s("email");
   const company = s("company");
+  const branch = s("branch");
   const password = s("password");
   const confirm = s("confirmPassword");
 
-  if (!username || !email || !company || !password) {
-    return NextResponse.json({ error: "กรอกชื่อผู้ใช้ อีเมล ชื่อบริษัท และรหัสผ่าน" }, { status: 400 });
+  if (!username || !email || !company || !branch || !password) {
+    return NextResponse.json({ error: "กรอกชื่อผู้ใช้ อีเมล ชื่อบริษัท สาขา และรหัสผ่าน" }, { status: 400 });
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return NextResponse.json({ error: "อีเมลไม่ถูกต้อง" }, { status: 400 });
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
   const user = await addUser({
     role: "logistic",
     company,
+    branch,
     email,
     username,
     passwordHash: hash,

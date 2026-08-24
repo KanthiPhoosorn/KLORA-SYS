@@ -31,6 +31,7 @@ export default function LogisticRegisterForm() {
           username: fd.get("username"),
           email: fd.get("email"),
           company: fd.get("company"),
+          branch: fd.get("branch"),
           password: fd.get("password"),
           confirmPassword: fd.get("confirmPassword"),
         }),
@@ -71,6 +72,11 @@ export default function LogisticRegisterForm() {
           <label className="block space-y-[5px]">
             <span className="text-[12px] font-medium text-black">ชื่อบริษัท <span className="text-[#ee443f]">*</span></span>
             <input name="company" required placeholder="กรอกชื่อบริษัทของคุณ" className={inputCls} />
+          </label>
+
+          <label className="block space-y-[5px]">
+            <span className="text-[12px] font-medium text-black">สาขา <span className="text-[#ee443f]">*</span></span>
+            <input name="branch" required placeholder="กรอกสาขาของคุณ" className={inputCls} />
           </label>
 
           <label className="block space-y-[5px]">

@@ -74,6 +74,7 @@ export const users = pgTable("users", {
   role: text("role").$type<UserRole>().notNull(),
   supplierId: text("supplier_id"),
   company: text("company"),
+  branch: text("branch"),
   email: text("email").notNull(),
   username: text("username").notNull(),
   passwordHash: text("password_hash").notNull(),
