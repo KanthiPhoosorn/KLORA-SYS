@@ -16,8 +16,7 @@ const notoThai = Noto_Sans_Thai({
 
 export const metadata: Metadata = {
   title: "KLORA · ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้",
-  description:
-    "ระบบปฏิบัติการการขนส่งดอกไม้ — ต้นน้ำ (ฟาร์ม) · กลางน้ำ (KYN) · ปลายน้ำ (Logistic)",
+  description: "ระบบปฏิบัติการการขนส่งดอกไม้",
 };
 
 export default function RootLayout({

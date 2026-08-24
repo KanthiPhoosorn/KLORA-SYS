@@ -22,7 +22,7 @@ export default async function KynProfilePage() {
           </div>
         </div>
         <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div><dt className="text-slate-400">บทบาท</dt><dd className="text-slate-800">ผู้ดูแลระบบ KYN (กลางน้ำ)</dd></div>
+          <div><dt className="text-slate-400">บทบาท</dt><dd className="text-slate-800">ผู้ดูแลระบบ KYN</dd></div>
           <div><dt className="text-slate-400">อีเมล</dt><dd className="text-slate-800">{user.email}</dd></div>
         </dl>
       </Card>
