@@ -50,16 +50,8 @@ export default async function SupplierLayout({
     </>
   );
 
-  const footer = (
-    <div className="m-3 overflow-hidden rounded-2xl bg-gradient-to-b from-emerald-50 to-emerald-100/70 p-4 text-center">
-      <div className="text-4xl leading-none">🧑‍🌾</div>
-      <div className="mt-2 text-xs font-medium text-emerald-700">KLORA · ต้นน้ำ</div>
-      <div className="text-[11px] text-emerald-600/70">Supplier portal</div>
-    </div>
-  );
-
   return (
-    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={ITEMS} header={header} footer={footer}>
+    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

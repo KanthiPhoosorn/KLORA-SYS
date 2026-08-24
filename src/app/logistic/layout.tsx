@@ -37,16 +37,8 @@ export default async function LogisticLayout({ children }: { children: React.Rea
     </>
   );
 
-  const footer = (
-    <div className="m-3 overflow-hidden rounded-2xl bg-gradient-to-b from-blue-50 to-blue-100/70 p-4 text-center">
-      <div className="text-4xl leading-none">🚚</div>
-      <div className="mt-2 text-xs font-medium text-blue-700">KLORA · ปลายน้ำ</div>
-      <div className="text-[11px] text-blue-600/70">Logistic portal</div>
-    </div>
-  );
-
   return (
-    <PortalShell accent="blue" brand="Logistic" brandMark={brandMark} items={ITEMS} header={header} footer={footer}>
+    <PortalShell accent="blue" brand="Logistic" brandMark={brandMark} items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

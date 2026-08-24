@@ -32,16 +32,8 @@ export default async function KynLayout({ children }: { children: React.ReactNod
     </>
   );
 
-  const footer = (
-    <div className="m-3 overflow-hidden rounded-2xl bg-gradient-to-b from-slate-100 to-slate-200/70 p-4 text-center">
-      <div className="text-4xl leading-none">🛰️</div>
-      <div className="mt-2 text-xs font-medium text-slate-700">KLORA · กลางน้ำ</div>
-      <div className="text-[11px] text-slate-500">KYN console</div>
-    </div>
-  );
-
   return (
-    <PortalShell accent="slate" brand="KYN" brandMark={brandMark} items={ITEMS} header={header} footer={footer}>
+    <PortalShell accent="slate" brand="KYN" brandMark={brandMark} items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

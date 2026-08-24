@@ -24,7 +24,7 @@ export default function LogisticRegisterPage() {
 
       <div className="flex flex-1">
         {/* Left — blue hero with headline + logistics illustration */}
-        <div className="relative hidden w-[58%] shrink-0 flex-col overflow-hidden bg-brand-blue-light lg:flex">
+        <div className="relative hidden w-[58%] shrink-0 flex-col overflow-hidden bg-[#ebf6f8] lg:flex">
           <div className="px-12 pt-16">
             <h1 className="text-[40px] font-extrabold leading-[1.15] tracking-tight">
               <span className="text-slate-800">ส่งต่อความสดใหม่</span>
@@ -41,7 +41,7 @@ export default function LogisticRegisterPage() {
           <img
             src="/figma/logistic-login-hero.png"
             alt="การจัดส่งดอกไม้"
-            className="mt-auto w-full object-contain"
+            className="mt-auto w-full max-w-[1040px] object-contain"
           />
         </div>
 
