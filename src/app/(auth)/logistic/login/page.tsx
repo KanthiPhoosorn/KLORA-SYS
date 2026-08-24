@@ -42,7 +42,7 @@ export default function LogisticLoginPage() {
           <img
             src="/figma/logistic-login-hero.png"
             alt="การจัดส่งดอกไม้"
-            className="mt-auto w-full max-w-[1040px] object-contain"
+            className="mt-auto w-full object-contain"
           />
         </div>
 
