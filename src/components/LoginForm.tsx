@@ -77,7 +77,7 @@ export default function LoginForm({
             <span className="text-[12px] font-medium text-black">
               อีเมล <span className="text-[#ee443f]">*</span>
             </span>
-            <input name="login" required autoComplete="username" placeholder="ABC@gmail.com" className={inputCls} />
+            <input name="login" required autoComplete="username" placeholder="กรอกอีเมลของคุณ" className={inputCls} />
           </label>
 
           <label className="block space-y-[5px]">
@@ -90,7 +90,7 @@ export default function LoginForm({
                 type={showPw ? "text" : "password"}
                 required
                 autoComplete="current-password"
-                placeholder="●●●●●●●●"
+                placeholder="กรอกรหัสผ่านของคุณ"
                 className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none"
               />
               <button type="button" onClick={() => setShowPw((v) => !v)} className="text-gray-500" tabIndex={-1}>
