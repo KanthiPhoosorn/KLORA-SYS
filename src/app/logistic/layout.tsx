@@ -32,7 +32,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
           <LifeBuoy size={16} /> Help center
         </Link>
         <button className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><Bell size={18} /></button>
-        <AccountButton label="Username" id={user.username} />
+        <AccountButton label="Username" id={user.username} profileHref="/logistic/profile" />
       </div>
     </>
   );

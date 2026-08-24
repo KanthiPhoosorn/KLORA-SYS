@@ -16,7 +16,9 @@
     "username": "logistic",
     "salt": "111da5ba11a8c19351533b67a5972a15",
     "passwordHash": "a45aab2c3b7974675dc64fd7379b7d079d9d4567a613a814721c997c38ce2d03de45c22cd6142c4c3b417f6be44aedabed1e59ba97bef1e6d648b9f4595d572c",
-    "createdAt": "2026-07-15T02:36:00.000Z"
+    "createdAt": "2026-07-15T02:36:00.000Z",
+    "company": "ไทยโพสต์ โลจิสติกส์",
+    "branch": "สาขาเชียงราย"
   },
   {
     "id": "USR-0003",
