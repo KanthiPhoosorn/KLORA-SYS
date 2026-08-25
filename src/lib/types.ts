@@ -77,6 +77,22 @@ export interface Batch {
   createdAt: string; // ISO
 }
 
+// บันทึกการใช้ทรัพยากรรายเดือนของฟาร์ม (KYN: farm_monthly_inputs).
+// ใช้คำนวณ Dynamic_Flower_EF = คาร์บอนรวมของเดือนนั้น ÷ ผลผลิตดอกไม้ (kg) ของเดือนนั้น
+export interface FarmMonthlyInput {
+  id: string; // FMI-NNNN
+  supplierId: string; // → Supplier.id
+  reportingMonth: string; // YYYY-MM
+  dieselLitres?: number; // ลิตร/เดือน
+  electricityKwh?: number; // kWh/เดือน
+  fertilizerKg?: number; // ปุ๋ยเคมี kg/เดือน
+  agrochemicalKg?: number; // สารเคมีเกษตร kg/เดือน
+  waterM3?: number; // น้ำ ลบ.ม./เดือน
+  organicWasteKg?: number; // ของเสียอินทรีย์ kg/เดือน
+  totalFlowerYieldKg?: number; // น้ำหนักดอกไม้ที่ตัดขายได้ทั้งเดือน (kg) — ตัวหารของ Dynamic EF
+  createdAt: string;
+}
+
 // Portal roles. Each account belongs to exactly one.
 export type UserRole = "supplier" | "logistic" | "kyn";
 

@@ -6,7 +6,7 @@
 
 import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs } from "./db/schema";
 import type {
   Supplier,
   Batch,
@@ -18,6 +18,7 @@ import type {
   Invite,
   MemberRole,
   Notification,
+  FarmMonthlyInput,
 } from "./types";
 import {
   nextSupplierId,
@@ -260,6 +261,59 @@ export async function addInvite(supplierId: string, email: string, role: MemberR
 export async function updateInvite(id: string, status: Invite["status"]): Promise<Invite | null> {
   const [updated] = await db.update(invites).set({ status }).where(eq(invites.id, id)).returning();
   return updated ? clean<Invite>(updated) : null;
+}
+
+// --- Farm monthly resource inputs (KYN Dynamic_Flower_EF) -----------------
+
+export async function getFarmMonthlyInputs(supplierId: string): Promise<FarmMonthlyInput[]> {
+  const rows = await db
+    .select()
+    .from(farmMonthlyInputs)
+    .where(eq(farmMonthlyInputs.supplierId, supplierId))
+    .orderBy(desc(farmMonthlyInputs.reportingMonth));
+  return rows.map((r) => clean<FarmMonthlyInput>(r));
+}
+
+/** The farm's most recent monthly record — what Dynamic_Flower_EF is derived from. */
+export async function getLatestFarmMonthly(supplierId: string): Promise<FarmMonthlyInput | null> {
+  const rows = await getFarmMonthlyInputs(supplierId);
+  return rows[0] ?? null;
+}
+
+/** One record per farm per month — re-submitting a month overwrites it. */
+export async function upsertFarmMonthly(
+  supplierId: string,
+  reportingMonth: string,
+  values: Partial<Omit<FarmMonthlyInput, "id" | "supplierId" | "reportingMonth" | "createdAt">>,
+): Promise<FarmMonthlyInput> {
+  const existing = await db
+    .select()
+    .from(farmMonthlyInputs)
+    .where(and(eq(farmMonthlyInputs.supplierId, supplierId), eq(farmMonthlyInputs.reportingMonth, reportingMonth)))
+    .limit(1);
+
+  if (existing[0]) {
+    const [updated] = await db
+      .update(farmMonthlyInputs)
+      .set(values)
+      .where(eq(farmMonthlyInputs.id, existing[0].id))
+      .returning();
+    return clean<FarmMonthlyInput>(updated);
+  }
+
+  const ids = await db.select({ id: farmMonthlyInputs.id }).from(farmMonthlyInputs);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const [inserted] = await db
+    .insert(farmMonthlyInputs)
+    .values({
+      ...values,
+      id: `FMI-${String(maxN + 1).padStart(4, "0")}`,
+      supplierId,
+      reportingMonth,
+      createdAt: new Date().toISOString(),
+    })
+    .returning();
+  return clean<FarmMonthlyInput>(inserted);
 }
 
 // --- OTP (password reset) — email stubbed; code surfaced in the API for the demo. --------

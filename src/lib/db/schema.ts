@@ -128,6 +128,22 @@ export const otp = pgTable("otp", {
   expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
 });
 
+// KYN spec: one row per farm per reporting month, used to derive Dynamic_Flower_EF
+// (kg CO2e per kg of flower) instead of charging every shipment a full month of farm carbon.
+export const farmMonthlyInputs = pgTable("farm_monthly_inputs", {
+  id: text("id").primaryKey(), // FMI-NNNN
+  supplierId: text("supplier_id").notNull(),
+  reportingMonth: text("reporting_month").notNull(), // YYYY-MM
+  dieselLitres: doublePrecision("diesel_litres"),
+  electricityKwh: doublePrecision("electricity_kwh"),
+  fertilizerKg: doublePrecision("fertilizer_kg"),
+  agrochemicalKg: doublePrecision("agrochemical_kg"),
+  waterM3: doublePrecision("water_m3"),
+  organicWasteKg: doublePrecision("organic_waste_kg"),
+  totalFlowerYieldKg: doublePrecision("total_flower_yield_kg"),
+  createdAt: text("created_at").notNull(),
+});
+
 // Fixed-window rate limiter (serverless-safe: shared state lives in Postgres, not memory).
 export const rateLimits = pgTable("rate_limits", {
   key: text("key").primaryKey(),
