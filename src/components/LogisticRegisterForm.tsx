@@ -43,7 +43,7 @@ export default function LogisticRegisterForm() {
     if (!f.email.trim()) next.email = "กรุณากรอกอีเมล";
     else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) next.email = "รูปแบบอีเมลไม่ถูกต้อง";
     if (!f.company.trim()) next.company = "กรุณากรอกชื่อบริษัท";
-    if (!f.branch) next.branch = "กรุณาเลือกสาขา";
+    if (!f.branch) next.branch = "กรุณาระบุสาขา";
     if (!f.password) next.password = "กรุณากรอกรหัสผ่าน";
     else if (f.password.length < 8) next.password = "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร";
     if (!f.confirmPassword) next.confirmPassword = "กรุณายืนยันรหัสผ่าน";
@@ -123,10 +123,13 @@ export default function LogisticRegisterForm() {
             <Err k="branch" />
           </label>
 
+          {/* divider — separates account/company details from the password block */}
+          <hr className="border-gray-200" />
+
           <label className="block space-y-[5px]">
             <span className="text-[12px] font-medium text-black">รหัสผ่าน <span className="text-[#ee443f]">*</span></span>
             <div className={`flex items-center rounded-[5px] border bg-white px-[15px] ${errs.password ? "border-[#ee443f]" : "border-gray-300 focus-within:border-brand-blue"}`}>
-              <input name="password" type={showPw ? "text" : "password"} value={f.password} onChange={set("password")} autoComplete="new-password" placeholder="ตั้งรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none" />
+              <input name="password" type={showPw ? "text" : "password"} value={f.password} onChange={set("password")} autoComplete="new-password" placeholder="สร้างรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none" />
               <button type="button" onClick={() => setShowPw((v) => !v)} className="text-gray-500" tabIndex={-1}>
                 {showPw ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
