@@ -1,0 +1,24 @@
+Category_EN,Category_TH,Vehicle_Type_EN,Vehicle_Type_TH,Fuel_System_EN,Fuel_System_TH,Database_Value_Vehicle,Database_Value_Fuel
+Passenger Car,รถยนต์ส่วนบุคคล,Eco Car / Sedan,รถยนต์ขนาดเล็ก,Gasohol 91 / 95 (E10),แก๊สโซฮอล์ 91 / 95 (E10),sedan,E10
+Passenger Car,รถยนต์ส่วนบุคคล,Eco Car / Sedan,รถยนต์ขนาดเล็ก,Gasohol E20,แก๊สโซฮอล์ E20,sedan,E20
+Passenger Car,รถยนต์ส่วนบุคคล,Eco Car / Sedan,รถยนต์ขนาดเล็ก,Gasohol E85,แก๊สโซฮอล์ E85,sedan,E85
+Passenger Car,รถยนต์ส่วนบุคคล,Eco Car / Sedan,รถยนต์ขนาดเล็ก,Pure Gasoline,น้ำมันเบนซินไร้สารตะกั่ว,sedan,gasoline
+Passenger Car,รถยนต์ส่วนบุคคล,SUV / PPV,รถยนต์อเนกประสงค์,Diesel B7,ดีเซล B7,suv,B7
+Passenger Car,รถยนต์ส่วนบุคคล,Battery EV,รถยนต์ไฟฟ้า (EV),Electricity (EV),ไฟฟ้า 100% (Battery EV),ev_passenger,EV
+Passenger Car,รถยนต์ส่วนบุคคล,HEV / PHEV,รถยนต์ไฮบริด / ปลั๊กอินไฮบริด,Gasohol 91 / 95 (E10),แก๊สโซฮอล์ 91 / 95 (E10),phev_hev,E10
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Pick-up Truck,รถกระบะบรรทุก 4 ล้อ,Diesel B7,ดีเซล B7,pickup,B7
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Pick-up Truck,รถกระบะบรรทุก 4 ล้อ,Diesel B10,ดีเซล B10,pickup,B10
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Pick-up Truck,รถกระบะบรรทุก 4 ล้อ,Diesel B20,ดีเซล B20,pickup,B20
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Pick-up Truck,รถกระบะบรรทุก 4 ล้อ,CNG / NGV,CNG / NGV,pickup,CNG
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Pick-up Truck,รถกระบะบรรทุก 4 ล้อ,LPG,LPG,pickup,LPG
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Cargo Van,รถตู้ขนส่งพัสดุ,Diesel B7,ดีเซล B7,van,B7
+Light Commercial Vehicle,รถบรรทุกขนาดเล็กและรถตู้,Light Motor Vehicle (LMV),รถอเนกประสงค์ขนาดเล็ก,Gasohol 91 / 95 (E10),แก๊สโซฮอล์ 91 / 95 (E10),lmv,E10
+Heavy Duty Truck,รถบรรทุกขนาดใหญ่,6-wheeler Truck,รถบรรทุก 6 ล้อ,Diesel B7,ดีเซล B7,6_wheeler,B7
+Heavy Duty Truck,รถบรรทุกขนาดใหญ่,10-wheeler Truck,รถบรรทุก 10 ล้อ,Diesel B7,ดีเซล B7,10_wheeler,B7
+Trailer / Semi-Trailer,รถพ่วงและรถกึ่งพ่วง,Full Trailer,รถลากพ่วง,Diesel B7,ดีเซล B7,full_trailer,B7
+Trailer / Semi-Trailer,รถพ่วงและรถกึ่งพ่วง,Semi-Trailer,รถกึ่งพ่วง,Diesel B7,ดีเซล B7,semi_trailer,B7
+Bus / Public Transport,รถโดยสาร,Standard Bus,รถโดยสารประจำทาง / รถทัวร์,Diesel B7,ดีเซล B7,bus,B7
+Motorcycle,รถจักรยานยนต์,Delivery Motorcycle,รถจักรยานยนต์ขนส่งพัสดุ,Gasohol 91 / 95 (E10),แก๊สโซฮอล์ 91 / 95 (E10),motorcycle,E10
+Motorcycle,รถจักรยานยนต์,Delivery Motorcycle,รถจักรยานยนต์ขนส่งพัสดุ,Gasohol E20,แก๊สโซฮอล์ E20,motorcycle,E20
+Motorcycle,รถจักรยานยนต์,Delivery Motorcycle,รถจักรยานยนต์ขนส่งพัสดุ,Electricity (EV),ไฟฟ้า 100% (Battery EV),motorcycle_ev,EV
+Dual Fuel / Hybrid,ระบบไฮบริด / สองเชื้อเพลิง,Bi-Fuel (Gasoline + LPG/NGV),น้ำมัน สลับ ก๊าซ,Bi-Fuel,ระบบเชื้อเพลิงสองระบบ,bi_fuel,bi_fuel

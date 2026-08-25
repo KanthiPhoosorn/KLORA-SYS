@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBatch, getSupplier } from "@/lib/store";
 import { thaiDateShort } from "@/lib/format";
+import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { Flower2, MapPin, Phone, ShieldCheck } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -69,11 +70,12 @@ export default async function TracePage({
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-1 shadow-sm">
             <Row label="ชนิดดอกไม้" value={productName} />
             <Row label="จำนวนดอก" value={`${batch.flowerCount.toLocaleString()} ดอก`} />
-            <Row label="Co2e ต่อดอก" value={`${batch.co2ePerFlower.toFixed(4)} Kg`} />
+            <Row label="Estimated CO₂e ต่อดอก" value={`${batch.co2ePerFlower.toFixed(4)} Kg`} />
             <Row label="น้ำหนักรวม" value={`${weight} kg.`} />
             <Row label="วันที่ตัด" value={thaiDateShort(batch.cutDate)} />
             <Row label="อายุหลังตัด" value={`${batch.ageDays} วัน`} />
           </div>
+          <Co2eDisclosure className="mt-2 px-1" />
         </section>
 
         {/* Care */}

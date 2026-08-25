@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { getSuppliers, getBatches, getPrints } from "@/lib/store";
 import { FACTORS, FACTOR_LABELS, FACTOR_SOURCE } from "@/lib/carbon";
 import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
+import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { isSameBangkokDay } from "@/lib/format";
 import { Printer, Search, MapPin, Scissors, Package, Cloud, Boxes } from "lucide-react";
 import type { Supplier } from "@/lib/types";
@@ -83,6 +84,7 @@ export default async function LogisticDashboard() {
           <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-blue-600">
             {FACTOR_SOURCE.label} ↗
           </a>
+          <Co2eDisclosure className="mt-2" />
         </Card>
         <Card className="p-5">
           <h3 className="mb-4 text-base font-semibold text-slate-800">สัดส่วน CO₂e แยกตามฟาร์ม</h3>

@@ -3,6 +3,7 @@ import { getSupplier, getBatchesBySupplier } from "@/lib/store";
 import { FACTORS, transportCarbon, basketCarbonForRound, basketReuseCounts } from "@/lib/carbon";
 import { MetricCard, Card, Donut } from "@/components/ui";
 import ProLock from "@/components/ProLock";
+import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { thaiDateShort } from "@/lib/format";
 import { Leaf, Trophy, TrendingDown, TrendingUp } from "lucide-react";
 import type { Batch } from "@/lib/types";
@@ -62,20 +63,26 @@ export default async function CarbonDashboardPage() {
   }
 
   // Emission by activity (aggregate over computed rounds).
+  // Per-activity breakdown — mirrors plantingCarbon()/carbon.ts exactly (all six farm inputs,
+  // accumulated per computed round) so the donut always sums to the same total as the engine.
   const reuse = basketReuseCounts(batches);
-  let fuel = 0, elec = 0, fert = 0, transport = 0, packaging = 0;
+  let fuel = 0, elec = 0, fert = 0, agro = 0, water = 0, waste = 0, transport = 0, packaging = 0;
   for (const b of computed) {
     fuel += (supplier?.fuelLitres ?? 0) * FACTORS.FUEL;
     elec += (supplier?.electricityKwh ?? 0) * FACTORS.ELECTRICITY;
     fert += (supplier?.fertilizerKg ?? 0) * FACTORS.FERTILIZER;
+    agro += (supplier?.agriChemicalsKg ?? 0) * FACTORS.AGROCHEMICAL;
+    water += (supplier?.waterM3 ?? 0) * FACTORS.WATER;
+    waste += (supplier?.wasteKg ?? 0) * FACTORS.WASTE;
     transport += transportCarbon(b.distanceKm);
     packaging += basketCarbonForRound(b.basketIds ?? [], (id) => reuse.get(id) ?? 0);
   }
-  const waste = (supplier?.wasteKg ?? 0) * 0.5;
   const activities = [
-    { label: "การเพาะปลูก", val: fert, color: "#5ec46e" },
+    { label: "ปุ๋ยเคมี", val: fert, color: "#5ec46e" },
+    { label: "สารเคมีเกษตร", val: agro, color: "#f472b6" },
     { label: "การใช้ไฟฟ้า", val: elec, color: "#1262fe" },
     { label: "การใช้เชื้อเพลิง", val: fuel, color: "#ff8d28" },
+    { label: "การใช้น้ำ", val: water, color: "#38bdf8" },
     { label: "การขนส่ง", val: transport, color: "#5eead4" },
     { label: "บรรจุภัณฑ์", val: packaging, color: "#a78bfa" },
     { label: "การจัดการของเสีย", val: waste, color: "#ff383c" },
@@ -87,7 +94,10 @@ export default async function CarbonDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">แดชบอร์ดคาร์บอน</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">แดชบอร์ดคาร์บอน</h1>
+        <Co2eDisclosure className="mt-1.5 max-w-3xl" />
+      </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, MapPin, Plus, X, Check } from "lucide-react";
+import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
 
 const inputCls =
   "w-full rounded-[5px] border border-gray-300 bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
@@ -166,11 +167,13 @@ export default function RegisterForm() {
             <div className="space-y-[10px] rounded-[8px] border border-gray-200 p-4">
               <p className="text-[14px] font-semibold text-black">ดอกไม้และพันธุ์ที่ปลูก</p>
               <Field label={<>ชนิดดอกไม้{req}</>}>
-                <input value={f.flowerType} onChange={set("flowerType")} placeholder="กุหลาบ" className={inputCls} />
+                <input list="reg-ftypes" value={f.flowerType} onChange={set("flowerType")} placeholder="เลือกหรือพิมพ์ชนิดดอกไม้" className={inputCls} />
+                <datalist id="reg-ftypes">{FLOWER_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
               </Field>
               <Field label="พันธุ์ดอกไม้">
                 <div className="flex gap-2">
-                  <input value={varietyDraft} onChange={(e) => setVarietyDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVariety(); } }} placeholder="เลือกพันธุ์ดอกไม้ เช่น Angel Face" className={inputCls} />
+                  <input list="reg-fvars" value={varietyDraft} onChange={(e) => setVarietyDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVariety(); } }} placeholder="เลือกหรือพิมพ์พันธุ์ดอกไม้" className={inputCls} />
+                  <datalist id="reg-fvars">{variantsForType(f.flowerType).map((v) => <option key={v} value={v} />)}</datalist>
                   <button type="button" onClick={addVariety} className="inline-flex shrink-0 items-center gap-1 rounded-[5px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><Plus size={15} /> เพิ่ม</button>
                 </div>
               </Field>

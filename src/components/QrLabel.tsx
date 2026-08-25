@@ -51,7 +51,7 @@ export default function QrLabel({
           <span className="tabular font-semibold text-pink-700">
             {batch.co2ePerFlower.toFixed(4)}
           </span>
-          <span className="text-xs text-pink-900/50">kg CO₂e/ดอก</span>
+          <span className="text-xs text-pink-900/50">kg CO₂e/ดอก (Est.)</span>
         </div>
         <div className="flex items-center justify-end gap-1.5">
           <Clock size={14} className="text-pink-600" />

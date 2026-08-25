@@ -17,8 +17,11 @@ import type { Supplier, Batch } from "./types";
 // the exact latest TGO figures from the source below when finalising for production.
 export const FACTORS = {
   FUEL: 2.68, // per litre of diesel
-  ELECTRICITY: 0.5, // per kWh (Thailand grid)
-  FERTILIZER: 1.3, // per kg of fertilizer
+  ELECTRICITY: 0.4999, // per kWh (Thailand grid — TGO, updated yearly)
+  FERTILIZER: 3.5, // per kg of chemical fertilizer (KYN range 3.0–5.0, midpoint)
+  AGROCHEMICAL: 10.0, // per kg of agro-chemicals (KYN estimate, wide range 5–25)
+  WATER: 0.16, // per m³ of water (KYN range 0.15–0.17)
+  WASTE: 0.55, // per kg of organic waste (KYN range 0.5–0.6)
   BASKET: 2.0, // per basket manufactured
   TRANSPORT: 0.2, // per km (small delivery truck)
 } as const;
@@ -33,7 +36,10 @@ export const FACTOR_SOURCE = {
 export const FACTOR_LABELS: Record<keyof typeof FACTORS, string> = {
   FUEL: "น้ำมัน (kg CO₂e / ลิตร)",
   ELECTRICITY: "ไฟฟ้า (kg CO₂e / kWh)",
-  FERTILIZER: "ปุ๋ย (kg CO₂e / kg)",
+  FERTILIZER: "ปุ๋ยเคมี (kg CO₂e / kg)",
+  AGROCHEMICAL: "สารเคมีเกษตร (kg CO₂e / kg)",
+  WATER: "น้ำ (kg CO₂e / ลบ.ม.)",
+  WASTE: "ของเสียอินทรีย์ (kg CO₂e / kg)",
   BASKET: "ตะกร้า (kg CO₂e / ใบ)",
   TRANSPORT: "ขนส่ง (kg CO₂e / km)",
 };
@@ -45,12 +51,15 @@ export interface CarbonBreakdown {
   co2ePerFlower: number; // kg CO2e per flower (final)
 }
 
-// คาร์บอนจากการปลูก
+// คาร์บอนจากการปลูก — ครบทั้ง 6 รายการตามสเปก KYN (§2.3 Total_Farm_Carbon)
 export function plantingCarbon(s: Supplier): number {
   return (
     (s.fuelLitres ?? 0) * FACTORS.FUEL +
     (s.electricityKwh ?? 0) * FACTORS.ELECTRICITY +
-    (s.fertilizerKg ?? 0) * FACTORS.FERTILIZER
+    (s.fertilizerKg ?? 0) * FACTORS.FERTILIZER +
+    (s.agriChemicalsKg ?? 0) * FACTORS.AGROCHEMICAL +
+    (s.waterM3 ?? 0) * FACTORS.WATER +
+    (s.wasteKg ?? 0) * FACTORS.WASTE
   );
 }
 

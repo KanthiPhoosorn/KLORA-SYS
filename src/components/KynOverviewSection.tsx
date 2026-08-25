@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FACTORS, FACTOR_LABELS, FACTOR_SOURCE } from "@/lib/carbon";
 import { StatCard, Card, CardHeader, Bar, Badge } from "@/components/ui";
+import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { freshnessTone } from "@/lib/status";
 import { Leaf, ArrowUpRight, SlidersHorizontal } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
@@ -131,6 +132,7 @@ export default function KynOverviewSection({
               <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-brand-blue">
                 {FACTOR_SOURCE.label} ↗
               </a>
+              <Co2eDisclosure className="mt-2" />
             </div>
           </Card>
         </div>

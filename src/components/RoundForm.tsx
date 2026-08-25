@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2, Lock } from "lucide-react";
 import Modal from "@/components/Modal";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
+import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
 import type { Supplier } from "@/lib/types";
 
 const inputCls =
@@ -14,7 +15,6 @@ const req = <span className="text-[#ee443f]"> *</span>;
 
 const CARRIERS = ["ไปรษณีย์", "Cold Chain", "โรงคัดแยก", "Exporter"];
 const PACK_KINDS = ["ตะกร้า", "กล่องลูกฟูก", "อื่นๆ"];
-const COMMON_TYPES = ["กุหลาบ", "เบญจมาศ", "ลิลลี่", "คาร์เนชั่น", "ทานตะวัน"];
 
 interface Pack {
   kind: string;
@@ -62,7 +62,11 @@ export default function RoundForm({
   const [postalCode, setPostalCode] = useState("");
   const [branch, setBranch] = useState("");
 
-  const varieties = Array.from(new Set([...varietyOptions, ...(supplier.varieties ?? [])]));
+  // Variety suggestions: the KYN master list for the chosen type first (cascading Type → Variety),
+  // then this farm's own past entries and the varieties it registered.
+  const varieties = Array.from(
+    new Set([...variantsForType(flowerType), ...varietyOptions, ...(supplier.varieties ?? [])]),
+  );
 
   function onCut(v: string) {
     setCutDate(v);
@@ -132,7 +136,7 @@ export default function RoundForm({
           <div>
             <label className={labelCls}>ชนิดดอกไม้{req}</label>
             <input list="ftypes" value={flowerType} onChange={(e) => setFlowerType(e.target.value)} placeholder="เลือกประเภทดอกไม้" className={inputCls} />
-            <datalist id="ftypes">{COMMON_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+            <datalist id="ftypes">{FLOWER_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
           </div>
           <div>
             <label className={labelCls}>พันธุ์ดอกไม้{req}</label>
