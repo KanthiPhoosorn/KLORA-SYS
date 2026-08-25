@@ -77,7 +77,7 @@ export default function LoginForm({
             <span className="text-[12px] font-medium text-black">
               อีเมล <span className="text-[#ee443f]">*</span>
             </span>
-            <input name="login" required autoComplete="username" placeholder="กรอกอีเมลของคุณ" className={inputCls} />
+            <input name="login" required autoComplete="username" placeholder="กรอกชื่อผู้ใช้ของคุณ" className={inputCls} />
           </label>
 
           <label className="block space-y-[5px]">

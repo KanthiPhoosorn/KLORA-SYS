@@ -126,7 +126,7 @@ export default function LogisticRegisterForm() {
           <label className="block space-y-[5px]">
             <span className="text-[12px] font-medium text-black">รหัสผ่าน <span className="text-[#ee443f]">*</span></span>
             <div className={`flex items-center rounded-[5px] border bg-white px-[15px] ${errs.password ? "border-[#ee443f]" : "border-gray-300 focus-within:border-brand-blue"}`}>
-              <input name="password" type={showPw ? "text" : "password"} value={f.password} onChange={set("password")} autoComplete="new-password" placeholder="กรอกรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none" />
+              <input name="password" type={showPw ? "text" : "password"} value={f.password} onChange={set("password")} autoComplete="new-password" placeholder="ตั้งรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none" />
               <button type="button" onClick={() => setShowPw((v) => !v)} className="text-gray-500" tabIndex={-1}>
                 {showPw ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
