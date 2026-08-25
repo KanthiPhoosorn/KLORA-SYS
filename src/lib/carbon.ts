@@ -15,15 +15,19 @@ import type { Supplier, Batch } from "./types";
 // kg CO2e per unit. Values reference Thailand's official Carbon Footprint (CFO/CFP)
 // emission factors published by TGO (องค์การบริหารจัดการก๊าซเรือนกระจก). Update these to
 // the exact latest TGO figures from the source below when finalising for production.
+// Values marked [TGO] are quoted from the official TGO CFO factor list,
+// "UPDATE: กุมภาพันธ์ 2569" (in force from 1 Jan 2569 / 2026) — thaicarbonlabel.tgo.or.th.
+// They use the TOTAL kgCO2e column (CO2 fossil + CH4 + N2O), not the CO2-only column.
 export const FACTORS = {
-  FUEL: 2.68, // per litre of diesel
-  ELECTRICITY: 0.4999, // per kWh (Thailand grid — TGO, updated yearly)
-  FERTILIZER: 3.5, // per kg of chemical fertilizer (KYN range 3.0–5.0, midpoint)
-  AGROCHEMICAL: 10.0, // per kg of agro-chemicals (KYN estimate, wide range 5–25)
-  WATER: 0.16, // per m³ of water (KYN range 0.15–0.17)
-  WASTE: 0.55, // per kg of organic waste (KYN range 0.5–0.6)
-  BASKET: 2.0, // per basket manufactured
-  TRANSPORT: 0.2, // per km (small delivery truck)
+  FUEL: 2.979, // [TGO] Diesel: Agriculture (off-road) — kg CO2e / litre
+  ELECTRICITY: 0.475, // [TGO] grid mix 2022–2024, CFO Scope 2 — kg CO2e / kWh
+  //   ↑ replaces 0.4999 (grid mix 2016–2018), which TGO retired on 31 มี.ค. 2569.
+  FERTILIZER: 3.5, // KYN spec — IPCC Tier-1 estimate, range 3.0–5.0 (not in the TGO list)
+  AGROCHEMICAL: 10.0, // KYN spec — Tier-1 estimate, wide range 5–25 (not in the TGO list)
+  WATER: 0.16, // KYN spec — range 0.15–0.17 (not in the TGO list)
+  WASTE: 0.55, // KYN spec — organic waste, range 0.5–0.6 (not in the TGO list)
+  BASKET: 2.0, // KYN packaging table — HDPE transport basket, per basket
+  TRANSPORT: 0.2, // legacy flat per-km rate — superseded by lib/transport-ef.ts (t.km / v.km)
 } as const;
 
 // Source citation shown wherever the factors are displayed.

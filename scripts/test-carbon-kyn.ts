@@ -37,8 +37,9 @@ check("farm carbon @ fallback 0.65", flowerCarbon(12 - 0.7564, FLOWER_EF_DEFAULT
 
 console.log("dynamic farm EF");
 const monthly = { dieselLitres: 100, electricityKwh: 500, fertilizerKg: 50, agrochemicalKg: 5, waterM3: 20, organicWasteKg: 30, totalFlowerYieldKg: 800 };
-check("Total_Farm_Carbon", farmMonthlyCarbon(monthly), 268 + 249.95 + 175 + 50 + 3.2 + 16.5);
-check("Dynamic_Flower_EF = carbon/yield", dynamicFlowerEF(monthly), 762.65 / 800);
+const FARM_TOTAL = 100 * 2.979 + 500 * 0.475 + 50 * 3.5 + 5 * 10 + 20 * 0.16 + 30 * 0.55;
+check("Total_Farm_Carbon", farmMonthlyCarbon(monthly), FARM_TOTAL);
+check("Dynamic_Flower_EF = carbon/yield", dynamicFlowerEF(monthly), FARM_TOTAL / 800);
 check("fallback when no record", dynamicFlowerEF(null), 0.65);
 check("fallback when yield = 0", dynamicFlowerEF({ ...monthly, totalFlowerYieldKg: 0 }), 0.65);
 
@@ -53,7 +54,7 @@ const r = computeOrderCarbon({
   farmMonthly: monthly,
   transport: { method: "tkm", grossWeightKg: 12, distanceKm: 785, efTkm: 0.12 },
 });
-const expFarm = (12 - 0.7564) * (762.65 / 800);
+const expFarm = (12 - 0.7564) * (FARM_TOTAL / 800);
 const expPack = 0.6864 * 0.86 + 0.1925;
 const expTrans = 0.012 * 785 * 0.12;
 check("CO2e_Farm", r.farm, expFarm);

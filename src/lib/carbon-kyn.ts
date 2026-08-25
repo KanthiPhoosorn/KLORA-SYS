@@ -14,8 +14,9 @@
 
 /** Farm-level emission factors (KYN §2.3). All inputs are MONTHLY totals. */
 export const FARM_EF = {
-  DIESEL: 2.68, // kg CO2e / litre
-  ELECTRICITY: 0.4999, // kg CO2e / kWh (Thai grid, TGO — refresh yearly)
+  DIESEL: 2.979, // [TGO ก.พ. 2569] Diesel: Agriculture (off-road) — kg CO2e / litre
+  ELECTRICITY: 0.475, // [TGO ก.พ. 2569] grid mix 2022–2024, CFO Scope 2 — kg CO2e / kWh
+  //   ↑ KYN's spec quoted 0.4999 (grid mix 2016–2018); TGO retired that value on 31 มี.ค. 2569.
   FERTILIZER: 3.5, // kg CO2e / kg  (range 3.0–5.0, midpoint) ⚠ Tier-1 estimate
   AGROCHEMICAL: 10.0, // kg CO2e / kg (range 5–25)            ⚠ Tier-1 estimate
   WATER: 0.16, // kg CO2e / m³ (range 0.15–0.17)
