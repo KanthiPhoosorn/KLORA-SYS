@@ -10,6 +10,7 @@ const inputCls =
   "w-full rounded-[5px] border border-gray-300 bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
 const labelCls = "text-[14px] text-black";
 const req = <span className="text-[#ee443f]"> *</span>;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function StepBar({ step }: { step: number }) {
   return (
@@ -30,11 +31,12 @@ function StepBar({ step }: { step: number }) {
   );
 }
 
-function Field({ label, children, note }: { label: React.ReactNode; children: React.ReactNode; note?: string }) {
+function Field({ label, children, note, error }: { label: React.ReactNode; children: React.ReactNode; note?: string; error?: string }) {
   return (
     <label className="block space-y-[5px]">
       <span className={labelCls}>{label}{note ? <span className="text-[#9e9e9e]"> {note}</span> : null}</span>
       {children}
+      {error ? <span className="mt-1 block text-[11px] text-[#ee443f]">{error}</span> : null}
     </label>
   );
 }
@@ -54,8 +56,15 @@ export default function RegisterForm() {
   });
   const [varieties, setVarieties] = useState<string[]>([]);
   const [varietyDraft, setVarietyDraft] = useState("");
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  // Per-field inline errors (Figma "Register - Inline Error Message" state)
+  const [errs, setErrs] = useState<Partial<Record<keyof typeof f, string>>>({});
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setF({ ...f, [k]: e.target.value });
+    setErrs((prev) => ({ ...prev, [k]: undefined }));
+  };
+  /** input class with a red border when that field failed validation */
+  const ic = (k: keyof typeof f) =>
+    errs[k] ? inputCls.replace("border-gray-300", "border-[#ee443f]") : inputCls;
 
   const pwMatch = f.password.length > 0 && f.password === f.confirmPassword;
 
@@ -72,15 +81,26 @@ export default function RegisterForm() {
 
   function next() {
     setError(null);
+    const e: Partial<Record<keyof typeof f, string>> = {};
     if (step === 0) {
-      if (!f.username || !f.email || !f.password) return setError("กรอกชื่อผู้ใช้ อีเมล และรหัสผ่าน");
-      if (f.password.length < 8) return setError("รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร");
-      if (f.password !== f.confirmPassword) return setError("รหัสผ่านและการยืนยันไม่ตรงกัน");
+      if (!f.username.trim()) e.username = "กรุณากรอกชื่อผู้ใช้";
+      if (!f.email.trim()) e.email = "กรุณากรอกอีเมล";
+      else if (!EMAIL_RE.test(f.email.trim())) e.email = "รูปแบบอีเมลไม่ถูกต้อง";
+      if (!f.password) e.password = "กรุณากรอกรหัสผ่าน";
+      else if (f.password.length < 8) e.password = "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร";
+      if (!f.confirmPassword) e.confirmPassword = "กรุณายืนยันรหัสผ่าน";
+      else if (f.password !== f.confirmPassword) e.confirmPassword = "รหัสผ่านไม่ตรงกัน";
     }
     if (step === 1) {
-      if (!f.farmName || !f.contactName || !f.phone || !f.address || !f.flowerType)
-        return setError("กรอกข้อมูลผู้ผลิตให้ครบ");
+      if (!f.farmName.trim()) e.farmName = "กรุณากรอกชื่อแหล่งผลิต";
+      if (!f.contactName.trim()) e.contactName = "กรุณากรอกชื่อผู้ติดต่อ";
+      if (!f.phone.trim()) e.phone = "กรุณากรอกเบอร์โทร";
+      if (!f.address.trim()) e.address = "กรุณากรอกที่อยู่";
+      if (!f.gps.trim()) e.gps = "กรุณาระบุพิกัด GPS";
+      if (!f.flowerType.trim()) e.flowerType = "กรุณาเลือกชนิดดอกไม้";
     }
+    setErrs(e);
+    if (Object.keys(e).length > 0) return;
     setStep((s) => s + 1);
   }
 
@@ -109,20 +129,20 @@ export default function RegisterForm() {
               <h1 className="text-[32px] font-semibold leading-[38px] text-black">สมัครสมาชิก</h1>
               <p className="text-[12px] text-black">สวัสดี! กรอกข้อมูลของคุณเพื่อสมัครสมาชิก</p>
             </div>
-            <Field label={<>ชื่อผู้ใช้{req}</>}>
-              <input value={f.username} onChange={set("username")} placeholder="กรอกชื่อผู้ใช้ของคุณ" className={inputCls} />
+            <Field label={<>ชื่อผู้ใช้{req}</>} error={errs.username}>
+              <input value={f.username} onChange={set("username")} placeholder="กรอกชื่อผู้ใช้ของคุณ" className={ic("username")} />
             </Field>
-            <Field label={<>อีเมล{req}</>} note="(บริษัท / องค์กร — ไม่บังคับ)">
-              <input value={f.email} onChange={set("email")} type="email" placeholder="example@gmail.com" className={inputCls} />
+            <Field label={<>อีเมล{req}</>} note="(บริษัท / องค์กร — ไม่บังคับ)" error={errs.email}>
+              <input value={f.email} onChange={set("email")} type="email" placeholder="example@gmail.com" className={ic("email")} />
             </Field>
-            <Field label={<>รหัสผ่าน{req}</>}>
-              <div className="flex items-center rounded-[5px] border border-gray-300 bg-white px-[15px]">
+            <Field label={<>รหัสผ่าน{req}</>} error={errs.password}>
+              <div className={"flex items-center rounded-[5px] border bg-white px-[15px] " + (errs.password ? "border-[#ee443f]" : "border-gray-300")}>
                 <input value={f.password} onChange={set("password")} type={showPw ? "text" : "password"} placeholder="สร้างรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] outline-none" />
                 <button type="button" onClick={() => setShowPw((v) => !v)} className="text-gray-500">{showPw ? <Eye size={20} /> : <EyeOff size={20} />}</button>
               </div>
             </Field>
-            <Field label={<>ยืนยันรหัสผ่าน{req}</>}>
-              <input value={f.confirmPassword} onChange={set("confirmPassword")} type={showPw ? "text" : "password"} placeholder="ยืนยันรหัสผ่านของคุณ" className={inputCls} />
+            <Field label={<>ยืนยันรหัสผ่าน{req}</>} error={errs.confirmPassword}>
+              <input value={f.confirmPassword} onChange={set("confirmPassword")} type={showPw ? "text" : "password"} placeholder="ยืนยันรหัสผ่านของคุณ" className={ic("confirmPassword")} />
               {f.confirmPassword.length > 0 && (
                 <span className={`mt-1 flex items-center gap-1 text-[12px] ${pwMatch ? "text-[#40cb44]" : "text-[#9e9e9e]"}`}>
                   <Check size={16} /> {pwMatch ? "รหัสผ่านตรงกัน!" : "รหัสผ่านยังไม่ตรงกัน"}
@@ -138,26 +158,26 @@ export default function RegisterForm() {
               <h1 className="text-[32px] font-semibold leading-[38px] text-black">ข้อมูลผู้ผลิต</h1>
               <p className="text-[12px] text-black">กรอกข้อมูลแหล่งผลิตของคุณ</p>
             </div>
-            <Field label={<>ชื่อผู้ใช้ (แหล่งผลิต){req}</>}>
-              <input value={f.farmName} onChange={set("farmName")} placeholder="เช่น ฟาร์มดอกไม้ท่าสุด" className={inputCls} />
+            <Field label={<>ชื่อผู้ใช้ (แหล่งผลิต){req}</>} error={errs.farmName}>
+              <input value={f.farmName} onChange={set("farmName")} placeholder="เช่น ฟาร์มดอกไม้ท่าสุด" className={ic("farmName")} />
             </Field>
             <div className="grid grid-cols-2 gap-[20px]">
-              <Field label={<>ชื่อผู้ติดต่อ{req}</>}>
-                <input value={f.contactName} onChange={set("contactName")} placeholder="กรอกชื่อผู้ติดต่อของคุณ" className={inputCls} />
+              <Field label={<>ชื่อผู้ติดต่อ{req}</>} error={errs.contactName}>
+                <input value={f.contactName} onChange={set("contactName")} placeholder="กรอกชื่อผู้ติดต่อของคุณ" className={ic("contactName")} />
               </Field>
-              <Field label={<>เบอร์โทร{req}</>}>
-                <input value={f.phone} onChange={set("phone")} placeholder="0xx-xxx-xxxx" className={inputCls} />
+              <Field label={<>เบอร์โทร{req}</>} error={errs.phone}>
+                <input value={f.phone} onChange={set("phone")} placeholder="0xx-xxx-xxxx" className={ic("phone")} />
               </Field>
               <Field label="Line ID">
                 <input value={f.lineId} onChange={set("lineId")} placeholder="0xxxxxxx" className={inputCls} />
               </Field>
-              <Field label={<>ที่อยู่{req}</>}>
-                <input value={f.address} onChange={set("address")} placeholder="123 ต.ท่าสุด อ.เมือง จ.เชียงราย" className={inputCls} />
+              <Field label={<>ที่อยู่{req}</>} error={errs.address}>
+                <input value={f.address} onChange={set("address")} placeholder="123 ต.ท่าสุด อ.เมือง จ.เชียงราย" className={ic("address")} />
               </Field>
             </div>
-            <Field label={<>พิกัด GPS{req}</>}>
+            <Field label={<>พิกัด GPS{req}</>} error={errs.gps}>
               <div className="flex gap-2">
-                <input value={f.gps} onChange={set("gps")} placeholder="12.2222, 13.3333" className={inputCls} />
+                <input value={f.gps} onChange={set("gps")} placeholder="12.2222, 13.3333" className={ic("gps")} />
                 <button type="button" onClick={useLocation} className="inline-flex shrink-0 items-center gap-1.5 rounded-[5px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><MapPin size={15} /> เลือกจากแผนที่</button>
               </div>
             </Field>
@@ -166,8 +186,8 @@ export default function RegisterForm() {
             </Field>
             <div className="space-y-[10px] rounded-[8px] border border-gray-200 p-4">
               <p className="text-[14px] font-semibold text-black">ดอกไม้และพันธุ์ที่ปลูก</p>
-              <Field label={<>ชนิดดอกไม้{req}</>}>
-                <input list="reg-ftypes" value={f.flowerType} onChange={set("flowerType")} placeholder="เลือกหรือพิมพ์ชนิดดอกไม้" className={inputCls} />
+              <Field label={<>ชนิดดอกไม้{req}</>} error={errs.flowerType}>
+                <input list="reg-ftypes" value={f.flowerType} onChange={set("flowerType")} placeholder="เลือกหรือพิมพ์ชนิดดอกไม้" className={ic("flowerType")} />
                 <datalist id="reg-ftypes">{FLOWER_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
               </Field>
               <Field label="พันธุ์ดอกไม้">
