@@ -1,0 +1,10 @@
+Category_TH,Category_EN,Vehicle_Type_TH,Vehicle_Type_EN,Database_Value_Vehicle,Efficiency_km_per_L_Min,Efficiency_km_per_L_Max,Avg_Payload_Tons,Max_Payload_Tons
+รถจักรยานยนต์,Motorcycle,รถจักรยานยนต์ขนส่งพัสดุ,Delivery Motorcycle,motorcycle,35,45,0.04,0.1
+รถยนต์ส่วนบุคคล,Passenger Car,รถยนต์ขนาดเล็ก,Eco Car / Sedan,sedan,14,17,0.12,0.4
+รถยนต์ส่วนบุคคล,Passenger Car,รถยนต์อเนกประสงค์,SUV / PPV,suv,11,13,0.2,0.5
+รถบรรทุกขนาดเล็กและรถตู้,Light Commercial Vehicle,รถกระบะบรรทุก 4 ล้อ,Pick-up Truck,pickup,10.5,12.5,1,1.5
+รถบรรทุกขนาดเล็กและรถตู้,Light Commercial Vehicle,รถตู้ขนส่งพัสดุ,Cargo Van,cargo_van,10,12,0.8,1.2
+รถบรรทุกขนาดเล็กและรถตู้,Light Commercial Vehicle,รถอเนกประสงค์ขนาดเล็ก,LMV,lmv,11,13,0.5,0.8
+รถบรรทุกขนาดใหญ่,Heavy Duty Truck,รถบรรทุก 6 ล้อ,6-wheeler Truck,6_wheeler,5.5,6.5,4.75,7
+รถบรรทุกขนาดใหญ่,Heavy Duty Truck,รถบรรทุก 10 ล้อ,10-wheeler Truck,10_wheeler,3.8,4.5,13.25,16
+รถพ่วงและรถกึ่งพ่วง,Trailer & Semi-Trailer,รถลากพ่วง / รถกึ่งพ่วง,Full/Semi Trailer,trailer,2.5,3.2,26.5,32

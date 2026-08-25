@@ -6,11 +6,13 @@ function check(name: string, got: number, want: number) {
   else { fail++; console.log(`  FAIL  ${name}: got ${got}, want ${want}`); }
 }
 const d = deriveTransportEF("6_wheeler", "B7")!;
-check("6-wheeler B7 EF_vkm = 0.20 L/km * 2.5504", d.efVkm, 0.2 * 2.5504);
-check("6-wheeler B7 EF_tkm = vkm / 6 t", d.efTkm, (0.2 * 2.5504) / 6);
-const ev = deriveTransportEF("motorcycle_ev", "EV")!;
-check("EV motorcycle uses grid 0.475", ev.efVkm, 0.035 * 0.475);
+check("6-wheeler B7 EF_vkm = 16.6667/100 L/km * 2.5504 [KYN fleet]", d.efVkm, (16.6667/100) * 2.5504);
+check("6-wheeler B7 EF_tkm = vkm / 4.75 t [KYN payload]", d.efTkm, ((16.6667/100) * 2.5504) / 4.75);
+const ev = deriveTransportEF("ev_passenger", "EV")!;
+check("EV car 6 km/kWh -> 16.6667 kWh/100km * 0.475", ev.efVkm, (16.6667/100) * 0.475);
+console.log("  sourced (TGO fuel + KYN fleet):", ev.sourced, "| 10-wheeler basis:", deriveTransportEF("10_wheeler","B7")!.basis);
 console.log(`  official fuel EFs: ${Object.values(FUEL_EF).filter((f) => f.official).length}/${Object.keys(FUEL_EF).length}`);
-console.log(`  vehicle profiles (all assumptions): ${Object.keys(VEHICLE_PROFILE).length}`);
+const kyn = Object.values(VEHICLE_PROFILE).filter((v) => v.source === "kyn").length;
+console.log(`  vehicle profiles: ${kyn} from KYN fleet data, ${Object.keys(VEHICLE_PROFILE).length - kyn} still assumptions`);
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

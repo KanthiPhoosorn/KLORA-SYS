@@ -14,8 +14,9 @@
 //     EF_vkm = fuel consumed per km  ×  EF_fuel          (kg CO2e / vehicle-km)
 //     EF_tkm = EF_vkm ÷ typical payload in tonnes         (kg CO2e / tonne-km)
 //
-// The fuel EFs are official. The CONSUMPTION and PAYLOAD figures are operational assumptions
-// (flagged `assumption: true`) — KYN should replace them with real fleet averages.
+// The fuel EFs are official TGO figures. The CONSUMPTION + PAYLOAD figures now come from KYN's
+// `vehicle_efficiency_payload_list` sheet (25 Aug 2026) for 9 vehicle classes — those rows are
+// marked `source: "kyn"`. A few classes KYN did not cover are still `source: "assumption"`.
 
 export interface FuelFactor {
   key: string;
@@ -47,40 +48,55 @@ export const FUEL_EF: Record<string, FuelFactor> = {
 export interface VehicleProfile {
   key: string;
   label: string;
-  /** litres (or kg / kWh for CNG / EV) consumed per 100 km — OPERATIONAL ASSUMPTION */
+  /** KYN fleet data — km per litre (or km per kWh for EVs), min/max range */
+  kmPerUnitMin?: number;
+  kmPerUnitMax?: number;
+  /** litres (kWh for EV) consumed per 100 km — derived from the km/L midpoint */
   consumptionPer100Km: number;
-  /** typical usable payload in tonnes — OPERATIONAL ASSUMPTION */
+  /** Avg_Payload_Tons from KYN */
   payloadTonnes: number;
-  assumption: true;
+  /** Max_Payload_Tons from KYN */
+  maxPayloadTonnes?: number;
+  /** "kyn" = supplied by KYN fleet data · "assumption" = still our estimate */
+  source: "kyn" | "assumption";
 }
 
 /**
- * ⚠ ALL numbers in this table are assumptions, not TGO figures.
- * They exist so the t.km / v.km formulas can run; replace with KYN fleet data.
+ * Fuel-efficiency + payload per vehicle class.
+ * `source: "kyn"` rows come from KYN's `vehicle_efficiency_payload_list` sheet
+ * (Efficiency_km_per_L_Min/Max → midpoint → L/100km; Avg_Payload_Tons).
+ * `source: "assumption"` rows are classes KYN has not supplied yet.
  */
 export const VEHICLE_PROFILE: Record<string, VehicleProfile> = {
-  sedan: { key: "sedan", label: "รถยนต์ขนาดเล็ก", consumptionPer100Km: 7, payloadTonnes: 0.3, assumption: true },
-  suv: { key: "suv", label: "รถอเนกประสงค์", consumptionPer100Km: 9, payloadTonnes: 0.4, assumption: true },
-  ev_passenger: { key: "ev_passenger", label: "รถยนต์ไฟฟ้า", consumptionPer100Km: 16, payloadTonnes: 0.3, assumption: true },
-  phev_hev: { key: "phev_hev", label: "ไฮบริด / ปลั๊กอินไฮบริด", consumptionPer100Km: 4.5, payloadTonnes: 0.3, assumption: true },
-  pickup: { key: "pickup", label: "รถกระบะ 4 ล้อ", consumptionPer100Km: 10, payloadTonnes: 1, assumption: true },
-  van: { key: "van", label: "รถตู้ขนส่งพัสดุ", consumptionPer100Km: 11, payloadTonnes: 1.2, assumption: true },
-  lmv: { key: "lmv", label: "รถอเนกประสงค์ขนาดเล็ก", consumptionPer100Km: 8, payloadTonnes: 0.5, assumption: true },
-  "6_wheeler": { key: "6_wheeler", label: "รถบรรทุก 6 ล้อ", consumptionPer100Km: 20, payloadTonnes: 6, assumption: true },
-  "10_wheeler": { key: "10_wheeler", label: "รถบรรทุก 10 ล้อ", consumptionPer100Km: 28, payloadTonnes: 15, assumption: true },
-  full_trailer: { key: "full_trailer", label: "รถลากพ่วง", consumptionPer100Km: 35, payloadTonnes: 25, assumption: true },
-  semi_trailer: { key: "semi_trailer", label: "รถกึ่งพ่วง", consumptionPer100Km: 33, payloadTonnes: 24, assumption: true },
-  bus: { key: "bus", label: "รถโดยสาร", consumptionPer100Km: 25, payloadTonnes: 3, assumption: true },
-  motorcycle: { key: "motorcycle", label: "จักรยานยนต์ขนส่ง", consumptionPer100Km: 2.2, payloadTonnes: 0.05, assumption: true },
-  motorcycle_ev: { key: "motorcycle_ev", label: "จักรยานยนต์ไฟฟ้า", consumptionPer100Km: 3.5, payloadTonnes: 0.05, assumption: true },
-  bi_fuel: { key: "bi_fuel", label: "น้ำมันสลับก๊าซ", consumptionPer100Km: 9, payloadTonnes: 0.4, assumption: true },
+  motorcycle: { key: "motorcycle", label: "จักรยานยนต์ขนส่ง", kmPerUnitMin: 35, kmPerUnitMax: 45, consumptionPer100Km: 2.5, payloadTonnes: 0.04, maxPayloadTonnes: 0.1, source: "kyn" },
+  sedan: { key: "sedan", label: "รถยนต์ขนาดเล็ก", kmPerUnitMin: 14, kmPerUnitMax: 17, consumptionPer100Km: 6.4516, payloadTonnes: 0.12, maxPayloadTonnes: 0.4, source: "kyn" },
+  suv: { key: "suv", label: "รถอเนกประสงค์", kmPerUnitMin: 11, kmPerUnitMax: 13, consumptionPer100Km: 8.3333, payloadTonnes: 0.2, maxPayloadTonnes: 0.5, source: "kyn" },
+  pickup: { key: "pickup", label: "รถกระบะ 4 ล้อ", kmPerUnitMin: 10.5, kmPerUnitMax: 12.5, consumptionPer100Km: 8.6957, payloadTonnes: 1, maxPayloadTonnes: 1.5, source: "kyn" },
+  // KYN calls this class `cargo_van`; the vehicle/fuel mapping list uses `van` — both resolve here.
+  van: { key: "van", label: "รถตู้ขนส่งพัสดุ", kmPerUnitMin: 10, kmPerUnitMax: 12, consumptionPer100Km: 9.0909, payloadTonnes: 0.8, maxPayloadTonnes: 1.2, source: "kyn" },
+  cargo_van: { key: "cargo_van", label: "รถตู้ขนส่งพัสดุ", kmPerUnitMin: 10, kmPerUnitMax: 12, consumptionPer100Km: 9.0909, payloadTonnes: 0.8, maxPayloadTonnes: 1.2, source: "kyn" },
+  lmv: { key: "lmv", label: "รถอเนกประสงค์ขนาดเล็ก", kmPerUnitMin: 11, kmPerUnitMax: 13, consumptionPer100Km: 8.3333, payloadTonnes: 0.5, maxPayloadTonnes: 0.8, source: "kyn" },
+  "6_wheeler": { key: "6_wheeler", label: "รถบรรทุก 6 ล้อ", kmPerUnitMin: 5.5, kmPerUnitMax: 6.5, consumptionPer100Km: 16.6667, payloadTonnes: 4.75, maxPayloadTonnes: 7, source: "kyn" },
+  "10_wheeler": { key: "10_wheeler", label: "รถบรรทุก 10 ล้อ", kmPerUnitMin: 3.8, kmPerUnitMax: 4.5, consumptionPer100Km: 24.0964, payloadTonnes: 13.25, maxPayloadTonnes: 16, source: "kyn" },
+  // KYN gives one combined "trailer" class; the mapping list splits full/semi — both use it.
+  full_trailer: { key: "full_trailer", label: "รถลากพ่วง", kmPerUnitMin: 2.5, kmPerUnitMax: 3.2, consumptionPer100Km: 35.0877, payloadTonnes: 26.5, maxPayloadTonnes: 32, source: "kyn" },
+  semi_trailer: { key: "semi_trailer", label: "รถกึ่งพ่วง", kmPerUnitMin: 2.5, kmPerUnitMax: 3.2, consumptionPer100Km: 35.0877, payloadTonnes: 26.5, maxPayloadTonnes: 32, source: "kyn" },
+  trailer: { key: "trailer", label: "รถพ่วง / กึ่งพ่วง", kmPerUnitMin: 2.5, kmPerUnitMax: 3.2, consumptionPer100Km: 35.0877, payloadTonnes: 26.5, maxPayloadTonnes: 32, source: "kyn" },
+  // EVs — KYN note: sedan_ev = 6.0 km/kWh, pickup_ev = 4.0 km/kWh (consumption is kWh/100km).
+  ev_passenger: { key: "ev_passenger", label: "รถยนต์ไฟฟ้า", kmPerUnitMin: 6, kmPerUnitMax: 6, consumptionPer100Km: 16.6667, payloadTonnes: 0.12, maxPayloadTonnes: 0.4, source: "kyn" },
+  pickup_ev: { key: "pickup_ev", label: "รถกระบะไฟฟ้า", kmPerUnitMin: 4, kmPerUnitMax: 4, consumptionPer100Km: 25, payloadTonnes: 1, maxPayloadTonnes: 1.5, source: "kyn" },
+  // ⚠ still assumptions — KYN has not supplied these classes
+  phev_hev: { key: "phev_hev", label: "ไฮบริด / ปลั๊กอินไฮบริด", consumptionPer100Km: 4.5, payloadTonnes: 0.12, source: "assumption" },
+  bus: { key: "bus", label: "รถโดยสาร", consumptionPer100Km: 25, payloadTonnes: 3, source: "assumption" },
+  motorcycle_ev: { key: "motorcycle_ev", label: "จักรยานยนต์ไฟฟ้า", consumptionPer100Km: 3.5, payloadTonnes: 0.04, source: "assumption" },
+  bi_fuel: { key: "bi_fuel", label: "น้ำมันสลับก๊าซ", consumptionPer100Km: 8.3333, payloadTonnes: 0.2, source: "assumption" },
 };
 
 export interface DerivedTransportEF {
   efVkm: number; // kg CO2e / vehicle-km
   efTkm: number; // kg CO2e / tonne-km
-  /** false whenever any input was an assumption rather than a published TGO figure */
-  official: false;
+  /** true when BOTH the fuel EF (TGO) and the vehicle profile (KYN fleet data) are sourced */
+  sourced: boolean;
   basis: string;
 }
 
@@ -94,7 +110,7 @@ export function deriveTransportEF(vehicleKey: string, fuelKey: string): DerivedT
   return {
     efVkm,
     efTkm,
-    official: false,
-    basis: `${v.consumptionPer100Km}/100km × ${f.ef} kgCO2e/${f.unit} (TGO ก.พ. 2569) ÷ ${v.payloadTonnes} ตัน`,
+    sourced: f.official && v.source === "kyn",
+    basis: `${v.consumptionPer100Km}/100km (${v.source === "kyn" ? "KYN fleet" : "ประมาณการ"}) × ${f.ef} kgCO2e/${f.unit} (${f.official ? "TGO ก.พ. 2569" : "ประมาณการ"}) ÷ ${v.payloadTonnes} ตัน`,
   };
 }
