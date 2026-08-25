@@ -58,6 +58,25 @@ export async function POST(req: Request) {
       boxMaterial: str("boxMaterial"),
       weightKg: body.weightKg != null && body.weightKg !== "" ? Number(body.weightKg) : undefined,
       basketIds,
+      // KYN full-spec inputs (optional)
+      packagingItems: Array.isArray(body.packagingItems)
+        ? (body.packagingItems as Record<string, unknown>[])
+            .map((p) => ({
+              kind: String(p.kind) as "basket" | "corrugated_box" | "plastic_film",
+              width: p.width != null && p.width !== "" ? Number(p.width) : undefined,
+              length: p.length != null && p.length !== "" ? Number(p.length) : undefined,
+              height: p.height != null && p.height !== "" ? Number(p.height) : undefined,
+              quantity: Number(p.quantity) || 0,
+              basketNo: p.basketNo ? String(p.basketNo) : undefined,
+              boxMaterial: p.boxMaterial ? String(p.boxMaterial) : undefined,
+            }))
+            .filter((p) => ["basket", "corrugated_box", "plastic_film"].includes(p.kind))
+        : undefined,
+      shippedWeightKg:
+        body.shippedWeightKg != null && body.shippedWeightKg !== "" ? Number(body.shippedWeightKg) : undefined,
+      vehicleKey: str("vehicleKey"),
+      fuelKey: str("fuelKey"),
+      isReeferUsed: body.isReeferUsed === true || body.isReeferUsed === "true",
       status,
     });
     return NextResponse.json(batch, { status: 201 });

@@ -88,6 +88,23 @@ export const PACKAGING_SPEC = {
 
 export type PackagingType = keyof typeof PACKAGING_SPEC;
 
+/**
+ * Reusable HDPE transport basket (KYN packaging table row 1). Not dimension-based:
+ * its manufacturing carbon is amortised over how many trips the basket makes.
+ *   EF 2.5 kg CO2e/kg วัสดุ · น้ำหนัก 1.2–1.8 kg/ใบ · อายุใช้ซ้ำ 50–100 รอบ (default 100)
+ */
+export const BASKET_SPEC = {
+  weightKg: 1.5, // midpoint of the 1.2–1.8 kg range
+  ef: 2.5, // kg CO2e per kg of HDPE
+  defaultCycles: 100,
+} as const;
+
+/** kg CO2e charged to ONE trip of ONE basket. */
+export function basketCarbonPerUse(cycles: number = BASKET_SPEC.defaultCycles): number {
+  const c = Math.max(1, Math.floor(cycles || BASKET_SPEC.defaultCycles));
+  return (BASKET_SPEC.weightKg * BASKET_SPEC.ef) / c;
+}
+
 export interface PackagingItem {
   type: PackagingType;
   /** centimetres */
@@ -200,6 +217,9 @@ export interface OrderCarbonBreakdown {
 
 export interface OrderCarbonInput {
   packagingItems: PackagingItem[];
+  /** reusable baskets used on this trip — carbon amortised over `basketCycles` */
+  basketCount?: number;
+  basketCycles?: number;
   /** weight of the finished parcel on the scale, in kg */
   shippedWeightKg: number;
   flowerCount: number;
@@ -210,19 +230,27 @@ export interface OrderCarbonInput {
 
 export function computeOrderCarbon(input: OrderCarbonInput): OrderCarbonBreakdown {
   const pack = packagingTotals(input.packagingItems ?? []);
-  const netWeight = netFlowerWeight(input.shippedWeightKg, pack.weightKg);
+  // Baskets are reusable: their weight rides along in the parcel, but only 1/cycles of their
+  // manufacturing carbon is charged to this trip.
+  const baskets = Math.max(0, n(input.basketCount));
+  const basketWeight = baskets * BASKET_SPEC.weightKg;
+  const basketCarbon = baskets * basketCarbonPerUse(input.basketCycles ?? BASKET_SPEC.defaultCycles);
+  const packagingWeightKg = pack.weightKg + basketWeight;
+  const packagingCarbon = pack.carbon + basketCarbon;
+
+  const netWeight = netFlowerWeight(input.shippedWeightKg, packagingWeightKg);
   const ef = dynamicFlowerEF(input.farmMonthly);
   const farm = flowerCarbon(netWeight, ef);
   const transport = input.transport ? transportCarbon(input.transport) : 0;
-  const total = farm + pack.carbon + transport;
+  const total = farm + packagingCarbon + transport;
   const stems = n(input.flowerCount) > 0 ? n(input.flowerCount) : 1;
   return {
     farm,
-    packaging: pack.carbon,
+    packaging: packagingCarbon,
     transport,
     total,
     perStem: total / stems,
-    packagingWeightKg: pack.weightKg,
+    packagingWeightKg,
     netFlowerWeightKg: netWeight,
     flowerEF: ef,
   };

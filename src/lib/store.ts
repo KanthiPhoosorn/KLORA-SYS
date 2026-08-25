@@ -19,6 +19,7 @@ import type {
   MemberRole,
   Notification,
   FarmMonthlyInput,
+  CarbonBreakdownRecord,
 } from "./types";
 import {
   nextSupplierId,
@@ -28,7 +29,9 @@ import {
   nextMemberId,
   nextInviteId,
 } from "./ids";
-import { enrichBatch, flowerAgeDays, basketReuseCounts } from "./carbon";
+import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
+import { computeOrderCarbon } from "./carbon-kyn";
+import { deriveTransportEF } from "./transport-ef";
 
 // null -> undefined so rows match the domain types' optional fields.
 function clean<T>(row: Record<string, unknown>): T {
@@ -117,6 +120,11 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     boxMaterial: input.boxMaterial,
     weightKg: input.weightKg,
     basketIds: (input.basketIds ?? []).filter(Boolean),
+    packagingItems: input.packagingItems ?? null,
+    shippedWeightKg: input.shippedWeightKg,
+    vehicleKey: input.vehicleKey,
+    fuelKey: input.fuelKey,
+    isReeferUsed: input.isReeferUsed,
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
@@ -136,13 +144,72 @@ export async function computeBatch(id: string): Promise<Batch | null> {
 
   const siblings = await getBatchesBySupplier(b.supplierId);
   const reuse = basketReuseCounts(siblings);
-  const { co2ePerFlower, ageDays } = enrichBatch(b, supplier, (bid) => reuse.get(bid) ?? 0);
+  const ageDays = flowerAgeDays(b.cutDate, b.entryDate);
+
+  // KYN full-spec engine runs when the shipment carries the data it needs
+  // (packaging dimensions + a weighed parcel). Otherwise fall back to the legacy engine
+  // so older batches and quick entries still compute.
+  const hasKynData = Array.isArray(b.packagingItems) && b.packagingItems.length > 0 && (b.shippedWeightKg ?? 0) > 0;
+
+  let co2ePerFlower: number;
+  let breakdown: CarbonBreakdownRecord;
+
+  if (hasKynData) {
+    const monthly = await getLatestFarmMonthly(b.supplierId);
+    const derived = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
+    const dimensioned = (b.packagingItems ?? []).filter(
+      (p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket",
+    );
+    const basketCount = (b.packagingItems ?? [])
+      .filter((p) => p.kind === "basket")
+      .reduce((sum, p) => sum + (p.quantity || 0), 0);
+
+    const r = computeOrderCarbon({
+      packagingItems: dimensioned.map((p) => ({
+        type: p.kind,
+        width: p.width ?? 0,
+        length: p.length ?? 0,
+        height: p.height ?? 0,
+        quantity: p.quantity || 0,
+      })),
+      basketCount,
+      shippedWeightKg: b.shippedWeightKg ?? 0,
+      flowerCount: b.flowerCount,
+      farmMonthly: monthly ?? undefined,
+      transport: derived
+        ? {
+            method: "tkm",
+            distanceKm: b.distanceKm,
+            grossWeightKg: b.shippedWeightKg ?? 0,
+            efTkm: derived.efTkm,
+            isReeferUsed: b.isReeferUsed,
+          }
+        : { method: "vkm", distanceKm: b.distanceKm, efVkm: FACTORS.TRANSPORT, isReeferUsed: b.isReeferUsed },
+    });
+    co2ePerFlower = r.perStem;
+    breakdown = { engine: "kyn", farm: r.farm, packaging: r.packaging, transport: r.transport, total: r.total, perStem: r.perStem, flowerEF: r.flowerEF, netFlowerWeightKg: r.netFlowerWeightKg, packagingWeightKg: r.packagingWeightKg };
+  } else {
+    const legacy = enrichBatch(b, supplier, (bid) => reuse.get(bid) ?? 0);
+    co2ePerFlower = legacy.co2ePerFlower;
+    breakdown = {
+      engine: "legacy",
+      farm: legacy.breakdown.plantingCarbon,
+      packaging: legacy.breakdown.basketCarbonPerCycle,
+      transport: legacy.breakdown.transportCarbon,
+      total: legacy.co2ePerFlower * (b.flowerCount || 1),
+      perStem: legacy.co2ePerFlower,
+      flowerEF: 0,
+      netFlowerWeightKg: 0,
+      packagingWeightKg: 0,
+    };
+  }
 
   const [updated] = await db
     .update(batches)
     .set({
       co2ePerFlower,
       ageDays,
+      carbonBreakdown: breakdown,
       status: "computed",
       shipmentStatus: b.shipmentStatus === "cutting" ? "in_transit" : b.shipmentStatus,
     })

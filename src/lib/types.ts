@@ -44,6 +44,30 @@ export interface Supplier {
   createdAt: string; // ISO
 }
 
+// บรรจุภัณฑ์ 1 รายการพร้อมมิติ (หน่วย ซม.) สำหรับสูตรพื้นที่ผิวของ KYN
+export interface PackagingLine {
+  kind: "basket" | "corrugated_box" | "plastic_film";
+  width?: number;
+  length?: number;
+  height?: number;
+  quantity: number;
+  basketNo?: string;
+  boxMaterial?: string;
+}
+
+// ผลการคำนวณแยกส่วน เก็บไว้กับ batch เพื่อแสดงที่มาของตัวเลข
+export interface CarbonBreakdownRecord {
+  engine: "kyn" | "legacy";
+  farm: number;
+  packaging: number;
+  transport: number;
+  total: number;
+  perStem: number;
+  flowerEF: number;
+  netFlowerWeightKg: number;
+  packagingWeightKg: number;
+}
+
 // สถานะคำนวณ: draft (บันทึกร่าง) → submitted (ส่งแล้ว รอ KYN คำนวณ) → computed (คำนวณแล้ว)
 export type BatchStatus = "draft" | "submitted" | "computed";
 // สถานะขนส่ง
@@ -65,6 +89,14 @@ export interface Batch {
   boxMaterial?: string; // วัสดุภายในกล่อง (บรรจุภัณฑ์)
   weightKg?: number; // น้ำหนักรวม (kg) — passport
   basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
+
+  // --- KYN full-spec inputs (ถ้ามีครบ ระบบจะใช้เครื่องคำนวณชุดใหม่) ---
+  packagingItems?: PackagingLine[]; // บรรจุภัณฑ์พร้อมมิติ W×L×H
+  shippedWeightKg?: number; // น้ำหนักพัสดุรวมที่ชั่งจริงก่อนส่ง (kg)
+  vehicleKey?: string; // ประเภทรถ (→ transport-ef VEHICLE_PROFILE)
+  fuelKey?: string; // เชื้อเพลิง (→ transport-ef FUEL_EF)
+  isReeferUsed?: boolean; // ใช้ตู้แช่เย็น → คูณ 1.15
+  carbonBreakdown?: CarbonBreakdownRecord; // ผลแยกส่วนที่คำนวณไว้ (เพื่อความโปร่งใส)
 
   entryDate: string; // วันที่ลงข้อมูล (auto, YYYY-MM-DD)
 
@@ -169,6 +201,11 @@ export type BatchInput = Pick<
   boxMaterial?: string;
   weightKg?: number;
   basketIds?: string[];
+  packagingItems?: PackagingLine[];
+  shippedWeightKg?: number;
+  vehicleKey?: string;
+  fuelKey?: string;
+  isReeferUsed?: boolean;
   status?: BatchStatus; // "draft" | "submitted"
 };
 

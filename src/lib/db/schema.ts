@@ -6,7 +6,7 @@
 //  - JS keys are camelCase (so rows line up with the domain types); columns are snake_case.
 //  - Optional domain fields map to nullable columns; store.ts converts null -> undefined.
 
-import { pgTable, text, integer, doublePrecision, boolean, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, doublePrecision, boolean, bigint, jsonb } from "drizzle-orm/pg-core";
 import type {
   SupplierStatus,
   BatchStatus,
@@ -61,6 +61,13 @@ export const batches = pgTable("batches", {
   boxMaterial: text("box_material"),
   weightKg: doublePrecision("weight_kg"),
   basketIds: text("basket_ids").array().notNull(),
+  // KYN full-spec inputs (optional — a batch without them falls back to the legacy engine)
+  packagingItems: jsonb("packaging_items"),
+  shippedWeightKg: doublePrecision("shipped_weight_kg"),
+  vehicleKey: text("vehicle_key"),
+  fuelKey: text("fuel_key"),
+  isReeferUsed: boolean("is_reefer_used"),
+  carbonBreakdown: jsonb("carbon_breakdown"),
   entryDate: text("entry_date").notNull(),
   co2ePerFlower: doublePrecision("co2e_per_flower").notNull(),
   ageDays: integer("age_days").notNull(),

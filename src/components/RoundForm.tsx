@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2, Lock } from "lucide-react";
 import Modal from "@/components/Modal";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
-import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
+import { FLOWER_TYPES, variantsForType, VEHICLE_FUELS } from "@/lib/master-data";
 import type { Supplier } from "@/lib/types";
 
 const inputCls =
@@ -15,12 +15,19 @@ const req = <span className="text-[#ee443f]"> *</span>;
 
 const CARRIERS = ["ไปรษณีย์", "Cold Chain", "โรงคัดแยก", "Exporter"];
 const PACK_KINDS = ["ตะกร้า", "กล่องลูกฟูก", "อื่นๆ"];
+// one entry per distinct vehicle (the fuel select is filtered from VEHICLE_FUELS)
+const VEHICLE_KEYS = VEHICLE_FUELS.filter(
+  (v, i, all) => all.findIndex((x) => x.vehicleKey === v.vehicleKey) === i,
+);
 
 interface Pack {
   kind: string;
   size: string;
   qty: string;
   basketNo: string;
+  w: string;
+  l: string;
+  h: string;
   boxMaterial: string;
 }
 
@@ -54,13 +61,18 @@ export default function RoundForm({
   const [flowerCount, setFlowerCount] = useState("");
   const [cutDate, setCutDate] = useState("");
   const [ageDays, setAgeDays] = useState("");
-  const [packs, setPacks] = useState<Pack[]>([{ kind: "ตะกร้า", size: "", qty: "", basketNo: "", boxMaterial: "" }]);
+  const [packs, setPacks] = useState<Pack[]>([{ kind: "ตะกร้า", size: "", qty: "", basketNo: "", boxMaterial: "", w: "", l: "", h: "" }]);
   const [shipDate, setShipDate] = useState("");
   const [destination, setDestination] = useState("");
   const [distanceKm, setDistanceKm] = useState("");
   const [carrier, setCarrier] = useState("ไปรษณีย์");
   const [postalCode, setPostalCode] = useState("");
   const [branch, setBranch] = useState("");
+  // KYN full-spec inputs
+  const [shippedWeightKg, setShippedWeightKg] = useState("");
+  const [vehicleKey, setVehicleKey] = useState("");
+  const [fuelKey, setFuelKey] = useState("");
+  const [isReeferUsed, setIsReeferUsed] = useState(false);
 
   // Variety suggestions: the KYN master list for the chosen type first (cascading Type → Variety),
   // then this farm's own past entries and the varieties it registered.
@@ -115,6 +127,21 @@ export default function RoundForm({
           branch,
           boxMaterial: packs.find((p) => p.kind === "กล่องลูกฟูก")?.boxMaterial,
           basketIds,
+          packagingItems: packs
+            .filter((p) => Number(p.qty) > 0 || p.basketNo.trim())
+            .map((p) => ({
+              kind: p.kind === "ตะกร้า" ? "basket" : p.kind === "กล่องลูกฟูก" ? "corrugated_box" : "plastic_film",
+              width: p.w || undefined,
+              length: p.l || undefined,
+              height: p.h || undefined,
+              quantity: Number(p.qty) || (p.basketNo.trim() ? 1 : 0),
+              basketNo: p.basketNo.trim() || undefined,
+              boxMaterial: p.boxMaterial || undefined,
+            })),
+          shippedWeightKg: shippedWeightKg || undefined,
+          vehicleKey: vehicleKey || undefined,
+          fuelKey: fuelKey || undefined,
+          isReeferUsed,
           status: "submitted",
         }),
       });
@@ -170,8 +197,16 @@ export default function RoundForm({
                 </select>
               </div>
               <div>
-                <label className={labelCls}>ขนาด{req}</label>
-                <input value={p.size} onChange={(e) => setPack(i, "size", e.target.value)} placeholder="ระบุขนาด" className={inputCls} />
+                <label className={labelCls}>
+                  ขนาด ก×ย×ส (ซม.){p.kind !== "ตะกร้า" ? req : null}
+                </label>
+                <div className="flex items-center gap-1">
+                  <input type="number" min="0" value={p.w} onChange={(e) => setPack(i, "w", e.target.value)} placeholder="ก" className={inputCls} />
+                  <span className="text-slate-400">×</span>
+                  <input type="number" min="0" value={p.l} onChange={(e) => setPack(i, "l", e.target.value)} placeholder="ย" className={inputCls} />
+                  <span className="text-slate-400">×</span>
+                  <input type="number" min="0" value={p.h} onChange={(e) => setPack(i, "h", e.target.value)} placeholder="ส" className={inputCls} />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>จำนวน{req}</label>
@@ -198,7 +233,7 @@ export default function RoundForm({
             )}
           </div>
         ))}
-        <button type="button" onClick={() => setPacks([...packs, { kind: "กล่องลูกฟูก", size: "", qty: "", basketNo: "", boxMaterial: "" }])} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-pink hover:underline">
+        <button type="button" onClick={() => setPacks([...packs, { kind: "กล่องลูกฟูก", size: "", qty: "", basketNo: "", boxMaterial: "", w: "", l: "", h: "" }])} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-pink hover:underline">
           <Plus size={15} /> เพิ่มรายการอื่น
         </button>
       </Section>
@@ -219,6 +254,34 @@ export default function RoundForm({
             <label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label>
             <input type="number" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); }} placeholder="ระบบจะประมาณการอัตโนมัติ" className={inputCls} />
           </div>
+          <div>
+            <label className={labelCls}>น้ำหนักพัสดุที่ชั่งจริง (กก.)</label>
+            <input type="number" min="0" step="any" value={shippedWeightKg} onChange={(e) => setShippedWeightKg(e.target.value)} placeholder="ชั่งหลังแพ็กเสร็จ" className={inputCls} />
+            <p className="mt-1 text-[11px] text-slate-400">ใช้หักน้ำหนักบรรจุภัณฑ์เพื่อหาน้ำหนักดอกไม้สุทธิ</p>
+          </div>
+          <div>
+            <label className={labelCls}>ประเภทรถที่ใช้ขนส่ง</label>
+            <select value={vehicleKey} onChange={(e) => { const v = e.target.value; setVehicleKey(v); const first = VEHICLE_FUELS.find((x) => x.vehicleKey === v); setFuelKey(first ? first.fuelKey : ""); }} className={inputCls}>
+              <option value="">— ไม่ระบุ —</option>
+              {VEHICLE_KEYS.map((v) => (
+                <option key={v.vehicleKey} value={v.vehicleKey}>{v.vehicle}</option>
+              ))}
+            </select>
+          </div>
+          {vehicleKey ? (
+            <div>
+              <label className={labelCls}>เชื้อเพลิง</label>
+              <select value={fuelKey} onChange={(e) => setFuelKey(e.target.value)} className={inputCls}>
+                {VEHICLE_FUELS.filter((x) => x.vehicleKey === vehicleKey).map((x) => (
+                  <option key={x.fuelKey} value={x.fuelKey}>{x.fuel}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-[8px] border border-gray-300 px-3.5 py-2.5 text-[13px] text-slate-700 sm:col-span-2">
+            <input type="checkbox" checked={isReeferUsed} onChange={(e) => setIsReeferUsed(e.target.checked)} className="size-[16px] accent-brand-pink" />
+            ใช้ตู้แช่เย็นระหว่างขนส่ง <span className="text-slate-400">(เพิ่มคาร์บอนขนส่ง 15%)</span>
+          </label>
         </div>
 
         <div>
