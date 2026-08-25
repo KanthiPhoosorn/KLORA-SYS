@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Loader2, User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
+import Modal from "@/components/Modal";
 
-// Avatar + id cluster with a logout action, shown in each portal's top header.
+// Avatar + id cluster with a logout action, shown in each portal's top header
+// (Supplier / Logistic / KYN all render this one component).
+// Logout asks for confirmation first — see the Figma "logout modul" screen.
 export default function AccountButton({
   label,
   id,
@@ -17,6 +20,7 @@ export default function AccountButton({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function logout() {
     setBusy(true);
@@ -38,16 +42,38 @@ export default function AccountButton({
   );
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {profileHref ? <Link href={profileHref} className="hover:opacity-80">{cluster}</Link> : cluster}
+
+      <span className="h-6 w-px bg-slate-200" />
+
       <button
-        onClick={logout}
-        disabled={busy}
-        title="ออกจากระบบ"
-        className="ml-1 grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-60"
+        onClick={() => setConfirmOpen(true)}
+        className="text-sm font-medium text-slate-600 hover:text-slate-900"
       >
-        {busy ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
+        ออกจากระบบ
       </button>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="ออกจากระบบหรือไม่?">
+        <p className="text-[13px] text-slate-500">คุณจะต้องเข้าสู่ระบบอีกครั้งเพื่อใช้งานระบบ</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={() => setConfirmOpen(false)}
+            disabled={busy}
+            className="h-[36px] rounded-[6px] border border-gray-300 px-5 text-[13px] font-medium text-slate-700 hover:bg-gray-100 disabled:opacity-60"
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={logout}
+            disabled={busy}
+            className="inline-flex h-[36px] items-center gap-2 rounded-[6px] bg-[#ee443f] px-5 text-[13px] font-medium text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+            ออกจากระบบ
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
