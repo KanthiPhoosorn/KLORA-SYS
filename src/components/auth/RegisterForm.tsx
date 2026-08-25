@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, MapPin, Plus, X, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Check } from "lucide-react";
 import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
 
 const inputCls =
@@ -47,6 +47,7 @@ export default function RegisterForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
 
   const [f, setF] = useState({
     username: "", email: "", password: "", confirmPassword: "",
@@ -54,8 +55,30 @@ export default function RegisterForm() {
     flowerType: "",
     fuelLitres: "", electricityKwh: "", fertilizerKg: "", agriChemicalsKg: "", waterM3: "", wasteKg: "", flowersPerMonth: "",
   });
-  const [varieties, setVarieties] = useState<string[]>([]);
-  const [varietyDraft, setVarietyDraft] = useState("");
+  // ดอกไม้และพันธุ์ที่ปลูก — one group per flower type, each holding many varieties.
+  const [groups, setGroups] = useState<{ type: string; varieties: string[] }[]>([
+    { type: "", varieties: [] },
+  ]);
+  const setGroupType = (gi: number, type: string) =>
+    setGroups((gs) => gs.map((g, i) => (i === gi ? { type, varieties: [] } : g)));
+  const setVarietyAt = (gi: number, vi: number, value: string) =>
+    setGroups((gs) =>
+      gs.map((g, i) => {
+        if (i !== gi) return g;
+        const vs = [...g.varieties];
+        if (vi >= vs.length) {
+          if (value) vs.push(value); // picking the trailing empty select adds a row
+        } else if (value) vs[vi] = value;
+        else vs.splice(vi, 1);
+        return { ...g, varieties: vs };
+      }),
+    );
+  const removeVariety = (gi: number, vi: number) =>
+    setGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, varieties: g.varieties.filter((_, j) => j !== vi) } : g)));
+  const clearGroup = (gi: number) =>
+    setGroups((gs) => (gs.length > 1 ? gs.filter((_, i) => i !== gi) : [{ type: "", varieties: [] }]));
+  // flattened for the API (Supplier keeps a primary flowerType + a flat variety list)
+  const varieties = Array.from(new Set(groups.flatMap((g) => g.varieties).filter(Boolean)));
   // Per-field inline errors (Figma "Register - Inline Error Message" state)
   const [errs, setErrs] = useState<Partial<Record<keyof typeof f, string>>>({});
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -73,12 +96,6 @@ export default function RegisterForm() {
     navigator.geolocation.getCurrentPosition((p) =>
       setF((s) => ({ ...s, gps: `${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}` })));
   }
-  function addVariety() {
-    const v = varietyDraft.trim();
-    if (v && !varieties.includes(v)) setVarieties([...varieties, v]);
-    setVarietyDraft("");
-  }
-
   function next() {
     setError(null);
     const e: Partial<Record<keyof typeof f, string>> = {};
@@ -97,7 +114,7 @@ export default function RegisterForm() {
       if (!f.phone.trim()) e.phone = "กรุณากรอกเบอร์โทร";
       if (!f.address.trim()) e.address = "กรุณากรอกที่อยู่";
       if (!f.gps.trim()) e.gps = "กรุณาระบุพิกัด GPS";
-      if (!f.flowerType.trim()) e.flowerType = "กรุณาเลือกชนิดดอกไม้";
+      if (!groups.some((g) => g.type.trim())) e.flowerType = "กรุณาเลือกชนิดดอกไม้อย่างน้อย 1 ชนิด";
     }
     setErrs(e);
     if (Object.keys(e).length > 0) return;
@@ -109,7 +126,7 @@ export default function RegisterForm() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, varieties }),
+        body: JSON.stringify({ ...f, flowerType: groups.find((g) => g.type)?.type ?? f.flowerType, varieties, flowerTypes: groups.filter((g) => g.type) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "สมัครไม่สำเร็จ");
@@ -132,7 +149,7 @@ export default function RegisterForm() {
             <Field label={<>ชื่อผู้ใช้{req}</>} error={errs.username}>
               <input value={f.username} onChange={set("username")} placeholder="กรอกชื่อผู้ใช้ของคุณ" className={ic("username")} />
             </Field>
-            <Field label={<>อีเมล{req}</>} note="(บริษัท / องค์กร — ไม่บังคับ)" error={errs.email}>
+            <Field label={<>อีเมล{req}</>} error={errs.email}>
               <input value={f.email} onChange={set("email")} type="email" placeholder="example@gmail.com" className={ic("email")} />
             </Field>
             <Field label={<>รหัสผ่าน{req}</>} error={errs.password}>
@@ -142,7 +159,10 @@ export default function RegisterForm() {
               </div>
             </Field>
             <Field label={<>ยืนยันรหัสผ่าน{req}</>} error={errs.confirmPassword}>
-              <input value={f.confirmPassword} onChange={set("confirmPassword")} type={showPw ? "text" : "password"} placeholder="ยืนยันรหัสผ่านของคุณ" className={ic("confirmPassword")} />
+              <div className={"flex items-center rounded-[5px] border bg-white px-[15px] " + (errs.confirmPassword ? "border-[#ee443f]" : "border-gray-300")}>
+                <input value={f.confirmPassword} onChange={set("confirmPassword")} type={showPw2 ? "text" : "password"} placeholder="ยืนยันรหัสผ่านของคุณ" className="w-full bg-transparent py-[10px] text-[12px] outline-none" />
+                <button type="button" onClick={() => setShowPw2((v) => !v)} className="text-gray-500">{showPw2 ? <Eye size={20} /> : <EyeOff size={20} />}</button>
+              </div>
               {f.confirmPassword.length > 0 && (
                 <span className={`mt-1 flex items-center gap-1 text-[12px] ${pwMatch ? "text-[#40cb44]" : "text-[#9e9e9e]"}`}>
                   <Check size={16} /> {pwMatch ? "รหัสผ่านตรงกัน!" : "รหัสผ่านยังไม่ตรงกัน"}
@@ -184,28 +204,68 @@ export default function RegisterForm() {
             <Field label={<>รายละเอียดเพิ่มเติม{req}</>}>
               <textarea value={f.details} onChange={set("details")} rows={2} placeholder="จุดเด่น : ผลผลิตดี ดอกสวยงาม" className={inputCls} />
             </Field>
-            <div className="space-y-[10px] rounded-[8px] border border-gray-200 p-4">
+            <div className="space-y-[14px]">
               <p className="text-[14px] font-semibold text-black">ดอกไม้และพันธุ์ที่ปลูก</p>
-              <Field label={<>ชนิดดอกไม้{req}</>} error={errs.flowerType}>
-                <input list="reg-ftypes" value={f.flowerType} onChange={set("flowerType")} placeholder="เลือกหรือพิมพ์ชนิดดอกไม้" className={ic("flowerType")} />
-                <datalist id="reg-ftypes">{FLOWER_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
-              </Field>
-              <Field label="พันธุ์ดอกไม้">
-                <div className="flex gap-2">
-                  <input list="reg-fvars" value={varietyDraft} onChange={(e) => setVarietyDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVariety(); } }} placeholder="เลือกหรือพิมพ์พันธุ์ดอกไม้" className={inputCls} />
-                  <datalist id="reg-fvars">{variantsForType(f.flowerType).map((v) => <option key={v} value={v} />)}</datalist>
-                  <button type="button" onClick={addVariety} className="inline-flex shrink-0 items-center gap-1 rounded-[5px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><Plus size={15} /> เพิ่ม</button>
+              {errs.flowerType ? <p className="text-[11px] text-[#ee443f]">{errs.flowerType}</p> : null}
+
+              {groups.map((g, gi) => (
+                <div key={gi} className="space-y-[10px] border-t border-gray-200 pt-[14px]">
+                  <div className="grid grid-cols-2 gap-[20px]">
+                    {/* ชนิดดอกไม้ */}
+                    <Field label={<>ชนิดดอกไม้{req}</>}>
+                      <select
+                        value={g.type}
+                        onChange={(e) => setGroupType(gi, e.target.value)}
+                        className={`${gi === 0 && errs.flowerType ? ic("flowerType") : inputCls} ${g.type ? "text-black" : "text-[#bdbdbd]"}`}
+                      >
+                        <option value="">เลือกประเภทดอกไม้</option>
+                        {FLOWER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </Field>
+
+                    {/* พันธุ์ดอกไม้ — one select per chosen variety, plus a trailing empty one */}
+                    <Field label={<>พันธุ์ดอกไม้{req}</>}>
+                      <div className="space-y-[10px]">
+                        {[...g.varieties, ""].map((v, vi) => (
+                          <div key={vi} className="flex items-center gap-2">
+                            <select
+                              value={v}
+                              onChange={(e) => setVarietyAt(gi, vi, e.target.value)}
+                              className={`${inputCls} ${v ? "text-black" : "text-[#bdbdbd]"}`}
+                            >
+                              <option value="">เลือกพันธุ์ดอกไม้</option>
+                              {variantsForType(g.type)
+                                .filter((opt) => opt === v || !g.varieties.includes(opt))
+                                .map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => removeVariety(gi, vi)}
+                              aria-label="ลบพันธุ์"
+                              className="shrink-0 text-slate-400 hover:text-[#ee443f]"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                  <div className="text-right">
+                    <button type="button" onClick={() => clearGroup(gi)} className="text-[12px] text-[#ee443f] underline">
+                      ลบทั้งหมด
+                    </button>
+                  </div>
                 </div>
-              </Field>
-              {varieties.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {varieties.map((v) => (
-                    <span key={v} className="inline-flex items-center gap-1 rounded-full bg-brand-pink-light px-2.5 py-1 text-[12px] text-brand-pink">
-                      {v}<button type="button" onClick={() => setVarieties(varieties.filter((x) => x !== v))}><X size={12} /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setGroups((gs) => [...gs, { type: "", varieties: [] }])}
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-blue hover:underline"
+              >
+                <Plus size={15} /> เพิ่มชนิดดอกไม้
+              </button>
             </div>
           </div>
         )}
@@ -216,14 +276,18 @@ export default function RegisterForm() {
               <h1 className="text-[32px] font-semibold leading-[38px] text-black">ข้อมูลการใช้ทรัพยากร</h1>
               <p className="text-[12px] text-black">กรอกข้อมูลการใช้ทรัพยากรภายในพื้นที่ผลิตของคุณ</p>
             </div>
+            <div className="space-y-[10px]">
+              <p className="text-[14px] font-semibold text-black">ข้อมูลการใช้ทรัพยากร</p>
+              <hr className="border-gray-200" />
+            </div>
             <div className="grid grid-cols-2 gap-[22px]">
               <Field label="ปริมาณเชื้อเพลิง (ลิตร/เดือน)"><input value={f.fuelLitres} onChange={set("fuelLitres")} type="number" placeholder="18" className={inputCls} /></Field>
               <Field label="ปริมาณไฟฟ้า (กิโลวัตต์/เดือน)"><input value={f.electricityKwh} onChange={set("electricityKwh")} type="number" placeholder="120" className={inputCls} /></Field>
               <Field label="ปริมาณปุ๋ย (กิโลกรัม/เดือน)"><input value={f.fertilizerKg} onChange={set("fertilizerKg")} type="number" placeholder="18" className={inputCls} /></Field>
-              <Field label="ปริมาณสารเคมีทางการเกษตร (กก./เดือน)"><input value={f.agriChemicalsKg} onChange={set("agriChemicalsKg")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label="ปริมาณน้ำ (ลบ.ม./เดือน)"><input value={f.waterM3} onChange={set("waterM3")} type="number" placeholder="18" className={inputCls} /></Field>
+              <Field label="ปริมาณสารเคมีทางการเกษตร (กิโลกรัม/เดือน)"><input value={f.agriChemicalsKg} onChange={set("agriChemicalsKg")} type="number" placeholder="120" className={inputCls} /></Field>
+              <Field label="ปริมาณน้ำ (ลูกบาศก์เมตร/เดือน)"><input value={f.waterM3} onChange={set("waterM3")} type="number" placeholder="18" className={inputCls} /></Field>
               <Field label="ปริมาณของเสีย (กิโลกรัม/เดือน)"><input value={f.wasteKg} onChange={set("wasteKg")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label="จำนวนดอกที่ปลูกต่อเดือน (ดอก)"><input value={f.flowersPerMonth} onChange={set("flowersPerMonth")} type="number" placeholder="200" className={inputCls} /></Field>
+              <Field label="จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)"><input value={f.flowersPerMonth} onChange={set("flowersPerMonth")} type="number" placeholder="200" className={inputCls} /></Field>
             </div>
             <p className="text-[10px] text-black">
               By continuing, you agree to our <span className="text-brand-pink underline">Terms</span> and <span className="text-brand-pink underline">Privacy Policy.</span>

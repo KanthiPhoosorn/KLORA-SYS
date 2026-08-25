@@ -39,6 +39,7 @@ export const suppliers = pgTable("suppliers", {
   phone: text("phone"),
   lineId: text("line_id"),
   varieties: text("varieties").array(),
+  flowerTypes: jsonb("flower_types"),
   description: text("description"),
   careTips: text("care_tips"),
   photoUrl: text("photo_url"),

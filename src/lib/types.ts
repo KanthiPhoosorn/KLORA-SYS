@@ -3,6 +3,12 @@
 
 export type SupplierStatus = "active" | "suspended"; // ใช้งาน / ระงับ
 
+// หนึ่งชนิดดอกไม้ + พันธุ์ที่ปลูกภายใต้ชนิดนั้น (ฟอร์มสมัครเลือกได้หลายกลุ่ม)
+export interface FlowerTypeEntry {
+  type: string;
+  varieties: string[];
+}
+
 export interface Supplier {
   id: string; // SUP-YYYY-NNNN — issued by the system
 
@@ -32,7 +38,8 @@ export interface Supplier {
   contactName?: string; // ชื่อผู้ติดต่อ
   phone?: string; // เบอร์โทร
   lineId?: string; // Line ID
-  varieties?: string[]; // พันธุ์ดอกไม้ที่ปลูก
+  varieties?: string[]; // พันธุ์ดอกไม้ที่ปลูก (แบนราบ — รวมทุกชนิด)
+  flowerTypes?: FlowerTypeEntry[]; // ชนิด+พันธุ์แบบจับกลุ่ม (ปลูกได้หลายชนิด ชนิดละหลายพันธุ์)
 
   // --- consumer passport extras (optional) ---
   description?: string; // คำโปรยหน้า passport

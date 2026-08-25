@@ -89,6 +89,16 @@ export async function POST(req: Request) {
     lineId: lineId || undefined,
     flowerType,
     varieties,
+    flowerTypes: Array.isArray(body.flowerTypes)
+      ? (body.flowerTypes as Record<string, unknown>[])
+          .map((g) => ({
+            type: String(g.type ?? "").trim(),
+            varieties: Array.isArray(g.varieties)
+              ? (g.varieties as unknown[]).map((v) => String(v).trim()).filter(Boolean)
+              : [],
+          }))
+          .filter((g) => g.type)
+      : undefined,
     highlights: highlights || "—",
     contact: contact || "—",
     fuelLitres: n("fuelLitres"),
