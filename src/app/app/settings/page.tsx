@@ -1,5 +1,5 @@
 import { requireRole } from "@/lib/auth";
-import { getMembers, getInvites } from "@/lib/store";
+import { getMembers, getInvites, getSupplier } from "@/lib/store";
 import TeamManager from "@/components/TeamManager";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";
 export default async function TeamPage() {
   const user = await requireRole("supplier");
   const org = user.supplierId ?? user.id;
-  const [members, invites] = await Promise.all([getMembers(org), getInvites(org)]);
-  return <TeamManager members={members} invites={invites} />;
+  const [members, invites, supplier] = await Promise.all([
+    getMembers(org),
+    getInvites(org),
+    user.supplierId ? getSupplier(user.supplierId) : Promise.resolve(null),
+  ]);
+  return <TeamManager members={members} invites={invites} orgName={supplier?.farmName ?? "องค์กรของฉัน"} />;
 }
