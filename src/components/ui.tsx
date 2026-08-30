@@ -196,9 +196,9 @@ export function BarChart({
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
-    <div className="flex items-end gap-3" style={{ height }}>
+    <div className="flex items-stretch gap-3" style={{ height }}>
       {data.map((d, i) => (
-        <div key={i} className="flex flex-1 flex-col items-center gap-2">
+        <div key={i} className="flex h-full flex-1 flex-col items-center gap-2">
           <div className="flex w-full flex-1 items-end">
             <div
               className={`w-full rounded-t-md ${barClassName}`}
