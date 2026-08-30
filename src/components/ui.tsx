@@ -50,7 +50,7 @@ export function CardHeader({
 
 // --- Badge -----------------------------------------------------------------
 
-export type Tone = "neutral" | "green" | "amber" | "red" | "blue" | "orange";
+export type Tone = "neutral" | "green" | "amber" | "red" | "blue" | "orange" | "violet";
 
 const TONE_BADGE: Record<Tone, string> = {
   neutral: "bg-slate-100 text-slate-600",
@@ -59,6 +59,7 @@ const TONE_BADGE: Record<Tone, string> = {
   red: "bg-red-100 text-red-700",
   blue: "bg-blue-100 text-blue-700",
   orange: "bg-orange-100 text-orange-700",
+  violet: "bg-violet-100 text-violet-700",
 };
 
 export function Badge({

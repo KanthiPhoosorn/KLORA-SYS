@@ -2,8 +2,8 @@ import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier, getPrints } from "@/lib/store";
 import { MetricCard, BarChart, Card } from "@/components/ui";
+import ProLock from "@/components/ProLock";
 import { buildMonthSeries, thaiDateShort } from "@/lib/format";
-import { SHIP_STATUS } from "@/lib/status";
 import { Truck, Cloud, Package, Clock, Scissors, Inbox, QrCode, Check, Pencil } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,19 @@ export default async function SupplierOverview() {
     getBatchesBySupplier(user.supplierId!),
     getPrints(),
   ]);
+
+  // Freemium (Figma "Lock" state): the ภาพรวม overview is a Pro feature.
+  if (supplier && supplier.plan !== "pro") {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-slate-900">ภาพรวม</h1>
+        <ProLock
+          title="ปลดล็อกภาพรวม"
+          desc="อัปเกรดเป็นแพ็กเกจ Pro เพื่อดูภาพรวมการส่งออก แนวโน้ม CO₂e รายเดือน และสถานะการจัดส่งทั้งหมดในหน้าเดียว"
+        />
+      </div>
+    );
+  }
 
   const computed = batches.filter((b) => b.status === "computed");
   const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);

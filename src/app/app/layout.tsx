@@ -26,6 +26,12 @@ export default async function SupplierLayout({
   const supplier = user.supplierId ? await getSupplier(user.supplierId) : null;
   if (!supplier) notFound();
 
+  // Freemium (Figma "Lock" state): ภาพรวม + แดชบอร์ดคาร์บอน are Pro-only; the rest stay free.
+  const isPro = supplier.plan === "pro";
+  const items = ITEMS.map((it) =>
+    !isPro && (it.href === "/app" || it.href === "/app/dashboard") ? { ...it, locked: true } : it,
+  );
+
   const brandMark = (
     <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
       <Flower2 size={17} />
@@ -51,7 +57,7 @@ export default async function SupplierLayout({
   );
 
   return (
-    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={ITEMS} header={header}>
+    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={items} header={header}>
       {children}
     </PortalShell>
   );
