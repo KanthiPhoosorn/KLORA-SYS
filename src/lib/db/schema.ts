@@ -57,6 +57,7 @@ export const batches = pgTable("batches", {
   distanceKm: doublePrecision("distance_km").notNull(),
   destination: text("destination"),
   carrier: text("carrier"),
+  provider: text("provider"),
   postalCode: text("postal_code"),
   branch: text("branch"),
   boxMaterial: text("box_material"),

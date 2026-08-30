@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       distanceKm: Number(body.distanceKm) || 0,
       destination: str("destination"),
       carrier: str("carrier"),
+      provider: str("provider"),
       postalCode: str("postalCode"),
       branch: str("branch"),
       boxMaterial: str("boxMaterial"),

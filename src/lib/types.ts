@@ -90,7 +90,8 @@ export interface Batch {
   cutDate: string; // วันที่ตัด (YYYY-MM-DD)
   distanceKm: number; // ระยะทาง (ปลายทาง)
   destination?: string; // ปลายทาง เช่น กรุงเทพฯ
-  carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ / Cold Chain / Exporter
+  carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ไทย / ขนส่งควบคุมอุณหภูมิ / ผู้ส่งออก
+  provider?: string; // ผู้ให้บริการขนส่ง (เมื่อไม่ใช่ไปรษณีย์ไทย) เช่น Nim Express
   postalCode?: string; // รหัสไปรษณีย์ปลายทาง
   branch?: string; // สาขาที่นำส่ง
   boxMaterial?: string; // วัสดุภายในกล่อง (บรรจุภัณฑ์)
@@ -203,6 +204,7 @@ export type BatchInput = Pick<
   variety?: string;
   destination?: string;
   carrier?: string;
+  provider?: string;
   postalCode?: string;
   branch?: string;
   boxMaterial?: string;

@@ -30,8 +30,35 @@ import {
   nextInviteId,
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
-import { computeOrderCarbon } from "./carbon-kyn";
+import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
+
+// Fallback average weight of one fresh cut-flower stem (kg). Used only to derive the
+// parcel weight when the farm has not entered its monthly count/yield yet — a real
+// weighing or the farm's own stem-weight (yield ÷ count) always takes precedence.
+const AVG_STEM_KG = 0.05;
+
+// The SUP "ข้อมูลการใช้ทรัพยากร" form stores monthly resource use + a monthly flower COUNT
+// on the supplier profile. Map it onto the KYN monthly-inputs shape so the same
+// Dynamic_Flower_EF engine can run off it (count → kg via the avg stem weight).
+function supplierToMonthly(s: Supplier): FarmMonthlyInput | null {
+  const any =
+    s.fuelLitres || s.electricityKwh || s.fertilizerKg || s.agriChemicalsKg || s.waterM3 || s.wasteKg;
+  if (!any && !s.flowersPerMonth) return null;
+  return {
+    id: `PROFILE-${s.id}`,
+    supplierId: s.id,
+    reportingMonth: new Date().toISOString().slice(0, 7),
+    dieselLitres: s.fuelLitres,
+    electricityKwh: s.electricityKwh,
+    fertilizerKg: s.fertilizerKg,
+    agrochemicalKg: s.agriChemicalsKg,
+    waterM3: s.waterM3,
+    organicWasteKg: s.wasteKg,
+    totalFlowerYieldKg: s.flowersPerMonth ? s.flowersPerMonth * AVG_STEM_KG : undefined,
+    createdAt: s.createdAt,
+  };
+}
 
 // null -> undefined so rows match the domain types' optional fields.
 function clean<T>(row: Record<string, unknown>): T {
@@ -115,6 +142,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     distanceKm: input.distanceKm,
     destination: input.destination,
     carrier: input.carrier,
+    provider: input.provider,
     postalCode: input.postalCode,
     branch: input.branch,
     boxMaterial: input.boxMaterial,
@@ -146,16 +174,19 @@ export async function computeBatch(id: string): Promise<Batch | null> {
   const reuse = basketReuseCounts(siblings);
   const ageDays = flowerAgeDays(b.cutDate, b.entryDate);
 
-  // KYN full-spec engine runs when the shipment carries the data it needs
-  // (packaging dimensions + a weighed parcel). Otherwise fall back to the legacy engine
-  // so older batches and quick entries still compute.
-  const hasKynData = Array.isArray(b.packagingItems) && b.packagingItems.length > 0 && (b.shippedWeightKg ?? 0) > 0;
+  // KYN full-spec engine runs whenever the shipment declares its packaging.
+  // The parcel weight the engine needs is either weighed (shippedWeightKg) or, when the
+  // SUP form doesn't collect a scale weight, derived from the farm's own stem weight
+  // (monthly yield ÷ monthly count) with a sensible fallback. Batches with no packaging
+  // at all (older / quick entries) still use the legacy engine.
+  const hasKynData = Array.isArray(b.packagingItems) && b.packagingItems.length > 0;
 
   let co2ePerFlower: number;
   let breakdown: CarbonBreakdownRecord;
 
   if (hasKynData) {
-    const monthly = await getLatestFarmMonthly(b.supplierId);
+    // Prefer a dedicated monthly record; otherwise use the farm's profile resource fields.
+    const monthly = (await getLatestFarmMonthly(b.supplierId)) ?? supplierToMonthly(supplier);
     const derived = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
     const dimensioned = (b.packagingItems ?? []).filter(
       (p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket",
@@ -164,23 +195,40 @@ export async function computeBatch(id: string): Promise<Batch | null> {
       .filter((p) => p.kind === "basket")
       .reduce((sum, p) => sum + (p.quantity || 0), 0);
 
+    const packItems = dimensioned.map((p) => ({
+      type: p.kind,
+      width: p.width ?? 0,
+      length: p.length ?? 0,
+      height: p.height ?? 0,
+      quantity: p.quantity || 0,
+    }));
+
+    // Derive the gross parcel weight when it wasn't weighed on a scale:
+    //   flower weight  = flowerCount × stem weight (farm's own yield÷count, else AVG_STEM_KG)
+    //   parcel weight  = flower weight + packaging weight
+    // so netFlowerWeight() recovers the flower weight after the engine subtracts packaging.
+    let shippedWeightKg = b.shippedWeightKg ?? 0;
+    if (shippedWeightKg <= 0) {
+      const stemKg =
+        monthly?.totalFlowerYieldKg && supplier.flowersPerMonth
+          ? monthly.totalFlowerYieldKg / supplier.flowersPerMonth
+          : AVG_STEM_KG;
+      const packWeight =
+        packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg;
+      shippedWeightKg = b.flowerCount * stemKg + packWeight;
+    }
+
     const r = computeOrderCarbon({
-      packagingItems: dimensioned.map((p) => ({
-        type: p.kind,
-        width: p.width ?? 0,
-        length: p.length ?? 0,
-        height: p.height ?? 0,
-        quantity: p.quantity || 0,
-      })),
+      packagingItems: packItems,
       basketCount,
-      shippedWeightKg: b.shippedWeightKg ?? 0,
+      shippedWeightKg,
       flowerCount: b.flowerCount,
       farmMonthly: monthly ?? undefined,
       transport: derived
         ? {
             method: "tkm",
             distanceKm: b.distanceKm,
-            grossWeightKg: b.shippedWeightKg ?? 0,
+            grossWeightKg: shippedWeightKg,
             efTkm: derived.efTkm,
             isReeferUsed: b.isReeferUsed,
           }

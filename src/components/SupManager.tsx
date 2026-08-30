@@ -105,7 +105,7 @@ export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
         wide
       >
         {editSup ? (
-          <FarmSettingsForm supplier={editSup} onDone={() => setEditSup(null)} />
+          <FarmSettingsForm supplier={editSup} />
         ) : null}
       </Modal>
     </div>
