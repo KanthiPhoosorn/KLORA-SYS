@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Printer, Loader2, Check, Ban, RotateCcw } from "lucide-react";
-import { StatCard } from "@/components/ui";
+import { Search, Printer, Loader2, Check, Ban, RotateCcw, Truck } from "lucide-react";
 import QrLabel from "@/components/QrLabel";
 import Modal from "@/components/Modal";
 import { isSameBangkokDay, thaiDateTime } from "@/lib/format";
@@ -25,6 +24,7 @@ export default function ThaiPostConsole({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PrintLog | null>(null);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const supById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
@@ -71,6 +71,22 @@ export default function ThaiPostConsole({
   const sortingPoints = new Set(
     prints.filter((p) => p.sortingPoint).map((p) => p.sortingPoint),
   ).size;
+  const latestDate = prints.length
+    ? [...prints].sort((a, b) => b.printedAt.localeCompare(a.printedAt))[0].printedAt.slice(0, 10)
+    : nowIso.slice(0, 10);
+
+  const Tile = ({ label, value }: { label: string; value: number }) => (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-xs text-slate-500">{label}</div>
+          <div className="mt-1 text-2xl font-bold text-slate-900">{value}</div>
+          <div className="mt-1 text-[10px] text-slate-400">Latest date : {latestDate}</div>
+        </div>
+        <Truck size={18} className="text-blue-500" />
+      </div>
+    </div>
+  );
 
   function doPrint(b: Batch) {
     setPrintTarget(b);
@@ -118,9 +134,9 @@ export default function ThaiPostConsole({
       <div className="no-print mx-auto max-w-6xl space-y-6 px-4 py-6">
         {/* Today */}
         <section className="grid grid-cols-3 gap-4">
-          <StatCard label="พิมพ์แล้ววันนี้" value={printedToday} accent="blue" />
-          <StatCard label="รอค้นหา/พิมพ์" value={waiting} accent="orange" />
-          <StatCard label="จุดคัดแยก" value={sortingPoints} />
+          <Tile label="พิมพ์แล้ววันนี้" value={printedToday} />
+          <Tile label="รอค้นหา/พิมพ์" value={waiting} />
+          <Tile label="จุดคัดแยก" value={sortingPoints} />
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -197,11 +213,11 @@ export default function ThaiPostConsole({
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-5 py-2.5 font-medium">SUP ID</th>
-                  <th className="px-5 py-2.5 font-medium">ปลายทาง</th>
-                  <th className="px-5 py-2.5 font-medium">เวลาพิมพ์</th>
-                  <th className="px-5 py-2.5 text-right font-medium">จัดการ</th>
+                <tr className="bg-blue-600 text-left font-semibold text-white">
+                  <th className="px-5 py-3">SUP ID</th>
+                  <th className="px-5 py-3">ปลายทาง</th>
+                  <th className="px-5 py-3">เวลาพิมพ์</th>
+                  <th className="px-5 py-3 text-right">จัดการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -227,7 +243,7 @@ export default function ThaiPostConsole({
                           </span>
                         ) : (
                           <button
-                            onClick={() => cancelPrint(p.id)}
+                            onClick={() => setCancelTarget(p)}
                             disabled={cancelBusy === p.id}
                             className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
                           >
@@ -268,6 +284,20 @@ export default function ThaiPostConsole({
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Printer size={16} /> พิมพ์ใหม่
+          </button>
+        </div>
+      </Modal>
+
+      {/* Cancel-print confirm (Figma "ยกเลิกรายการนี้หรือไม่") */}
+      <Modal open={!!cancelTarget} onClose={() => setCancelTarget(null)} title="ยกเลิกรายการนี้หรือไม่">
+        <p className="text-[13px] text-slate-500">รายการนี้จะถูกยกเลิก และจะไม่สามารถใช้ QR เดิมได้อีก</p>
+        <div className="mt-5 flex justify-end gap-3">
+          <button onClick={() => setCancelTarget(null)} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
+          <button
+            onClick={() => { const t = cancelTarget; setCancelTarget(null); if (t) cancelPrint(t.id); }}
+            className="inline-flex h-[38px] items-center gap-2 rounded-[8px] bg-blue-600 px-8 text-[14px] font-medium text-white hover:bg-blue-700"
+          >
+            ยืนยัน
           </button>
         </div>
       </Modal>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, RotateCcw, Loader2 } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui";
+import Modal from "@/components/Modal";
 import { thaiDateTime, thaiDateShort } from "@/lib/format";
 import { SHIP_STATUS } from "@/lib/status";
 import type { Supplier, Batch, PrintLog } from "@/lib/types";
@@ -21,6 +22,7 @@ export default function StatusConsole({
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("all");
   const [cancelBusy, setCancelBusy] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PrintLog | null>(null);
   const supName = (id: string) => suppliers.find((s) => s.id === id)?.farmName ?? id;
 
   async function cancel(id: string) {
@@ -57,12 +59,12 @@ export default function StatusConsole({
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3 font-medium">เวลาพิมพ์</th>
-                <th className="px-5 py-3 font-medium">SUP ID</th>
-                <th className="px-5 py-3 font-medium">Batch ID</th>
-                <th className="px-5 py-3 font-medium">ปลายทาง</th>
-                <th className="px-5 py-3 text-right font-medium">จัดการ</th>
+              <tr className="bg-blue-600 text-left font-semibold text-white">
+                <th className="px-5 py-3">เวลาพิมพ์</th>
+                <th className="px-5 py-3">SUP ID</th>
+                <th className="px-5 py-3">Batch ID</th>
+                <th className="px-5 py-3">ปลายทาง</th>
+                <th className="px-5 py-3 text-right">จัดการ</th>
               </tr>
             </thead>
             <tbody>
@@ -76,7 +78,7 @@ export default function StatusConsole({
                   <td className="px-5 py-3 text-slate-700">{p.destination ?? "—"}</td>
                   <td className="px-5 py-3 text-right">
                     {p.cancelled ? <span className="text-xs text-slate-400">ยกเลิกแล้ว</span> : (
-                      <button onClick={() => cancel(p.id)} disabled={cancelBusy === p.id} className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-50">
+                      <button onClick={() => setCancelTarget(p)} disabled={cancelBusy === p.id} className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-50">
                         {cancelBusy === p.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} ยกเลิก
                       </button>
                     )}
@@ -102,13 +104,13 @@ export default function StatusConsole({
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-5 py-3 font-medium">วันที่จัดส่ง</th>
-                <th className="px-5 py-3 font-medium">วันที่ตัด</th>
-                <th className="px-5 py-3 font-medium">ฟาร์ม</th>
-                <th className="px-5 py-3 text-right font-medium">จำนวนดอกไม้</th>
-                <th className="px-5 py-3 font-medium">ปลายทาง</th>
-                <th className="px-5 py-3 font-medium">สถานะ</th>
+              <tr className="bg-blue-600 text-left font-semibold text-white">
+                <th className="px-5 py-3">วันที่จัดส่ง</th>
+                <th className="px-5 py-3">วันที่ตัด</th>
+                <th className="px-5 py-3">ฟาร์ม</th>
+                <th className="px-5 py-3 text-right">จำนวนดอกไม้</th>
+                <th className="px-5 py-3">ปลายทาง</th>
+                <th className="px-5 py-3">สถานะ</th>
               </tr>
             </thead>
             <tbody>
@@ -128,6 +130,20 @@ export default function StatusConsole({
           </table>
         </div>
       </section>
+
+      {/* Cancel-print confirm (Figma "ยกเลิกรายการนี้หรือไม่") */}
+      <Modal open={!!cancelTarget} onClose={() => setCancelTarget(null)} title="ยกเลิกรายการนี้หรือไม่">
+        <p className="text-[13px] text-slate-500">รายการนี้จะถูกยกเลิก และจะไม่สามารถใช้ QR เดิมได้อีก</p>
+        <div className="mt-5 flex justify-end gap-3">
+          <button onClick={() => setCancelTarget(null)} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
+          <button
+            onClick={() => { const t = cancelTarget; setCancelTarget(null); if (t) cancel(t.id); }}
+            className="inline-flex h-[38px] items-center gap-2 rounded-[8px] bg-blue-600 px-8 text-[14px] font-medium text-white hover:bg-blue-700"
+          >
+            ยืนยัน
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
