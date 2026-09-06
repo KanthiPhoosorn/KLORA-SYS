@@ -109,7 +109,10 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
               <MapPin size={14} className="text-brand-pink" /> {supplier.address}
             </p>
           </div>
-          <div className="h-28 w-full shrink-0 rounded-xl bg-gradient-to-br from-emerald-200 via-green-100 to-emerald-50 sm:w-64" style={supplier.photoUrl ? { backgroundImage: `url(${supplier.photoUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined} />
+          <div
+            className="h-28 w-full shrink-0 rounded-xl bg-cover bg-center sm:w-64"
+            style={{ backgroundImage: `url(${supplier.photoUrl || "/figma/greenhouse.webp"})` }}
+          />
         </div>
 
         {/* Tabs */}

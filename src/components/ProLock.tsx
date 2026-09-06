@@ -1,5 +1,3 @@
-import { Lock, TrendingUp, Leaf } from "lucide-react";
-
 // Freemium paywall (Figma "Lock / Pro" state): a centred card floating over a blurred,
 // faded preview of the gated dashboard. Used on ภาพรวม and แดชบอร์ดคาร์บอน for free-plan farms.
 export default function ProLock({
@@ -40,19 +38,9 @@ export default function ProLock({
             ฟีเจอร์สำหรับสมาชิก
           </span>
 
-          <div className="relative mx-auto my-6 grid h-40 w-56 place-items-center rounded-2xl bg-gradient-to-br from-brand-pink-light via-white to-emerald-50">
-            <div className="grid h-24 w-36 place-items-center rounded-xl bg-white shadow-sm">
-              <TrendingUp size={40} className="text-emerald-500" />
-            </div>
-            <span className="absolute left-5 top-6 grid h-9 w-9 place-items-center rounded-full bg-white text-[11px] font-bold text-brand-pink shadow-sm">
-              CO₂
-            </span>
-            <span className="absolute bottom-6 right-8 grid h-10 w-10 place-items-center rounded-full bg-brand-pink text-white shadow">
-              <Lock size={18} />
-            </span>
-            <Leaf size={22} className="absolute right-4 top-8 text-emerald-400" />
-            <Leaf size={18} className="absolute bottom-8 left-8 text-emerald-300" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/figma/home-lock.svg" alt="" className="mx-auto my-6 h-44 w-auto" />
+
 
           <h1 className="text-2xl font-bold text-brand-pink">{title}</h1>
           <p className="mt-1.5 text-sm font-semibold text-emerald-600">ฟีเจอร์นี้รวมอยู่ในแพ็กเกจ Pro</p>
