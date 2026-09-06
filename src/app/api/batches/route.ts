@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBatches, getBatchesBySupplier, addBatch } from "@/lib/store";
+import { getBatches, getBatchesBySupplier, addBatch, getSupplier } from "@/lib/store";
 import { getCurrentUser } from "@/lib/auth";
 import type { BatchStatus } from "@/lib/types";
 
@@ -18,16 +18,25 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   }
-  if (user.role !== "supplier" || !user.supplierId) {
-    return NextResponse.json({ error: "เฉพาะบัญชีฟาร์มเท่านั้น" }, { status: 403 });
-  }
-  const supplierId = user.supplierId;
 
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง (invalid JSON)" }, { status: 400 });
+  }
+
+  // SUP logs a round for its own farm (supplierId from session). A logistic/Exporter
+  // account logs an export on behalf of a farm, passing that farm's supplierId explicitly.
+  let supplierId: string;
+  if (user.role === "supplier" && user.supplierId) {
+    supplierId = user.supplierId;
+  } else if (user.role === "logistic" && body.supplierId) {
+    const sup = await getSupplier(String(body.supplierId));
+    if (!sup) return NextResponse.json({ error: "ไม่พบฟาร์มที่เลือก" }, { status: 400 });
+    supplierId = sup.id;
+  } else {
+    return NextResponse.json({ error: "เฉพาะบัญชีฟาร์มหรือผู้ส่งออกเท่านั้น" }, { status: 403 });
   }
 
   if (!body.cutDate) {

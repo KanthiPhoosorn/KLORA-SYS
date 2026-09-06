@@ -86,10 +86,13 @@ export default function RoundForm({
   supplier,
   varietyOptions = [],
   basketOptions = [],
+  postSupplierId,
 }: {
   supplier: Supplier;
   varietyOptions?: string[];
   basketOptions?: string[];
+  /** set when a non-supplier (logistic/Exporter) logs on behalf of a farm */
+  postSupplierId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "review">("form");
@@ -203,6 +206,7 @@ export default function RoundForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(postSupplierId ? { supplierId: postSupplierId } : {}),
           flowerCount: Number(flowerCount) || 0,
           variety: variety || flowerType,
           cutDate,
