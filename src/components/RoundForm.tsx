@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2, Lock, CheckCircle2, Calendar } from "lucide-react";
+import { Loader2, Plus, Trash2, Lock, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/Modal";
+import DateField, { formatThaiDate } from "@/components/DateField";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
 import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
 import { BRANCHES } from "@/lib/branches";
@@ -263,7 +264,7 @@ export default function RoundForm({
               <F label="ชนิดดอกไม้" value={flowerType} />
               <F label="พันธุ์ดอกไม้" value={variety} />
               <F label="จำนวนดอกไม้" value={flowerCount ? `${Number(flowerCount).toLocaleString()} ดอก` : ""} />
-              <F label="วันที่ตัดดอกไม้" value={cutDate} />
+              <F label="วันที่ตัดดอกไม้" value={formatThaiDate(cutDate)} />
               <F label="อายุดอกไม้" value={ageDays ? `${ageDays} วัน` : ""} />
             </div>
             {/* Col 2 — packaging */}
@@ -283,7 +284,7 @@ export default function RoundForm({
             {/* Col 3 — transport */}
             <div className="space-y-4 p-6">
               <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลการขนส่ง</div>
-              <F label="วันที่จัดส่ง" value={shipDate} />
+              <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
               <F label="ปลายทาง" value={destination} />
               <F label="รูปแบบการขนส่ง" value={carrierLabel} />
               {isThaipost ? (
@@ -347,7 +348,7 @@ export default function RoundForm({
           </div>
           <div>
             <label className={labelCls}>วันที่ตัดดอกไม้{req}</label>
-            <input type="date" value={cutDate} onChange={(e) => onCut(e.target.value)} className={`${inputCls} ${errs.cutDate ? "border-[#ee443f]" : ""}`} />
+            <DateField value={cutDate} onChange={onCut} className={inputCls} invalid={!!errs.cutDate} />
             <Err msg={errs.cutDate} />
           </div>
           <div>
@@ -428,10 +429,7 @@ export default function RoundForm({
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className={labelCls}>วันที่จัดส่ง{req}</label>
-            <div className="relative">
-              <input type="date" value={shipDate} onChange={(e) => { setShipDate(e.target.value); setErrs((x) => ({ ...x, shipDate: "" })); }} className={`${inputCls} ${errs.shipDate ? "border-[#ee443f]" : ""}`} />
-              <Calendar size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-300" />
-            </div>
+            <DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} />
             <Err msg={errs.shipDate} />
           </div>
           <div>
