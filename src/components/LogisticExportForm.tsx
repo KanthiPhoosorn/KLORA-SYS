@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, PlusCircle, Trash2, MapPin, CheckCircle2, Package } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
+import SearchSelect from "@/components/SearchSelect";
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import type { Supplier, Batch } from "@/lib/types";
 
@@ -31,6 +32,22 @@ const QTY_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
 // distinct vehicle classes for the "ประเภทรถที่ใช้" dropdown
 const VEHICLES = [...new Map(VEHICLE_FUELS.map((v) => [v.vehicle, v])).values()];
 const fuelsFor = (veh: string) => VEHICLE_FUELS.filter((v) => v.vehicle === veh);
+// grouped, searchable dropdown options (Figma "dropdown search")
+const VEHICLE_OPTIONS = VEHICLES.map((v) => ({ value: v.vehicle, label: v.vehicle, group: v.category }));
+function fuelGroup(k: string): string {
+  if (["E10", "E20", "E85", "gasoline"].includes(k)) return "เบนซินและแก๊สโซฮอล์";
+  if (["B7", "B10", "B20"].includes(k)) return "ดีเซล";
+  if (["CNG", "LPG"].includes(k)) return "ก๊าซ";
+  if (k === "EV") return "ไฟฟ้า";
+  return "อื่นๆ ระบุ";
+}
+const fuelOptions = (veh: string) => fuelsFor(veh).map((f) => ({ value: f.fuelKey, label: f.fuel, group: fuelGroup(f.fuelKey) }));
+const AIRLINE_OPTIONS = [
+  "การบินไทย (Thai Airways)", "ไทยสมายล์ (Thai Smile)", "บางกอกแอร์เวย์ส (Bangkok Airways)",
+  "ไทยแอร์เอเชีย (Thai AirAsia)", "ไทยไลอ้อนแอร์ (Thai Lion Air)", "นกแอร์ (Nok Air)",
+  "ไทยเวียตเจ็ท (Thai VietJet)", "เอมิเรตส์ (Emirates)", "สิงคโปร์แอร์ไลน์ (Singapore Airlines)",
+  "คาเธ่ย์แปซิฟิก (Cathay Pacific)", "ควอนตัสคาร์โก้ (Qantas Freight)", "ลุฟท์ฮันซาคาร์โก้ (Lufthansa Cargo)",
+].map((a) => ({ value: a, label: a }));
 
 interface Pack { kind: string; size: string; qty: string; basketNo: string; boxMaterial: string; }
 const emptyPack = (): Pack => ({ kind: "", size: "", qty: "", basketNo: "", boxMaterial: "" });
@@ -80,6 +97,7 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
   const [isReefer, setIsReefer] = useState(false);
   const [airline, setAirline] = useState("");
   const [flightNo, setFlightNo] = useState("");
+  const [shipDataMode, setShipDataMode] = useState<"new" | "same">("new");
 
   const selectedBatch = batches.find((b) => b.id === batchId) ?? null;
   const vehicleKey = VEHICLES.find((v) => v.vehicle === vehicle)?.vehicleKey ?? "";
@@ -113,15 +131,33 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
   }
   const setPack = (i: number, k: keyof Pack, v: string) => setPacks((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
 
+  // "เลือกข้อมูลการขนส่ง": reuse the transport spec already stored on the picked batch.
+  function applyShipMode(mode: "new" | "same") {
+    setShipDataMode(mode);
+    if (mode !== "same" || !selectedBatch) return;
+    const b = selectedBatch;
+    if (b.vehicleKey) {
+      const veh = VEHICLE_FUELS.find((v) => v.vehicleKey === b.vehicleKey);
+      if (veh) setVehicle(veh.vehicle);
+    }
+    if (b.fuelKey) setFuelKey(b.fuelKey);
+    if (typeof b.isReeferUsed === "boolean") setIsReefer(b.isReeferUsed);
+    if (b.destination) setDestination(b.destination);
+    if (b.distanceKm != null) setDistanceKm(String(b.distanceKm));
+  }
+
   function validate(): Errors {
     const e: Errors = {};
     if (!batchId) e.batchId = "กรุณาเลือก Batch";
     if (!weightKg || Number(weightKg) <= 0) e.weightKg = "กรุณาระบุน้ำหนักรวมบรรจุภัณฑ์";
-    if (!vehicle) e.vehicle = "กรุณาเลือกประเภทรถ";
-    if (!fuelKey) e.fuelKey = "กรุณาเลือกระบบเชื้อเพลิง";
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
-    if (!destination) e.destination = "กรุณาระบุปลายทาง";
-    if (shipType === "international" && !airline) e.airline = "กรุณาระบุสายการบิน";
+    if (shipType === "domestic") {
+      if (!destination) e.destination = "กรุณาระบุปลายทาง";
+      if (!vehicle) e.vehicle = "กรุณาเลือกประเภทรถ";
+      if (!fuelKey) e.fuelKey = "กรุณาเลือกระบบเชื้อเพลิง";
+    } else if (!airline) {
+      e.airline = "กรุณาระบุสายการบิน";
+    }
     return e;
   }
   function goReview() {
@@ -160,47 +196,65 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
 
   // ---------- REVIEW ----------
   if (step === "review") {
-    const s = selectedBatch ? supById.get(selectedBatch.supplierId) : null;
     const F = ({ label, value }: { label: string; value: string }) => (
       <div><p className="text-[13px] font-semibold text-slate-800">{label}</p><p className="text-[13px] text-slate-500">{value || "—"}</p></div>
     );
+    const H = ({ children }: { children: React.ReactNode }) => (
+      <div className="px-4 py-3 text-center text-[15px] font-semibold text-slate-700">{children}</div>
+    );
+    const basketNos = packs.filter((p) => p.kind === "basket" && p.basketNo.trim()).map((p) => p.basketNo.trim());
+    const basketLabel = basketNos.length ? basketNos.join(", ") : (selectedBatch?.basketIds ?? []).join(", ");
+    const boxes = packs.filter((p) => p.kind && p.kind !== "basket");
+    const unitFor = (k: string) => (k === "corrugated_box" ? "กล่อง" : k === "plastic_film" ? "ชิ้น" : "");
     return (
       <div className="max-w-4xl space-y-5">
         <Toast />
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-6 py-4"><h2 className="text-[16px] font-semibold text-slate-900">ตรวจสอบและยืนยันข้อมูล</h2></div>
-          <div className="grid grid-cols-1 md:grid-cols-3">
-            <div className="space-y-4 border-slate-100 p-6 md:border-r">
-              <div className="rounded-lg bg-blue-600 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลดอกไม้</div>
-              <F label="Batch ID" value={batchId} />
-              <F label="ชนิดดอกไม้" value={flowerType} />
-              <F label="พันธุ์ดอกไม้" value={variety} />
-              <F label="จำนวนดอกไม้" value={flowerCount ? `${Number(flowerCount).toLocaleString()} ดอก` : ""} />
-              <F label="จำนวนส่งออก" value={exportBunches ? `${exportBunches} ช่อ` : "—"} />
+          <div className="border-b border-slate-100 px-6 py-5"><h2 className="text-[18px] font-bold text-slate-900">ตรวจสอบและยืนยันข้อมูล</h2></div>
+          <div className="px-6 pb-6 pt-5">
+            <div className="grid grid-cols-1 overflow-hidden rounded-xl bg-[#e9ebf8] md:grid-cols-3">
+              <H>ข้อมูลดอกไม้</H><H>บรรจุภัณฑ์</H><H>ข้อมูลการขนส่ง</H>
             </div>
-            <div className="space-y-4 border-slate-100 p-6 md:border-r">
-              <div className="rounded-lg bg-blue-600 px-3 py-2 text-center text-[13px] font-semibold text-white">บรรจุภัณฑ์</div>
-              {packs.filter((p) => p.kind).map((p, i) => (
-                <div key={i} className="space-y-2 border-b border-slate-100 pb-3 last:border-0">
-                  <p className="text-[12px] font-semibold text-slate-400">รายการที่ {i + 1}</p>
-                  <F label="บรรจุภัณฑ์" value={PACK_KINDS.find((k) => k.key === p.kind)?.label ?? p.kind} />
-                  {p.kind === "basket" ? <F label="หมายเลขตะกร้า" value={p.basketNo} /> : null}
-                  {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={p.boxMaterial} /> : null}
-                  <F label="ขนาด" value={p.size} />
-                  <F label="จำนวน" value={p.qty} />
-                </div>
-              ))}
-            </div>
-            <div className="space-y-4 p-6">
-              <div className="rounded-lg bg-blue-600 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลการขนส่ง</div>
-              <F label="ประเภทการจัดส่ง" value={shipType === "domestic" ? "ส่งภายในประเทศ" : "ส่งต่างประเทศ"} />
-              <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
-              <F label="ปลายทาง" value={destination} />
-              <F label="น้ำหนักรวมบรรจุภัณฑ์" value={weightKg ? `${weightKg} กก.` : ""} />
-              <F label="ประเภทรถ" value={vehicle} />
-              <F label="ระบบเชื้อเพลิง" value={fuelsFor(vehicle).find((f) => f.fuelKey === fuelKey)?.fuel ?? fuelKey} />
-              <F label="ตู้แช่เย็น/ห้องเย็น" value={isReefer ? "ใช้" : "ไม่ใช้"} />
-              {shipType === "international" ? <F label="สายการบิน / เที่ยวบิน" value={`${airline}${flightNo ? " · " + flightNo : ""}`} /> : null}
+            <div className="grid grid-cols-1 md:grid-cols-3">
+              <div className="space-y-4 border-slate-100 p-5 md:border-r">
+                <F label="Batch ID" value={batchId} />
+                <F label="ชนิดดอกไม้" value={flowerType} />
+                <F label="พันธุ์ดอกไม้" value={variety} />
+                <F label="อายุดอกไม้หลังตัด" value={ageDays ? `${ageDays} วัน` : ""} />
+                <F label="จำนวนช่อดอกไม้" value={exportBunches ? `${exportBunches} ช่อ` : ""} />
+              </div>
+              <div className="space-y-4 border-slate-100 p-5 md:border-r">
+                {basketLabel ? <F label="หมายเลขตะกร้า" value={basketLabel} /> : null}
+                {boxes.map((p, i) => (
+                  <div key={i} className="space-y-2 border-b border-slate-100 pb-3 last:border-0">
+                    <p className="text-[13px] font-semibold text-slate-800">รายการที่ {i + 1}</p>
+                    <F label="บรรจุภัณฑ์" value={PACK_KINDS.find((k) => k.key === p.kind)?.label ?? p.kind} />
+                    {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={p.boxMaterial} /> : null}
+                    <F label="ขนาด" value={p.size} />
+                    <F label="จำนวน" value={p.qty ? `${p.qty} ${unitFor(p.kind)}` : ""} />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-4 p-5">
+                <F label="ประเภทการจัดส่ง" value={shipType === "domestic" ? "ส่งภายในประเทศ" : "ส่งต่างประเทศ"} />
+                {shipType === "domestic" ? (
+                  <>
+                    <F label="ปลายทาง" value={destination} />
+                    <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
+                    <F label="น้ำหนักรวมบรรจุภัณฑ์" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
+                    <F label="ประเภทรถที่ใช้" value={vehicle} />
+                    <F label="ระบบเชื้อเพลิง" value={fuelsFor(vehicle).find((f) => f.fuelKey === fuelKey)?.fuel ?? fuelKey} />
+                    <F label="ใช้ตู้แช่เย็น/ห้องเย็น" value={isReefer ? "ใช่" : "ไม่ใช้"} />
+                  </>
+                ) : (
+                  <>
+                    <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
+                    <F label="น้ำหนักรวมบรรจุภัณฑ์" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
+                    <F label="สายการบิน" value={airline} />
+                    <F label="หมายเลขเที่ยวบิน" value={flightNo} />
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -266,6 +320,14 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
 
       <Section title="ข้อมูลการขนส่ง" sub="ระบุรายละเอียดการขนส่งจริง">
         <div>
+          <label className={labelCls}>เลือกข้อมูลการขนส่ง</label>
+          <select value={shipDataMode} onChange={(e) => applyShipMode(e.target.value as "new" | "same")} className={inputCls}>
+            <option value="new">เพิ่มข้อมูลการจัดส่งใหม่</option>
+            <option value="same">ข้อมูลการจัดส่งเดียวกันกับ batch ก่อนหน้า</option>
+          </select>
+        </div>
+
+        <div>
           <label className={labelCls}>ประเภทการจัดส่ง</label>
           <div className="flex gap-6">
             {[["domestic", "ส่งภายในประเทศ"], ["international", "ส่งต่างประเทศ"]].map(([k, l]) => (
@@ -277,47 +339,50 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={labelCls}>ปลายทาง{req}</label>
-            <div className="flex gap-2">
-              <input value={destination} onChange={(e) => { setDestination(e.target.value); setErrs((x) => ({ ...x, destination: "" })); }} placeholder="12.2222, 13.3333" className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`} />
-              <button type="button" className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><MapPin size={14} /> เลือกจากแผนที่</button>
-            </div>
-            <Err msg={errs.destination} />
-          </div>
-          <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="ระบบจะประมาณการอัตโนมัติ" className={`${inputCls} bg-slate-50`} /></div>
           <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
           <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
-          <div>
-            <label className={labelCls}>ประเภทรถที่ใช้{req}</label>
-            <select value={vehicle} onChange={(e) => { setVehicle(e.target.value); setFuelKey(""); setErrs((x) => ({ ...x, vehicle: "" })); }} className={`${inputCls} ${errs.vehicle ? "border-[#ee443f]" : ""}`}>
-              <option value="">เลือกประเภทรถที่ใช้ขนส่ง</option>
-              {VEHICLES.map((v) => <option key={v.vehicleKey} value={v.vehicle}>{v.vehicle}</option>)}
-            </select>
-            <Err msg={errs.vehicle} />
-          </div>
-          <div>
-            <label className={labelCls}>ระบบเชื้อเพลิง{req}</label>
-            <select value={fuelKey} onChange={(e) => { setFuelKey(e.target.value); setErrs((x) => ({ ...x, fuelKey: "" })); }} disabled={!vehicle} className={`${inputCls} ${errs.fuelKey ? "border-[#ee443f]" : ""} disabled:bg-slate-50`}>
-              <option value="">เลือกระบบเชื้อเพลิงที่ใช้</option>
-              {fuelsFor(vehicle).map((f) => <option key={f.fuelKey} value={f.fuelKey}>{f.fuel}</option>)}
-            </select>
-            <Err msg={errs.fuelKey} />
-          </div>
         </div>
 
-        {shipType === "international" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className={labelCls}>สายการบิน{req}</label><input value={airline} onChange={(e) => { setAirline(e.target.value); setErrs((x) => ({ ...x, airline: "" })); }} placeholder="เช่น Thai Airways" className={`${inputCls} ${errs.airline ? "border-[#ee443f]" : ""}`} /><Err msg={errs.airline} /></div>
-            <div><label className={labelCls}>หมายเลขเที่ยวบิน</label><input value={flightNo} onChange={(e) => setFlightNo(e.target.value)} placeholder="เช่น TG920" className={inputCls} /></div>
-          </div>
-        ) : null}
+        {shipType === "domestic" ? (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelCls}>ปลายทาง{req}</label>
+                <div className="flex gap-2">
+                  <input value={destination} onChange={(e) => { setDestination(e.target.value); setErrs((x) => ({ ...x, destination: "" })); }} placeholder="12.2222, 13.3333" className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`} />
+                  <button type="button" className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><MapPin size={14} /> เลือกจากแผนที่</button>
+                </div>
+                <Err msg={errs.destination} />
+              </div>
+              <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="ระบบจะประมาณการอัตโนมัติ" className={`${inputCls} bg-slate-50`} /></div>
+              <div>
+                <label className={labelCls}>ประเภทรถที่ใช้{req}</label>
+                <SearchSelect value={vehicle} onChange={(v) => { setVehicle(v); setFuelKey(""); setErrs((x) => ({ ...x, vehicle: "" })); }} options={VEHICLE_OPTIONS} placeholder="เลือกประเภทรถที่ใช้ขนส่ง" allowCustom invalid={!!errs.vehicle} />
+                <Err msg={errs.vehicle} />
+              </div>
+              <div>
+                <label className={labelCls}>ระบบเชื้อเพลิง{req}</label>
+                <SearchSelect value={fuelKey} onChange={(v) => { setFuelKey(v); setErrs((x) => ({ ...x, fuelKey: "" })); }} options={fuelOptions(vehicle)} placeholder="เลือกระบบเชื้อเพลิงที่ใช้ขนส่ง" allowCustom disabled={!vehicle} invalid={!!errs.fuelKey} />
+                <Err msg={errs.fuelKey} />
+              </div>
+            </div>
 
-        <label className="flex cursor-pointer items-center justify-between rounded-[8px] border border-gray-200 px-4 py-3">
-          <span className="text-[13px] text-slate-700">ใช้ตู้แช่เย็น/ห้องเย็น <span className="text-slate-400">(เพิ่มคาร์บอนขนส่ง 15%)</span></span>
-          <input type="checkbox" checked={isReefer} onChange={(e) => setIsReefer(e.target.checked)} className="peer sr-only" />
-          <span className="relative h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-blue-600 after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-        </label>
+            <label className="flex cursor-pointer items-center justify-between rounded-[8px] border border-gray-200 px-4 py-3">
+              <span className="text-[13px] text-slate-700">ใช้ตู้แช่เย็น/ห้องเย็น <span className="text-slate-400">(เพิ่มคาร์บอนขนส่ง 15%)</span></span>
+              <input type="checkbox" checked={isReefer} onChange={(e) => setIsReefer(e.target.checked)} className="peer sr-only" />
+              <span className="relative h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-blue-600 after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+            </label>
+          </>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>สายการบิน{req}</label>
+              <SearchSelect value={airline} onChange={(v) => { setAirline(v); setErrs((x) => ({ ...x, airline: "" })); }} options={AIRLINE_OPTIONS} placeholder="เลือกสายการบิน" allowCustom invalid={!!errs.airline} />
+              <Err msg={errs.airline} />
+            </div>
+            <div><label className={labelCls}>หมายเลขเที่ยวบิน</label><input value={flightNo} onChange={(e) => setFlightNo(e.target.value)} placeholder="ระบุหมายเลขเที่ยวบิน เช่น TG102" className={inputCls} /></div>
+          </div>
+        )}
       </Section>
 
       {selectedBatch ? null : <p className="rounded-[8px] bg-blue-50 px-3 py-2 text-[13px] text-blue-700"><Package size={14} className="mr-1 inline" /> เลือก Batch ด้านบนเพื่อดึงข้อมูลดอกไม้และบรรจุภัณฑ์อัตโนมัติ</p>}

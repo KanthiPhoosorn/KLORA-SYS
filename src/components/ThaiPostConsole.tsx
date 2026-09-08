@@ -81,10 +81,10 @@ export default function ThaiPostConsole({
 
       <div className="no-print space-y-6">
         {/* Hero banner + search */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 p-8">
+        <div className="relative overflow-hidden rounded-2xl bg-[#e9f2fb]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/figma/warehouse.webp" alt="" aria-hidden className="pointer-events-none absolute bottom-0 right-0 hidden h-[110%] w-auto object-contain opacity-90 lg:block" />
-          <div className="relative max-w-xl">
+          <img src="/figma/search-banner.webp" alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-bottom" />
+          <div className="relative max-w-xl p-8">
             <h1 className="text-2xl font-bold leading-snug">
               <span className="text-blue-700">ค้นหาด้วยชื่อ หรือ SUP ID</span><br />
               <span className="text-emerald-600">เพื่อจัดการพัสดุ</span>
