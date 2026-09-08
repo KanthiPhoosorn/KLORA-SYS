@@ -23,19 +23,18 @@ export default async function LogisticIncomingPage() {
       return {
         id: b.id,
         receivedDate: thaiDateShort(b.entryDate),
+        receivedIso: b.entryDate,
         farmName: byId.get(b.supplierId)?.farmName ?? "—",
         supplierId: b.supplierId,
         ageDays: b.ageDays,
         received: b.flowerCount,
         remaining: dispatched ? 0 : b.flowerCount,
-        dispatched,
         printId,
       };
     });
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">รายการรับเข้าจากผู้ผลิต</h1>
       <LogisticIncoming rows={rows} />
     </div>
   );
