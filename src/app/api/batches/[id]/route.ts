@@ -12,7 +12,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let body: { action?: string; shipmentStatus?: string };
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
@@ -22,6 +22,23 @@ export async function PATCH(
   const batch = await getBatch(id);
   if (!batch) {
     return NextResponse.json({ error: "ไม่พบ Batch นี้" }, { status: 404 });
+  }
+
+  // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
+  const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems"];
+  if (TRANSPORT.some((k) => k in body)) {
+    const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
+    const patch: Record<string, unknown> = {};
+    if ("shippedWeightKg" in body) patch.shippedWeightKg = num(body.shippedWeightKg);
+    if (body.vehicleKey) patch.vehicleKey = String(body.vehicleKey);
+    if (body.fuelKey) patch.fuelKey = String(body.fuelKey);
+    if (typeof body.isReeferUsed === "boolean") patch.isReeferUsed = body.isReeferUsed;
+    if (body.destination) patch.destination = String(body.destination);
+    if ("distanceKm" in body) patch.distanceKm = num(body.distanceKm) ?? 0;
+    if (Array.isArray(body.packagingItems)) patch.packagingItems = body.packagingItems;
+    await updateBatch(id, patch);
+    const updated = await computeBatch(id);
+    return NextResponse.json(updated);
   }
 
   if (body.action === "compute") {
