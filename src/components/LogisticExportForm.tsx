@@ -51,6 +51,11 @@ const AIRLINE_OPTIONS = [
 
 interface Pack { kind: string; size: string; qty: string; basketNo: string; boxMaterial: string; }
 const emptyPack = (): Pack => ({ kind: "", size: "", qty: "", basketNo: "", boxMaterial: "" });
+// Figma default: two seeded cards — a basket (→ หมายเลขตะกร้า) + a corrugated box (→ วัสดุภายในกล่อง)
+const defaultPacks = (): Pack[] => [
+  { kind: "basket", size: "", qty: "", basketNo: "", boxMaterial: "" },
+  { kind: "corrugated_box", size: "", qty: "", basketNo: "", boxMaterial: "" },
+];
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
@@ -85,7 +90,7 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
   const [flowerCount, setFlowerCount] = useState("");
   const [ageDays, setAgeDays] = useState("");
   const [exportBunches, setExportBunches] = useState("");
-  const [packs, setPacks] = useState<Pack[]>([emptyPack()]);
+  const [packs, setPacks] = useState<Pack[]>(defaultPacks());
   // Transport
   const [shipType, setShipType] = useState<"domestic" | "international">("domestic");
   const [destination, setDestination] = useState("");
@@ -126,7 +131,7 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
         })),
       );
     } else {
-      setPacks([emptyPack()]);
+      setPacks(defaultPacks());
     }
   }
   const setPack = (i: number, k: keyof Pack, v: string) => setPacks((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
