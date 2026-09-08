@@ -88,14 +88,39 @@ export default function RoundForm({
   varietyOptions = [],
   basketOptions = [],
   postSupplierId,
+  accent = "pink",
 }: {
   supplier: Supplier;
   varietyOptions?: string[];
   basketOptions?: string[];
   /** set when a non-supplier (logistic/Exporter) logs on behalf of a farm */
   postSupplierId?: string;
+  /** brand accent — "pink" for the SUP portal, "blue" for the Logistic portal */
+  accent?: "pink" | "blue";
 }) {
   const router = useRouter();
+  // Full static class strings per accent (Tailwind JIT needs literals, not interpolation).
+  const T =
+    accent === "blue"
+      ? {
+          solidBtn: "bg-blue-600 text-white hover:bg-blue-700",
+          outlineBtn: "border border-blue-600 text-blue-600 hover:bg-blue-50",
+          link: "text-blue-600",
+          radioSel: "border-blue-600 bg-blue-50 font-medium text-blue-600",
+          ring: "accent-blue-600",
+          input: "focus:border-blue-600",
+        }
+      : {
+          solidBtn: "bg-brand-pink text-white hover:opacity-90",
+          outlineBtn: "border border-brand-pink text-brand-pink hover:bg-brand-pink-light",
+          link: "text-brand-pink",
+          radioSel: "border-brand-pink bg-brand-pink-light font-medium text-brand-pink",
+          ring: "accent-brand-pink",
+          input: "focus:border-brand-pink",
+        };
+  const inputCls =
+    "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none placeholder:text-[#bdbdbd] " +
+    T.input;
   const [step, setStep] = useState<"form" | "review">("form");
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -302,15 +327,15 @@ export default function RoundForm({
         {serverError ? <p className="rounded-[5px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{serverError}</p> : null}
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setStep("form")} className="h-[40px] rounded-[8px] border border-brand-pink px-8 text-[14px] font-medium text-brand-pink hover:bg-brand-pink-light">แก้ไข</button>
-          <button type="button" onClick={() => setConfirmOpen(true)} className="h-[40px] rounded-[8px] bg-brand-pink px-10 text-[14px] font-medium text-white hover:opacity-90">บันทึก</button>
+          <button type="button" onClick={() => setStep("form")} className={`h-[40px] rounded-[8px] ${T.outlineBtn} px-8 text-[14px] font-medium`}>แก้ไข</button>
+          <button type="button" onClick={() => setConfirmOpen(true)} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>บันทึก</button>
         </div>
 
         <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="ยืนยันการจัดส่ง?">
           <p className="text-[13px] text-slate-500">หากข้อมูลไม่ถูกต้อง สามารถยกเลิกได้ที่เมนู “สถานะพัสดุ”</p>
           <div className="mt-5 flex justify-end gap-3">
             <button onClick={() => setConfirmOpen(false)} disabled={busy} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
-            <button onClick={save} disabled={busy} className="inline-flex h-[38px] items-center justify-center gap-2 rounded-[8px] bg-brand-pink px-8 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">
+            <button onClick={save} disabled={busy} className={`inline-flex h-[38px] items-center justify-center gap-2 rounded-[8px] ${T.solidBtn} px-8 text-[14px] font-medium disabled:opacity-60`}>
               {busy ? <Loader2 size={16} className="animate-spin" /> : null} ยืนยัน
             </button>
           </div>
@@ -418,7 +443,7 @@ export default function RoundForm({
           );
         })}
         <div className="flex justify-end">
-          <button type="button" onClick={() => setPacks([...packs, emptyPack()])} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-pink hover:underline">
+          <button type="button" onClick={() => setPacks([...packs, emptyPack()])} className={`inline-flex items-center gap-1.5 text-[13px] font-medium ${T.link} hover:underline`}>
             <Plus size={15} /> เพิ่มรายการอื่น
           </button>
         </div>
@@ -450,8 +475,8 @@ export default function RoundForm({
           <label className={labelCls}>รูปแบบการขนส่ง</label>
           <div className="grid gap-2.5 sm:grid-cols-3">
             {CARRIERS.map((c) => (
-              <label key={c.key} className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-4 py-3 text-[13px] transition ${carrier === c.key ? "border-brand-pink bg-brand-pink-light font-medium text-brand-pink" : "border-gray-300 text-slate-600 hover:border-gray-400"}`}>
-                <input type="radio" name="carrier" checked={carrier === c.key} onChange={() => setCarrier(c.key)} className="size-4 accent-brand-pink" />
+              <label key={c.key} className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-4 py-3 text-[13px] transition ${carrier === c.key ? T.radioSel : "border-gray-300 text-slate-600 hover:border-gray-400"}`}>
+                <input type="radio" name="carrier" checked={carrier === c.key} onChange={() => setCarrier(c.key)} className={`size-4 ${T.ring}`} />
                 {c.label}
               </label>
             ))}
@@ -463,7 +488,7 @@ export default function RoundForm({
           <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-500"><Lock size={14} /></span>
           <div className="text-[12.5px] leading-relaxed">
             <p className="font-medium text-slate-700">ต้องการจัดส่งกับผู้ให้บริการอื่น?</p>
-            <p className="text-slate-400">อัปเกรดระบบเพื่อเข้าถึงผู้ให้บริการจัดส่งที่หลากหลาย <span className="cursor-pointer font-medium text-brand-pink hover:underline">อัปเกรดแพ็กเกจ</span></p>
+            <p className="text-slate-400">อัปเกรดระบบเพื่อเข้าถึงผู้ให้บริการจัดส่งที่หลากหลาย <span className={`cursor-pointer font-medium ${T.link} hover:underline`}>อัปเกรดแพ็กเกจ</span></p>
           </div>
         </div>
 
@@ -501,7 +526,7 @@ export default function RoundForm({
 
       <div className="flex justify-end gap-3">
         <button type="button" onClick={() => router.push("/app")} className="h-[40px] rounded-[8px] border border-gray-300 px-8 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
-        <button type="button" onClick={goReview} className="h-[40px] rounded-[8px] bg-brand-pink px-10 text-[14px] font-medium text-white hover:opacity-90">บันทึก</button>
+        <button type="button" onClick={goReview} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>บันทึก</button>
       </div>
     </div>
   );

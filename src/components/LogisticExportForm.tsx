@@ -28,7 +28,7 @@ export default function LogisticExportForm({ suppliers }: { suppliers: Supplier[
       </section>
 
       {selected ? (
-        <RoundForm supplier={selected} postSupplierId={selected.id} />
+        <RoundForm supplier={selected} postSupplierId={selected.id} accent="blue" />
       ) : (
         <div className="grid place-items-center rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
           เลือกฟาร์มด้านบนเพื่อเริ่มกรอกข้อมูลรอบส่งออก
