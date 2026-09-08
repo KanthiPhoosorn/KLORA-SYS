@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Boxes, LifeBuoy } from "lucide-react";
+import { Bell, LifeBuoy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
@@ -20,9 +20,8 @@ export default async function LogisticLayout({ children }: { children: React.Rea
   const user = await requireRole("logistic");
 
   const brandMark = (
-    <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 text-white">
-      <Boxes size={17} />
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/figma/logistic-logo.svg" alt="Logistic" className="h-8 w-auto" />
   );
 
   const header = (
@@ -39,7 +38,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
   );
 
   return (
-    <PortalShell accent="blue" brand="Logistic" brandMark={brandMark} items={ITEMS} header={header}>
+    <PortalShell accent="blue" brand="" brandMark={brandMark} items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );
