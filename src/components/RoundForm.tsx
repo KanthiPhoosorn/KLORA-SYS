@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2, Lock, CheckCircle2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Lock, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
@@ -57,6 +57,7 @@ const SIZE_PRESETS = [
 const presetFor = (label: string) => SIZE_PRESETS.find((s) => s.label === label);
 
 const AGE_OPTIONS = Array.from({ length: 30 }, (_, i) => i + 1);
+const QTY_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
 
 interface Pack {
   kind: string; // one of PACK_KINDS[].key
@@ -392,7 +393,7 @@ export default function RoundForm({
         {packs.map((p, i) => {
           const cols = p.kind === "basket" || p.kind === "corrugated_box" ? "sm:grid-cols-4" : "sm:grid-cols-3";
           return (
-            <div key={i} className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+            <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className={`grid gap-3 ${cols}`}>
                 <div>
                   <label className={labelCls}>บรรจุภัณฑ์{req}</label>
@@ -405,7 +406,7 @@ export default function RoundForm({
                 {p.kind === "basket" ? (
                   <div>
                     <label className={labelCls}>หมายเลขตะกร้า{req}</label>
-                    <input list="baskets" value={p.basketNo} onChange={(e) => { setPack(i, "basketNo", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.basketNo`]: "" })); }} placeholder="เช่น BSK-014" className={`${inputCls} ${errs[`pack.${i}.basketNo`] ? "border-[#ee443f]" : ""}`} />
+                    <input list="baskets" value={p.basketNo} onChange={(e) => { setPack(i, "basketNo", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.basketNo`]: "" })); }} placeholder="ระบุหมายเลขตะกร้า เช่น BSK-014" className={`${inputCls} ${errs[`pack.${i}.basketNo`] ? "border-[#ee443f]" : ""}`} />
                     <datalist id="baskets">{basketOptions.map((b) => <option key={b} value={b} />)}</datalist>
                     <Err msg={errs[`pack.${i}.basketNo`]} />
                   </div>
@@ -423,14 +424,17 @@ export default function RoundForm({
                 <div>
                   <label className={labelCls}>ขนาด{req}</label>
                   <select value={p.size} onChange={(e) => { setPack(i, "size", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.size`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.size`] ? "border-[#ee443f]" : ""}`}>
-                    <option value="">ระบุขนาด</option>
+                    <option value="">ระบุขนาดบรรจุภัณฑ์</option>
                     {SIZE_PRESETS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
                   </select>
                   <Err msg={errs[`pack.${i}.size`]} />
                 </div>
                 <div>
                   <label className={labelCls}>จำนวน{req}</label>
-                  <input type="number" min="0" value={p.qty} onChange={(e) => { setPack(i, "qty", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.qty`]: "" })); }} placeholder="ระบุจำนวน" className={`${inputCls} ${errs[`pack.${i}.qty`] ? "border-[#ee443f]" : ""}`} />
+                  <select value={p.qty} onChange={(e) => { setPack(i, "qty", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.qty`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.qty`] ? "border-[#ee443f]" : ""}`}>
+                    <option value="">ระบุจำนวนบรรจุภัณฑ์</option>
+                    {QTY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
+                  </select>
                   <Err msg={errs[`pack.${i}.qty`]} />
                 </div>
               </div>
@@ -444,7 +448,7 @@ export default function RoundForm({
         })}
         <div className="flex justify-end">
           <button type="button" onClick={() => setPacks([...packs, emptyPack()])} className={`inline-flex items-center gap-1.5 text-[13px] font-medium ${T.link} hover:underline`}>
-            <Plus size={15} /> เพิ่มรายการอื่น
+            <PlusCircle size={16} /> เพิ่มรายการอื่น
           </button>
         </div>
       </Section>

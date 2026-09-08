@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2, MapPin, CheckCircle2, Package } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, MapPin, CheckCircle2, Package } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import { VEHICLE_FUELS } from "@/lib/master-data";
@@ -27,6 +27,7 @@ const SIZE_PRESETS = [
   { label: "60 × 80 × 50 ซม.", w: 60, l: 80, h: 50 },
 ];
 const presetFor = (label: string) => SIZE_PRESETS.find((s) => s.label === label);
+const QTY_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
 // distinct vehicle classes for the "ประเภทรถที่ใช้" dropdown
 const VEHICLES = [...new Map(VEHICLE_FUELS.map((v) => [v.vehicle, v])).values()];
 const fuelsFor = (veh: string) => VEHICLE_FUELS.filter((v) => v.vehicle === veh);
@@ -246,21 +247,21 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
         {packs.map((p, i) => {
           const cols = p.kind === "basket" || p.kind === "corrugated_box" ? "sm:grid-cols-4" : "sm:grid-cols-3";
           return (
-            <div key={i} className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+            <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className={`grid gap-3 ${cols}`}>
                 <div><label className={labelCls}>บรรจุภัณฑ์{req}</label>
                   <select value={p.kind} onChange={(e) => setPack(i, "kind", e.target.value)} className={inputCls}><option value="">เลือกบรรจุภัณฑ์</option>{PACK_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}</select>
                 </div>
-                {p.kind === "basket" ? <div><label className={labelCls}>หมายเลขตะกร้า{req}</label><input value={p.basketNo} onChange={(e) => setPack(i, "basketNo", e.target.value)} placeholder="เช่น BSK-014" className={inputCls} /></div> : null}
-                {p.kind === "corrugated_box" ? <div><label className={labelCls}>วัสดุภายในกล่อง{req}</label><select value={p.boxMaterial} onChange={(e) => setPack(i, "boxMaterial", e.target.value)} className={inputCls}><option value="">ระบุวัสดุภายในกล่อง</option>{BOX_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div> : null}
-                <div><label className={labelCls}>ขนาด{req}</label><select value={p.size} onChange={(e) => setPack(i, "size", e.target.value)} className={inputCls}><option value="">ระบุขนาด</option>{SIZE_PRESETS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}</select></div>
-                <div><label className={labelCls}>จำนวน{req}</label><input type="number" value={p.qty} onChange={(e) => setPack(i, "qty", e.target.value)} placeholder="ระบุจำนวน" className={inputCls} /></div>
+                {p.kind === "basket" ? <div><label className={labelCls}>หมายเลขตะกร้า{req}</label><input value={p.basketNo} onChange={(e) => setPack(i, "basketNo", e.target.value)} placeholder="ระบุหมายเลขตะกร้า เช่น BSK-014" className={inputCls} /></div> : null}
+                {p.kind === "corrugated_box" ? <div><label className={labelCls}>วัสดุภายในกล่อง{req}</label><select value={p.boxMaterial} onChange={(e) => setPack(i, "boxMaterial", e.target.value)} className={inputCls}><option value="">วัสดุภายในกล่อง</option>{BOX_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}</select></div> : null}
+                <div><label className={labelCls}>ขนาด{req}</label><select value={p.size} onChange={(e) => setPack(i, "size", e.target.value)} className={inputCls}><option value="">ระบุขนาดบรรจุภัณฑ์</option>{SIZE_PRESETS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}</select></div>
+                <div><label className={labelCls}>จำนวน{req}</label><select value={p.qty} onChange={(e) => setPack(i, "qty", e.target.value)} className={inputCls}><option value="">ระบุจำนวนบรรจุภัณฑ์</option>{QTY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}</select></div>
               </div>
               {packs.length > 1 ? <button type="button" onClick={() => setPacks(packs.filter((_, j) => j !== i))} className="mt-3 inline-flex items-center gap-1 text-[12px] text-red-500 hover:underline"><Trash2 size={13} /> ลบบรรจุภัณฑ์</button> : null}
             </div>
           );
         })}
-        <div className="flex justify-end"><button type="button" onClick={() => setPacks([...packs, emptyPack()])} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-600 hover:underline"><Plus size={15} /> เพิ่มรายการอื่น</button></div>
+        <div className="flex justify-end"><button type="button" onClick={() => setPacks([...packs, emptyPack()])} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-blue-600 hover:underline"><PlusCircle size={16} /> เพิ่มรายการอื่น</button></div>
       </Section>
 
       <Section title="ข้อมูลการขนส่ง" sub="ระบุรายละเอียดการขนส่งจริง">
