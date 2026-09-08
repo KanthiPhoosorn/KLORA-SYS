@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Printer, Loader2, Check, Ban, RotateCcw, Truck } from "lucide-react";
-import QrLabel from "@/components/QrLabel";
+import { Search, Printer, Loader2, CheckCircle2, PackageSearch, Scissors, MapPin, Package, Cloud, Calendar, Flower2, User } from "lucide-react";
 import Modal from "@/components/Modal";
-import { isSameBangkokDay, thaiDateTime } from "@/lib/format";
+import { thaiDateShort } from "@/lib/format";
 import type { Supplier, Batch, PrintLog } from "@/lib/types";
 
 export default function ThaiPostConsole({
@@ -19,294 +18,201 @@ export default function ThaiPostConsole({
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [selectedSup, setSelectedSup] = useState<string | null>(null);
-  const [printTarget, setPrintTarget] = useState<Batch | null>(null);
+  const [results, setResults] = useState<Batch[] | null>(null); // null = not searched
+  const [notFound, setNotFound] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [cancelBusy, setCancelBusy] = useState<string | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<PrintLog | null>(null);
+  const [toast, setToast] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const supById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
-
-  // A batch is "printed" only if it has an active (non-cancelled) print log.
-  const activePrintedBatchIds = useMemo(
-    () => new Set(prints.filter((p) => !p.cancelled).map((p) => p.batchId)),
-    [prints],
-  );
-
-  // Computed batches not yet printed, grouped by supplier.
-  const unprintedBySup = useMemo(() => {
-    const m = new Map<string, Batch[]>();
-    for (const b of batches) {
-      if (b.status !== "computed") continue;
-      if (activePrintedBatchIds.has(b.id)) continue;
-      (m.get(b.supplierId) ?? m.set(b.supplierId, []).get(b.supplierId)!).push(b);
-    }
+  const roundsBySup = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of batches) m.set(b.supplierId, (m.get(b.supplierId) ?? 0) + 1);
     return m;
-  }, [batches, activePrintedBatchIds]);
+  }, [batches]);
 
-  // Search results: only SUPs that still have something to print (by id OR name).
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return suppliers
-      .filter((s) => (unprintedBySup.get(s.id)?.length ?? 0) > 0)
-      .filter(
-        (s) =>
-          !q ||
-          s.id.toLowerCase().includes(q) ||
-          s.farmName.toLowerCase().includes(q),
-      );
-  }, [suppliers, unprintedBySup, query]);
-
-  const selected = selectedSup ? supById.get(selectedSup) : null;
-  const selectedBatches = selectedSup ? unprintedBySup.get(selectedSup) ?? [] : [];
-
-  // Today summary.
-  const nowIso = new Date().toISOString();
-  const printedToday = prints.filter(
-    (p) => !p.cancelled && isSameBangkokDay(p.printedAt, nowIso),
-  ).length;
-  const waiting = [...unprintedBySup.values()].reduce((n, arr) => n + arr.length, 0);
-  const sortingPoints = new Set(
-    prints.filter((p) => p.sortingPoint).map((p) => p.sortingPoint),
-  ).size;
-  const latestDate = prints.length
-    ? [...prints].sort((a, b) => b.printedAt.localeCompare(a.printedAt))[0].printedAt.slice(0, 10)
-    : nowIso.slice(0, 10);
-
-  const Tile = ({ label, value }: { label: string; value: number }) => (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs text-slate-500">{label}</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900">{value}</div>
-          <div className="mt-1 text-[10px] text-slate-400">Latest date : {latestDate}</div>
-        </div>
-        <Truck size={18} className="text-blue-500" />
-      </div>
-    </div>
+  const activePrinted = useMemo(() => new Set(prints.filter((p) => !p.cancelled).map((p) => p.batchId)), [prints]);
+  const printable = useMemo(
+    () => batches.filter((b) => b.status === "computed" && !activePrinted.has(b.id)),
+    [batches, activePrinted],
   );
 
-  function doPrint(b: Batch) {
-    setPrintTarget(b);
-    setTimeout(() => {
-      window.print();
-      setConfirmOpen(true);
-    }, 60);
+  function runSearch() {
+    const q = query.trim().toLowerCase();
+    if (!q) { setResults(null); setNotFound(false); return; }
+    const hits = printable.filter((b) => {
+      const s = supById.get(b.supplierId);
+      return b.supplierId.toLowerCase().includes(q) || b.id.toLowerCase().includes(q) || (s?.farmName.toLowerCase().includes(q) ?? false);
+    });
+    setResults(hits);
+    setNotFound(hits.length === 0);
   }
 
-  async function confirmPrinted() {
-    if (!printTarget || !selected) return;
+  async function confirmPrint() {
+    if (!results || results.length === 0) return;
     setBusy(true);
-    await fetch("/api/prints", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        supplierId: selected.id,
-        batchId: printTarget.id,
-        destination: printTarget.destination,
-        printedBy: "Thaipost",
-      }),
-    });
+    window.print();
+    for (const b of results) {
+      const s = supById.get(b.supplierId);
+      await fetch("/api/prints", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplierId: b.supplierId, batchId: b.id, destination: b.destination, sortingPoint: s?.province, printedBy: "Logistic" }),
+      });
+    }
     setBusy(false);
     setConfirmOpen(false);
-    setPrintTarget(null);
-    setSelectedSup(null);
+    setToast(true);
+    setResults(null); setQuery("");
+    setTimeout(() => setToast(false), 2600);
     router.refresh();
   }
 
-  async function cancelPrint(id: string) {
-    setCancelBusy(id);
-    await fetch(`/api/prints/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cancelled: true }),
-    });
-    setCancelBusy(null);
-    router.refresh();
-  }
-
-  const historyRows = [...prints].sort((a, b) => b.printedAt.localeCompare(a.printedAt));
+  const qrSrc = (b: Batch) => `/api/qr?data=${encodeURIComponent(`${origin}/trace/${b.id}`)}`;
 
   return (
     <>
-      <div className="no-print mx-auto max-w-6xl space-y-6 px-4 py-6">
-        {/* Today */}
-        <section className="grid grid-cols-3 gap-4">
-          <Tile label="พิมพ์แล้ววันนี้" value={printedToday} />
-          <Tile label="รอค้นหา/พิมพ์" value={waiting} />
-          <Tile label="จุดคัดแยก" value={sortingPoints} />
-        </section>
+      {toast ? (
+        <div className="no-print fixed right-6 top-6 z-50 flex items-start gap-3 rounded-xl border border-emerald-100 bg-white px-4 py-3 shadow-lg">
+          <CheckCircle2 size={20} className="mt-0.5 text-emerald-500" />
+          <div><p className="text-[13px] font-semibold text-slate-800">พิมพ์ QR Code สำเร็จ</p><p className="text-[12px] text-slate-400">รายการพิมพ์ถูกบันทึกเรียบร้อยแล้ว</p></div>
+        </div>
+      ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          {/* Search + results */}
-          <div className="space-y-4">
-            <h1 className="text-2xl font-bold text-slate-900">ค้นหา SUP (ยังไม่ได้พิมพ์)</h1>
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm">
-              <Search size={18} className="text-slate-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="ค้นหาด้วยชื่อฟาร์ม หรือ SUP ID"
-                className="w-full bg-transparent py-2.5 text-sm outline-none"
-              />
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              {results.length === 0 ? (
-                <p className="px-5 py-8 text-center text-sm text-slate-400">
-                  ไม่มี SUP ที่ค้างพิมพ์
-                </p>
-              ) : (
-                results.map((s) => {
-                  const n = unprintedBySup.get(s.id)?.length ?? 0;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedSup(s.id)}
-                      className={`flex w-full items-center justify-between border-b border-slate-50 px-5 py-3 text-left last:border-0 ${
-                        selectedSup === s.id ? "bg-pink-50/60" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>
-                        <span className="font-medium text-slate-800">{s.farmName}</span>
-                        <span className="ml-2 font-mono text-xs text-slate-400">{s.id}</span>
-                      </span>
-                      <span className="rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-medium text-pink-700">
-                        {n} รอพิมพ์
-                      </span>
-                    </button>
-                  );
-                })
-              )}
+      <div className="no-print space-y-6">
+        {/* Hero banner + search */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 via-sky-50 to-emerald-50 p-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/figma/warehouse.webp" alt="" aria-hidden className="pointer-events-none absolute bottom-0 right-0 hidden h-[110%] w-auto object-contain opacity-90 lg:block" />
+          <div className="relative max-w-xl">
+            <h1 className="text-2xl font-bold leading-snug">
+              <span className="text-blue-700">ค้นหาด้วยชื่อ หรือ SUP ID</span><br />
+              <span className="text-emerald-600">เพื่อจัดการพัสดุ</span>
+            </h1>
+            <div className="mt-5 flex gap-3">
+              <div className="flex-1">
+                <div className={`flex items-center rounded-[10px] border bg-white px-4 ${notFound ? "border-[#ee443f]" : "border-gray-200"}`}>
+                  <input
+                    value={query}
+                    onChange={(e) => { setQuery(e.target.value); setNotFound(false); }}
+                    onKeyDown={(e) => e.key === "Enter" && runSearch()}
+                    placeholder="SUP - 2026 - 0004  หรือ ฟาร์มเบญจมาศแม่ริม"
+                    className="w-full bg-transparent py-3 text-[13px] outline-none"
+                  />
+                </div>
+                {notFound ? <p className="mt-1.5 text-[12px] text-[#ee443f]">กรุณาตรวจสอบความถูกต้องของหมายเลขสั่งของ</p> : null}
+              </div>
+              <button onClick={runSearch} className="h-[46px] shrink-0 rounded-[10px] bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700">ค้นหา</button>
             </div>
           </div>
+        </div>
 
-          {/* Label preview for the selected SUP */}
-          <div className="space-y-4">
-            {selected && selectedBatches.length > 0
-              ? selectedBatches.map((b) => (
-                  <div key={b.id} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <QrLabel supplier={selected} batch={b} traceUrl={`${origin}/trace/${b.id}`} />
-                    <div className="text-center">
-                      <button
-                        onClick={() => doPrint(b)}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                      >
-                        <Printer size={16} /> พิมพ์ฉลาก
-                      </button>
+        {/* Body */}
+        {results && results.length > 0 ? (
+          <div className="space-y-5">
+            {results.map((b) => {
+              const s = supById.get(b.supplierId);
+              const eta = new Date(new Date(b.entryDate + "T00:00:00").getTime() + 5 * 86400000).toISOString().slice(0, 10);
+              return (
+                <div key={b.id} className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[1.5fr_1fr]">
+                  {/* Left — batch detail */}
+                  <div className="lg:border-r lg:border-slate-100 lg:pr-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-11 place-items-center rounded-full bg-blue-50 text-blue-500"><User size={20} /></span>
+                        <div>
+                          <div className="font-semibold text-slate-900">{s?.farmName ?? "—"}</div>
+                          <div className="font-mono text-xs text-slate-400">{b.supplierId}</div>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600"><Scissors size={13} /> {roundsBySup.get(b.supplierId) ?? 1} รอบการตัด</span>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-4 text-sm">
+                      <div><div className="text-slate-400">เลข Batch (Batch No.)</div><div className="font-medium text-slate-800">{b.id}</div></div>
+                      <div><div className="text-slate-400">วันที่คาดว่าจะถึง</div><div className="font-medium text-slate-800">{thaiDateShort(eta)}</div></div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 p-4 text-sm">
+                      <div className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 text-blue-500" /><div><div className="text-slate-400">ต้นทาง</div><div className="text-slate-700">{s?.farmName}</div><div className="text-xs text-slate-400">{s?.address}</div></div></div>
+                      <div className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}</div></div></div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
+                      {[
+                        { icon: <Flower2 size={16} />, label: "ประเภทดอก", val: b.variety || s?.flowerType || "—" },
+                        { icon: <Package size={16} />, label: "จำนวนดอก", val: `${b.flowerCount.toLocaleString()} ดอก` },
+                        { icon: <Cloud size={16} />, label: "Co2e/ดอก", val: `${b.co2ePerFlower.toFixed(4)} Kg` },
+                        { icon: <Calendar size={16} />, label: "ตัดเมื่อ", val: thaiDateShort(b.cutDate) },
+                      ].map((x, i) => (
+                        <div key={i} className="rounded-lg bg-slate-50 p-2.5">
+                          <div className="mx-auto mb-1 grid size-7 place-items-center rounded-md bg-white text-blue-500">{x.icon}</div>
+                          <div className="text-slate-400">{x.label}</div>
+                          <div className="mt-0.5 font-medium text-slate-700">{x.val}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))
-              : (
-                <div className="grid place-items-center rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-                  เลือก SUP จากรายการเพื่อออกฉลาก
-                </div>
-              )}
-          </div>
-        </div>
 
-        {/* Print history with cancel/reprint */}
-        <div className="space-y-3">
-          <h2 className="text-base font-semibold text-slate-800">ประวัติการพิมพ์</h2>
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="bg-blue-600 text-left font-semibold text-white">
-                  <th className="px-5 py-3">SUP ID</th>
-                  <th className="px-5 py-3">ปลายทาง</th>
-                  <th className="px-5 py-3">เวลาพิมพ์</th>
-                  <th className="px-5 py-3 text-right">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-slate-400">ยังไม่มีการพิมพ์</td>
-                  </tr>
-                ) : (
-                  historyRows.map((p) => (
-                    <tr key={p.id} className={`border-b border-slate-50 last:border-0 ${p.cancelled ? "opacity-50" : ""}`}>
-                      <td className="px-5 py-2.5 font-mono text-xs text-slate-600">
-                        {p.supplierId}
-                        {p.batchId ? <span className="ml-1 text-slate-400">· {p.batchId}</span> : null}
-                      </td>
-                      <td className="px-5 py-2.5 text-slate-700">{p.destination ?? "—"}</td>
-                      <td className="px-5 py-2.5 text-slate-600">
-                        {p.cancelled ? <span className="line-through">{thaiDateTime(p.printedAt)}</span> : thaiDateTime(p.printedAt)}
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        {p.cancelled ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                            <Ban size={13} /> ยกเลิกแล้ว
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => setCancelTarget(p)}
-                            disabled={cancelBusy === p.id}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
-                          >
-                            {cancelBusy === p.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
-                            ยกเลิก (พิมพ์ผิด)
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  {/* Right — QR */}
+                  <div>
+                    <div className="flex justify-between text-sm">
+                      <div><div className="text-slate-400">SUP ID</div><div className="font-medium text-slate-800">{b.supplierId}</div></div>
+                      <div><div className="text-slate-400">Batch ID</div><div className="font-medium text-slate-800">{b.id}</div></div>
+                    </div>
+                    <div className="mt-3 grid place-items-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrSrc(b)} alt={`QR ${b.id}`} className="size-44" />
+                    </div>
+                    <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-sm">
+                      <div className="flex justify-between"><span className="text-slate-400">รายละเอียดเพิ่มเติม</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Co2e/ดอก</span><span className="font-medium text-slate-800">{b.co2ePerFlower.toFixed(4)} Kg</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">อายุดอกไม้</span><span className="font-medium text-slate-800">{b.ageDays} วันหลังตัด</span></div>
+                      <div className="flex justify-between"><span className="text-slate-500">ตัดเมื่อ</span><span className="font-medium text-slate-800">{thaiDateShort(b.cutDate)}</span></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="flex justify-end gap-3">
+              <button className="h-[42px] rounded-[8px] border border-blue-600 px-8 text-sm font-medium text-blue-600 hover:bg-blue-50">แก้ไขข้อมูล</button>
+              <button onClick={() => setConfirmOpen(true)} className="inline-flex h-[42px] items-center gap-2 rounded-[8px] bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700"><Printer size={16} /> พิมพ์ฉลาก</button>
+            </div>
           </div>
-          <p className="text-xs text-slate-400">
-            กด “ยกเลิก” เมื่อพิมพ์ผิด — รายการนั้นจะถูกยกเลิก และ SUP จะกลับมาให้ค้นหา/พิมพ์ใหม่เป็นรายการใหม่
-          </p>
-        </div>
+        ) : (
+          <div className="grid place-items-center py-20 text-center">
+            <div className="mb-5 grid size-28 place-items-center rounded-full bg-blue-50/70 text-blue-300"><PackageSearch size={52} /></div>
+            <h2 className="text-lg font-semibold text-slate-800">ยังไม่มีรายการพัสดุ</h2>
+            <p className="mt-1.5 max-w-sm text-sm text-slate-400">เมื่อมีรายการพัสดุรับเข้าจากผู้ผลิต ข้อมูลจะแสดงในหน้านี้</p>
+          </div>
+        )}
       </div>
 
-      {/* Confirm-after-print (กัน Human error) */}
-      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="ยืนยันการพิมพ์">
-        <p className="text-sm text-slate-600">
-          พิมพ์ฉลาก <b>{printTarget?.id}</b> สำเร็จหรือไม่?
-        </p>
-        <div className="mt-5 flex gap-3">
-          <button
-            onClick={confirmPrinted}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-          >
-            {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-            ยืนยันพิมพ์สำเร็จ
-          </button>
-          <button
-            onClick={() => printTarget && doPrint(printTarget)}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <Printer size={16} /> พิมพ์ใหม่
-          </button>
-        </div>
-      </Modal>
-
-      {/* Cancel-print confirm (Figma "ยกเลิกรายการนี้หรือไม่") */}
-      <Modal open={!!cancelTarget} onClose={() => setCancelTarget(null)} title="ยกเลิกรายการนี้หรือไม่">
-        <p className="text-[13px] text-slate-500">รายการนี้จะถูกยกเลิก และจะไม่สามารถใช้ QR เดิมได้อีก</p>
+      {/* Print confirm */}
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="ยืนยันการพิมพ์ฉลาก?">
+        <p className="text-[13px] text-slate-500">หากข้อมูลไม่ถูกต้อง สามารถยกเลิกได้ที่เมนู “สถานะพัสดุ”</p>
         <div className="mt-5 flex justify-end gap-3">
-          <button onClick={() => setCancelTarget(null)} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
-          <button
-            onClick={() => { const t = cancelTarget; setCancelTarget(null); if (t) cancelPrint(t.id); }}
-            className="inline-flex h-[38px] items-center gap-2 rounded-[8px] bg-blue-600 px-8 text-[14px] font-medium text-white hover:bg-blue-700"
-          >
-            ยืนยัน
+          <button onClick={() => setConfirmOpen(false)} disabled={busy} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
+          <button onClick={confirmPrint} disabled={busy} className="inline-flex h-[38px] items-center gap-2 rounded-[8px] bg-blue-600 px-6 text-[14px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Printer size={15} />} ยืนยันและพิมพ์
           </button>
         </div>
       </Modal>
 
-      {/* Print-only label */}
-      <div className="print-only">
-        {printTarget && selected ? (
-          <QrLabel supplier={selected} batch={printTarget} traceUrl={`${origin}/trace/${printTarget.id}`} />
-        ) : null}
+      {/* Print-only labels */}
+      <div className="print-only space-y-8 p-6">
+        {(results ?? []).map((b) => {
+          const s = supById.get(b.supplierId);
+          return (
+            <div key={b.id} className="text-center">
+              <div className="text-lg font-bold">{s?.farmName}</div>
+              <div className="text-sm">{b.supplierId} · {b.id} → {b.destination}</div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrSrc(b)} alt="" className="mx-auto mt-2 size-48" />
+            </div>
+          );
+        })}
       </div>
     </>
   );
