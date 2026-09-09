@@ -30,7 +30,7 @@ export default function KynLoginPage() {
           <img
             src="/figma/kyn-login-hero.webp"
             alt="ภาพรวมระบบ KYN"
-            className="h-full w-full object-cover object-center"
+            className="max-h-full w-full object-contain"
           />
         </div>
 
