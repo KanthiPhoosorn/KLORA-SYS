@@ -143,6 +143,7 @@ export interface User {
   supplierId?: string; // → Supplier.id (only for role "supplier")
   company?: string; // ชื่อบริษัท (logistic accounts)
   branch?: string; // สาขา (logistic accounts)
+  phone?: string; // เบอร์โทร (โปรไฟล์ผู้ใช้)
   email: string;
   username: string;
   passwordHash: string; // hex

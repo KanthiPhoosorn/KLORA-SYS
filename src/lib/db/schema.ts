@@ -84,6 +84,7 @@ export const users = pgTable("users", {
   supplierId: text("supplier_id"),
   company: text("company"),
   branch: text("branch"),
+  phone: text("phone"),
   email: text("email").notNull(),
   username: text("username").notNull(),
   passwordHash: text("password_hash").notNull(),
