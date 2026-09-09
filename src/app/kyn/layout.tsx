@@ -1,4 +1,4 @@
-import { Bell, Factory } from "lucide-react";
+import { Bell, BarChart3 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
@@ -19,7 +19,7 @@ export default async function KynLayout({ children }: { children: React.ReactNod
 
   const brandMark = (
     <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white">
-      <Factory size={16} />
+      <BarChart3 size={16} />
     </span>
   );
 
@@ -34,7 +34,7 @@ export default async function KynLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <PortalShell accent="slate" brand="KYN" brandMark={brandMark} items={ITEMS} header={header}>
+    <PortalShell accent="purple" brand="KYN" brandMark={brandMark} items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

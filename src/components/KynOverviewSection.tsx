@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { FACTORS, FACTOR_LABELS, FACTOR_SOURCE } from "@/lib/carbon";
-import { StatCard, Card, CardHeader, Bar, Badge } from "@/components/ui";
+import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
-import { freshnessTone } from "@/lib/status";
-import { Leaf, ArrowUpRight, SlidersHorizontal } from "lucide-react";
+import { Truck, Package, Cloud, Leaf, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
 
 export default function KynOverviewSection({
@@ -32,61 +30,61 @@ export default function KynOverviewSection({
     }))
     .filter((r) => r.total > 0)
     .sort((a, b) => b.total - a.total);
-  const maxFarm = Math.max(1, ...perFarm.map((r) => r.total));
+  const farmTotal = perFarm.reduce((n, r) => n + r.total, 0) || 1;
+  const segments = perFarm.map((r, i) => ({
+    label: r.s.farmName,
+    pct: Math.round((r.total / farmTotal) * 100),
+    color: DONUT_COLORS[i % DONUT_COLORS.length],
+  }));
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">ภาพรวมระบบ</h1>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="รอบการตัด" value={computed.length} accent="blue" />
-        <StatCard label="ดอกไม้รวม" value={totalFlowers.toLocaleString()} unit="ดอก" accent="orange" />
-        <StatCard label="CO₂E รวม" value={totalCo2e.toFixed(1)} unit="kg" />
-        <StatCard label="CO₂E เฉลี่ย/ดอก" value={avgCo2e.toFixed(4)} unit="kg" accent="green" />
+        <MetricCard label="จำนวนแบตช์" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="จำนวนดอกทั้งหมด" value={totalFlowers.toLocaleString()} unit="ดอก" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader icon={<Leaf size={18} />} title="ผลการคำนวณรายรอบ" subtitle="data ที่ต้องคำนวณ (คาร์บอน + อายุ)" />
-          <div className="overflow-x-auto">
+        <Card className="lg:col-span-2 p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-500"><Leaf size={18} /></span>
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">ผลการคำนวณแต่ละ Batch</h2>
+              <p className="mt-0.5 text-sm text-slate-500">data ที่ต้องคำนวณ (คาร์บอน + อายุ)</p>
+            </div>
+          </div>
+          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[620px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-2 font-medium">Batch</th>
-                  <th className="px-4 py-2 font-medium">ฟาร์ม</th>
-                  <th className="px-4 py-2 text-right font-medium">ดอก</th>
-                  <th className="px-4 py-2 text-right font-medium">ระยะทาง</th>
-                  <th className="px-4 py-2 text-right font-medium">อายุ</th>
-                  <th className="px-4 py-2 text-right font-medium">CO₂E/ดอก</th>
-                  <th className="px-4 py-2"></th>
+                <tr className="bg-brand-purple-head text-white">
+                  <th className="px-4 py-3 text-left font-semibold">Batch ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">ชื่อฟาร์ม</th>
+                  <th className="px-4 py-3 text-right font-semibold">จำนวนดอก</th>
+                  <th className="px-4 py-3 text-right font-semibold">ระยะทาง (กม.)</th>
+                  <th className="px-4 py-3 text-right font-semibold">CO₂e kg</th>
+                  <th className="px-4 py-3 text-right font-semibold">อายุหลังตัด (วัน)</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-slate-400">ยังไม่มีข้อมูลที่คำนวณแล้ว</td>
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-400">ยังไม่มีข้อมูลที่คำนวณแล้ว</td>
                   </tr>
                 ) : (
                   rows.map((b) => {
                     const s = byId.get(b.supplierId);
                     return (
-                      <tr key={b.id} className="border-b border-slate-50 hover:bg-slate-50/60">
-                        <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{b.id}</td>
-                        <td className="px-4 py-2.5">
-                          <div className="font-medium text-slate-800">{s?.farmName ?? "—"}</div>
-                          <div className="text-xs text-slate-400">{b.variety ?? s?.flowerType ?? b.supplierId}</div>
-                        </td>
-                        <td className="px-4 py-2.5 text-right tabular">{b.flowerCount.toLocaleString()}</td>
-                        <td className="px-4 py-2.5 text-right tabular">{b.distanceKm} km</td>
-                        <td className="px-4 py-2.5 text-right">
-                          <Badge tone={freshnessTone(b.ageDays)}>{b.ageDays} วัน</Badge>
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-semibold tabular text-slate-800">{b.co2ePerFlower.toFixed(4)}</td>
-                        <td className="px-4 py-2.5 text-right">
-                          <Link href={`/trace/${b.id}`} className="inline-flex text-slate-400 hover:text-blue-600">
-                            <ArrowUpRight size={16} />
-                          </Link>
-                        </td>
+                      <tr key={b.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                        <td className="px-4 py-3 font-mono text-xs text-slate-500">{b.id}</td>
+                        <td className="px-4 py-3 text-slate-800">{s?.farmName ?? "—"}</td>
+                        <td className="px-4 py-3 text-right tabular">{b.flowerCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular">{b.distanceKm}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular text-slate-800">{(b.co2ePerFlower * b.flowerCount).toFixed(3)}</td>
+                        <td className="px-4 py-3 text-right tabular text-slate-600">{b.ageDays}</td>
                       </tr>
                     );
                   })
@@ -94,31 +92,40 @@ export default function KynOverviewSection({
               </tbody>
             </table>
           </div>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-xs text-slate-500">Result {rows.length} รายการ</span>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <span>1 - {Math.min(50, rows.length)} of {rows.length}</span>
+              <div className="flex gap-1">
+                <button className="grid size-7 place-items-center rounded-md bg-brand-purple text-white"><ChevronLeft size={14} /></button>
+                <button className="grid size-7 place-items-center rounded-md bg-brand-purple text-white"><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          </div>
         </Card>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader title="CO₂e รวมรายฟาร์ม" subtitle="kg CO₂e" />
-            <div className="space-y-3 px-5 py-4">
-              {perFarm.length === 0 ? (
+          <Card className="p-5">
+            <h2 className="text-base font-semibold text-slate-800">สัดส่วนการปล่อย CO₂e</h2>
+            <p className="mt-0.5 text-sm text-slate-500">kg CO₂e ต่อฟาร์ม</p>
+            <div className="mt-4">
+              {segments.length === 0 ? (
                 <p className="text-sm text-slate-400">ยังไม่มีข้อมูล</p>
               ) : (
-                perFarm.map(({ s, total }) => (
-                  <div key={s.id} className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-600">{s.farmName}</span>
-                      <span className="font-semibold tabular text-slate-800">{total.toFixed(1)}</span>
-                    </div>
-                    <Bar value={total} max={maxFarm} />
-                  </div>
-                ))
+                <Donut segments={segments} centerValue={totalCo2e.toFixed(0)} centerUnit="kg" />
               )}
             </div>
           </Card>
 
-          <Card>
-            <CardHeader icon={<SlidersHorizontal size={18} />} title="ค่าสัมประสิทธิ์คาร์บอน" subtitle="Emission factors" />
-            <div className="px-5 py-4">
+          <Card className="p-5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-brand-purple-light text-brand-purple"><SlidersHorizontal size={18} /></span>
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">ค่าสัมประสิทธิ์คาร์บอน</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Emission factors</p>
+              </div>
+            </div>
+            <div className="mt-3">
               <table className="w-full text-sm">
                 <tbody>
                   {(Object.keys(FACTORS) as (keyof typeof FACTORS)[]).map((k) => (
@@ -129,7 +136,7 @@ export default function KynOverviewSection({
                   ))}
                 </tbody>
               </table>
-              <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-brand-blue">
+              <a href={FACTOR_SOURCE.url} target="_blank" rel="noreferrer" className="mt-3 block text-[11px] text-slate-400 hover:text-brand-purple">
                 {FACTOR_SOURCE.label} ↗
               </a>
               <Co2eDisclosure className="mt-2" />

@@ -17,6 +17,10 @@
   --color-brand-blue-light: #e6ecff;
   --color-brand-orange: #ff8d28;
   --color-brand-yellow-light: #fefaee;
+  /* KYN portal purple (sampled from HI-FI: login CTA/nav/pager #7c24c6, table headers #5e55b6) */
+  --color-brand-purple: #7c24c6;
+  --color-brand-purple-head: #5e55b6;
+  --color-brand-purple-light: #f3e9fb;
 
   /* Neutrals / grays (Figma) */
   --color-ink: #000000;

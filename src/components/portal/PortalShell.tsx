@@ -37,7 +37,7 @@ const ICONS: Record<string, LucideIcon> = {
   qr: QrCode,
 };
 
-export type Accent = "pink" | "blue" | "slate";
+export type Accent = "pink" | "blue" | "slate" | "purple";
 
 export interface PortalNavItem {
   href: string;
@@ -51,6 +51,7 @@ const ACCENT: Record<Accent, { brand: string; active: string; dot: string }> = {
   pink: { brand: "text-[#018e46]", active: "bg-[#e1478a] text-white shadow-sm", dot: "text-slate-400" },
   blue: { brand: "text-blue-600", active: "bg-blue-600 text-white shadow-sm", dot: "text-slate-400" },
   slate: { brand: "text-slate-900", active: "bg-slate-800 text-white shadow-sm", dot: "text-slate-400" },
+  purple: { brand: "text-brand-purple", active: "bg-brand-purple text-white shadow-sm", dot: "text-slate-400" },
 };
 
 export default function PortalShell({

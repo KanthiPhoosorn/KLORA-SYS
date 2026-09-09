@@ -1,5 +1,6 @@
-import { StatCard, Card, BarChart } from "@/components/ui";
+import { MetricCard, Card, BarChart } from "@/components/ui";
 import ExportCsvButton from "@/components/ExportCsvButton";
+import { Truck, Leaf, Cloud, Clock } from "lucide-react";
 import ReportTabs, { type ReportData } from "@/components/ReportTabs";
 import { buildMonthSeries } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
@@ -70,16 +71,16 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
       </div>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="จำนวน Shipment" value={computed.length.toLocaleString()} />
-        <StatCard label="CO2e รวม (กก.)" value={totalCo2e.toFixed(1)} accent="blue" />
-        <StatCard label="CO2e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} accent="green" />
-        <StatCard label="รอประมาณผล" value={submitted} accent="orange" />
+        <MetricCard label="จำนวน Shipment" value={computed.length.toLocaleString()} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="รอประมาณผล" value={submitted} unit="รายการ" tone="orange" icon={<Clock size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <h2 className="mb-4 text-base font-semibold text-slate-800">แนวโน้มจำนวนดอกไม้</h2>
-          <BarChart data={flowerSeries} barClassName="bg-emerald-500/90" />
+          <BarChart data={flowerSeries} barClassName="bg-brand-purple/85" />
         </Card>
         <Card className="p-5">
           <h2 className="mb-4 text-base font-semibold text-slate-800">แนวโน้มการปล่อย CO₂e</h2>

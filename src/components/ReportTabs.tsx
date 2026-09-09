@@ -28,7 +28,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         <span className="mr-2 hidden text-sm font-semibold text-slate-800 sm:inline">ภาพรวมข้อมูลเชิงลึก</span>
         <div className="flex gap-1 overflow-x-auto">
           {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium ${tab === t.key ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+            <button key={t.key} onClick={() => setTab(t.key)} className={`shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium ${tab === t.key ? "bg-brand-purple text-white" : "text-slate-600 hover:bg-slate-100"}`}>
               {t.label}
             </button>
           ))}
@@ -47,10 +47,10 @@ export default function ReportTabs({ data }: { data: ReportData }) {
                 </div>
               ))}
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[520px] text-sm">
-                <thead><tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-3 py-2 font-medium">จังหวัด</th><th className="px-3 py-2 text-right font-medium">รอบ</th><th className="px-3 py-2 text-right font-medium">ดอกไม้</th><th className="px-3 py-2 text-right font-medium">กม.เฉลี่ย</th><th className="px-3 py-2 text-right font-medium">CO2e/ดอก</th>
+                <thead><tr className="bg-brand-purple-head text-left text-xs text-white">
+                  <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">ดอกไม้</th><th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th>
                 </tr></thead>
                 <tbody>{data.province.map((p) => (
                   <tr key={p.province} className="border-b border-slate-50 last:border-0">
@@ -84,9 +84,9 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         )}
 
         {tab === "ranking" && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[380px] text-sm">
-              <thead><tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-2 font-medium">#</th><th className="px-3 py-2 font-medium">ฟาร์ม</th><th className="px-3 py-2 text-right font-medium">รอบ</th><th className="px-3 py-2 text-right font-medium">CO2e/ดอก</th></tr></thead>
+              <thead><tr className="bg-brand-purple-head text-left text-xs text-white"><th className="px-3 py-2.5 font-semibold">#</th><th className="px-3 py-2.5 font-semibold">ฟาร์ม</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th></tr></thead>
               <tbody>{data.ranking.map((r, i) => (
                 <tr key={r.name} className="border-b border-slate-50 last:border-0"><td className="px-3 py-2 tabular text-slate-500">{i + 1}</td><td className="px-3 py-2 text-slate-700">{r.name}</td><td className="px-3 py-2 text-right tabular">{r.rounds}</td><td className="px-3 py-2 text-right font-semibold tabular text-emerald-600">{r.avg.toFixed(3)}</td></tr>
               ))}</tbody>
