@@ -56,8 +56,15 @@ export default async function SupplierLayout({
     </>
   );
 
+  const footer = (
+    <div className="flex max-h-[42vh] justify-center overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/figma/farmer.webp" alt="" aria-hidden className="pointer-events-none w-full select-none object-contain object-bottom" />
+    </div>
+  );
+
   return (
-    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={items} header={header}>
+    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={items} header={header} footer={footer}>
       {children}
     </PortalShell>
   );

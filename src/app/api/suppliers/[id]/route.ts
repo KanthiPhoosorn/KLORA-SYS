@@ -75,6 +75,21 @@ export async function PATCH(
   if (Array.isArray(body.varieties)) {
     patch.varieties = (body.varieties as unknown[]).map((x) => String(x).trim()).filter(Boolean);
   }
+  if (Array.isArray(body.flowerTypes)) {
+    const fts = (body.flowerTypes as { type?: unknown; varieties?: unknown }[])
+      .map((ft) => ({
+        type: String(ft.type ?? "").trim(),
+        varieties: Array.isArray(ft.varieties) ? ft.varieties.map((v) => String(v).trim()).filter(Boolean) : [],
+      }))
+      .filter((ft) => ft.type);
+    patch.flowerTypes = fts;
+    // keep the flat varieties list (feeds the round-form variety dropdown + passport) —
+    // only overwrite when we actually have varieties, never wipe an existing list.
+    const flat = [...new Set(fts.flatMap((ft) => ft.varieties))];
+    if (flat.length) patch.varieties = flat;
+    // flowerType stays single-valued (LogisticExportForm.onPickBatch / trace read it)
+    if (fts[0]) patch.flowerType = fts[0].type;
+  }
   if (typeof patch.address === "string") {
     patch.province = provinceFromAddress(patch.address) || supplier.province;
   }
