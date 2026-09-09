@@ -62,6 +62,9 @@ export const batches = pgTable("batches", {
   branch: text("branch"),
   boxMaterial: text("box_material"),
   weightKg: doublePrecision("weight_kg"),
+  // Logistics throughput (Figma report #99 "ดอกไม้คัดทิ้ง"): received = flowerCount.
+  forwardedCount: integer("forwarded_count"),
+  discardedCount: integer("discarded_count"),
   basketIds: text("basket_ids").array().notNull(),
   // KYN full-spec inputs (optional — a batch without them falls back to the legacy engine)
   packagingItems: jsonb("packaging_items"),

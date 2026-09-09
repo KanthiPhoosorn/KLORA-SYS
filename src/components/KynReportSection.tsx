@@ -51,7 +51,30 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
     return { name: s.farmName, rounds: bs.length, avg };
   }).filter((r) => Number.isFinite(r.avg)).sort((a, b) => a.avg - b.avg);
 
-  const data: ReportData = { province, types, freshness, ranking };
+  // ประเภทการจัดส่ง / ดอกไม้คัดทิ้ง (#99) — logistics throughput recorded on /logistic/status.
+  // Wasted CO2e uses co2ePerFlower (0 unless computed), so non-computed rounds add 0 — no false carbon claim.
+  const recorded = batches.filter((b) => b.discardedCount != null || b.forwardedCount != null);
+  const discardRows = [...groupBy(recorded, (b) => `${b.provider || b.carrier || "—"}||${b.supplierId}`)].map(([key, bs]) => {
+    const [provider, supId] = key.split("||");
+    const received = bs.reduce((n, b) => n + b.flowerCount, 0);
+    const forwarded = bs.reduce((n, b) => n + (b.forwardedCount ?? 0), 0);
+    const discarded = bs.reduce((n, b) => n + (b.discardedCount ?? 0), 0);
+    const wastedCo2e = bs.reduce((n, b) => n + (b.discardedCount ?? 0) * b.co2ePerFlower, 0);
+    return {
+      provider, farm: supById.get(supId)?.farmName ?? supId,
+      received, forwarded, discarded, remaining: Math.max(0, received - forwarded - discarded),
+      rate: received ? (discarded / received) * 100 : 0, wastedCo2e,
+    };
+  }).sort((a, b) => b.discarded - a.discarded);
+  const totalReceived = discardRows.reduce((n, r) => n + r.received, 0);
+  const totalDiscarded = discardRows.reduce((n, r) => n + r.discarded, 0);
+  const totalWasted = discardRows.reduce((n, r) => n + r.wastedCo2e, 0);
+  const discard = {
+    rows: discardRows, totalReceived, totalDiscarded, totalWasted,
+    avgRate: totalReceived ? (totalDiscarded / totalReceived) * 100 : 0,
+  };
+
+  const data: ReportData = { province, types, freshness, ranking, discard };
   const csvRows = computed.map((b: Batch) => ({
     Batch: b.id, ฟาร์ม: supById.get(b.supplierId)?.farmName ?? "", พันธุ์: b.variety ?? "",
     จังหวัด: supById.get(b.supplierId)?.province ?? "", ปลายทาง: b.destination ?? "",

@@ -52,6 +52,24 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
+  // Logistics throughput (Figma #99): record forwarded / discarded flowers for a round.
+  if ("forwardedCount" in body || "discardedCount" in body) {
+    const clampInt = (v: unknown) => {
+      const n = Math.round(Number(v));
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    };
+    const forwarded = "forwardedCount" in body ? clampInt(body.forwardedCount) : (batch.forwardedCount ?? 0);
+    const discarded = "discardedCount" in body ? clampInt(body.discardedCount) : (batch.discardedCount ?? 0);
+    if (forwarded + discarded > batch.flowerCount) {
+      return NextResponse.json(
+        { error: `ส่งต่อ + คัดทิ้ง (${forwarded + discarded}) เกินจำนวนรับเข้า (${batch.flowerCount})` },
+        { status: 422 },
+      );
+    }
+    const updated = await updateBatch(id, { forwardedCount: forwarded, discardedCount: discarded });
+    return NextResponse.json(updated);
+  }
+
   if (body.shipmentStatus) {
     if (!SHIPMENT.includes(body.shipmentStatus as ShipmentStatus)) {
       return NextResponse.json({ error: "สถานะขนส่งไม่ถูกต้อง" }, { status: 400 });

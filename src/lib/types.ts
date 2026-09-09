@@ -96,6 +96,8 @@ export interface Batch {
   branch?: string; // สาขาที่นำส่ง
   boxMaterial?: string; // วัสดุภายในกล่อง (บรรจุภัณฑ์)
   weightKg?: number; // น้ำหนักรวม (kg) — passport
+  forwardedCount?: number; // ส่งต่อ (ดอก) — logistics throughput; received = flowerCount
+  discardedCount?: number; // คัดทิ้ง (ดอก) — logistics reject; คงเหลือ = flowerCount − forwarded − discarded
   basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
 
   // --- KYN full-spec inputs (ถ้ามีครบ ระบบจะใช้เครื่องคำนวณชุดใหม่) ---

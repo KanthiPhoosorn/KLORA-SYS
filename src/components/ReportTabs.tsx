@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Bar } from "@/components/ui";
 
+export interface DiscardRow {
+  provider: string; farm: string; received: number; forwarded: number;
+  discarded: number; remaining: number; rate: number; wastedCo2e: number;
+}
 export interface ReportData {
   province: { province: string; rounds: number; flowers: number; km: number; perFlower: number }[];
   types: { type: string; flowers: number; avg: number; pct: number }[];
   freshness: { label: string; count: number; pct: number }[];
   ranking: { name: string; rounds: number; avg: number }[];
+  discard: { rows: DiscardRow[]; totalReceived: number; totalDiscarded: number; totalWasted: number; avgRate: number };
 }
 
 const TABS = [
@@ -15,6 +21,7 @@ const TABS = [
   { key: "types", label: "สัดส่วนประเภทดอกไม้" },
   { key: "freshness", label: "การกระจายความสด" },
   { key: "ranking", label: "อันดับฟาร์มที่ปล่อยคาร์บอนต่ำสุด" },
+  { key: "discard", label: "ประเภทการจัดส่ง" },
 ] as const;
 
 export default function ReportTabs({ data }: { data: ReportData }) {
@@ -93,6 +100,68 @@ export default function ReportTabs({ data }: { data: ReportData }) {
               ))}</tbody>
             </table>
           </div>
+        )}
+
+        {tab === "discard" && (
+          data.discard.rows.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-[13px] text-slate-400">
+              ยังไม่มีข้อมูลการคัดทิ้ง — บันทึกได้ที่พอร์ทัลโลจิสติกส์ (สถานะพัสดุ)
+            </p>
+          ) : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-xl border border-slate-200 px-5 py-5 text-center">
+                  <div className="text-3xl font-bold tabular text-brand-purple">{data.discard.avgRate.toFixed(1)}%</div>
+                  <div className="mt-1 text-sm text-slate-600">อัตราคัดทิ้งเฉลี่ย</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 px-5 py-5 text-center">
+                  <div className="text-3xl font-bold tabular text-slate-800">{data.discard.totalDiscarded.toLocaleString()}</div>
+                  <div className="mt-1 text-sm text-slate-600">ดอกไม้คัดทิ้ง (ดอก)</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 px-5 py-5 text-center">
+                  <div className="text-3xl font-bold tabular text-slate-800">{data.discard.totalWasted.toFixed(1)}</div>
+                  <div className="mt-1 text-sm text-slate-600">CO₂e จากการสูญเสีย (kg)</div>
+                </div>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead>
+                    <tr className="bg-brand-purple-head text-left text-xs text-white">
+                      <th className="px-3 py-2.5 font-semibold">ผู้ให้บริการโลจิสติกส์</th>
+                      <th className="px-3 py-2.5 font-semibold">แหล่งผลิต</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">รับเข้า</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">ส่งต่อ</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">คัดทิ้ง</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">คงเหลือ</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">อัตราคัดทิ้ง</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">CO₂e สูญเปล่า</th>
+                    </tr>
+                  </thead>
+                  <tbody>{data.discard.rows.map((r, i) => {
+                    const above = r.rate > data.discard.avgRate + 0.05;
+                    const below = r.rate < data.discard.avgRate - 0.05;
+                    return (
+                      <tr key={i} className="border-b border-slate-50 last:border-0">
+                        <td className="px-3 py-2.5 text-slate-700">{r.provider}</td>
+                        <td className="px-3 py-2.5 text-slate-600">{r.farm}</td>
+                        <td className="px-3 py-2.5 text-right tabular">{r.received.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular">{r.forwarded.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular font-medium text-slate-800">{r.discarded.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right tabular text-slate-500">{r.remaining.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={`inline-flex items-center gap-1 tabular font-medium ${above ? "text-red-500" : below ? "text-emerald-600" : "text-slate-600"}`}>
+                            {above ? <TrendingUp size={13} /> : below ? <TrendingDown size={13} /> : null}{r.rate.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular text-slate-700">{r.wastedCo2e.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}</tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-slate-400">อัตราคัดทิ้ง = คัดทิ้ง ÷ รับเข้า · ↑/↓ เทียบค่าเฉลี่ยรวม {data.discard.avgRate.toFixed(1)}% · CO₂e สูญเปล่า = ดอกคัดทิ้ง × CO₂e/ดอก (เฉพาะรอบที่คำนวณแล้ว)</p>
+            </div>
+          )
         )}
       </div>
     </div>
