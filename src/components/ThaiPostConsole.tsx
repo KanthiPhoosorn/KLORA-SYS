@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Printer, Loader2, CheckCircle2, PackageSearch, Scissors, MapPin, Package, Cloud, Calendar, Flower2, User } from "lucide-react";
+import { Search, Printer, Loader2, CheckCircle2, PackageSearch, Scissors, MapPin, ArrowRight, Package, Cloud, Calendar, Flower2, User } from "lucide-react";
 import Modal from "@/components/Modal";
 import { thaiDateShort } from "@/lib/format";
 import type { Supplier, Batch, PrintLog } from "@/lib/types";
@@ -133,9 +133,10 @@ export default function ThaiPostConsole({
                       <div><div className="text-slate-400">วันที่คาดว่าจะถึง</div><div className="font-medium text-slate-800">{thaiDateShort(eta)}</div></div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 p-4 text-sm">
-                      <div className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 text-blue-500" /><div><div className="text-slate-400">ต้นทาง</div><div className="text-slate-700">{s?.farmName}</div><div className="text-xs text-slate-400">{s?.address}</div></div></div>
-                      <div className="flex items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}</div></div></div>
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 p-4 text-sm">
+                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-blue-500" /><div><div className="text-slate-400">ต้นทาง</div><div className="text-slate-700">{s?.farmName}</div><div className="text-xs text-slate-400">{s?.address}</div></div></div>
+                      <ArrowRight size={18} className="shrink-0 text-slate-300" />
+                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}</div></div></div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
