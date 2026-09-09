@@ -2,30 +2,37 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Search, Plus, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui";
 import Modal from "@/components/Modal";
 import FarmSettingsForm from "@/components/FarmSettingsForm";
-import { SUP_STATUS } from "@/lib/status";
-import type { Supplier } from "@/lib/types";
+import type { Supplier, User } from "@/lib/types";
 
-export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
+type Tab = "producer" | "logistic";
+const th = "px-5 py-3.5 text-center text-[13px] font-semibold text-white";
+
+export default function SupManager({
+  suppliers,
+  logistics,
+}: {
+  suppliers: Supplier[];
+  logistics: User[];
+}) {
   const router = useRouter();
-  const [q, setQ] = useState("");
+  const [tab, setTab] = useState<Tab>("producer");
+  const [supId, setSupId] = useState("");
+  const [farm, setFarm] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editSup, setEditSup] = useState<Supplier | null>(null);
 
-  const rows = suppliers.filter(
+  const farmNames = [...new Set(suppliers.map((s) => s.farmName))];
+  const supRows = suppliers.filter(
     (s) =>
-      !q ||
-      s.id.toLowerCase().includes(q.toLowerCase()) ||
-      s.farmName.includes(q),
+      (!supId || s.id.toLowerCase().includes(supId.toLowerCase())) &&
+      (farm === "all" || s.farmName === farm),
   );
 
-  async function toggle(s: Supplier) {
+  async function setStatus(s: Supplier, status: "active" | "suspended") {
+    if (status === s.status) return;
     setBusyId(s.id);
-    const status = s.status === "active" ? "suspended" : "active";
     await fetch(`/api/suppliers/${s.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -35,78 +42,134 @@ export default function SupManager({ suppliers }: { suppliers: Supplier[] }) {
     router.refresh();
   }
 
+  const statusSel =
+    "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-600 outline-none disabled:opacity-60";
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">จัดการ SUP</h1>
-        <Link
-          href="/register"
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-        >
-          <Plus size={16} /> เพิ่ม SUP
-        </Link>
+    <div className="space-y-5">
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-bold text-slate-900">จัดการผู้ใช้งาน</h1>
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-        <Search size={16} className="text-slate-400" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="ค้นหาชื่อฟาร์ม / SUP ID"
-          className="w-full bg-transparent py-2 text-sm outline-none"
-        />
+      {/* Tabs */}
+      <div className="flex gap-8 border-b border-slate-200">
+        {[
+          { key: "producer", label: "จัดการผู้ผลิต" },
+          { key: "logistic", label: "จัดการขนส่ง" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key as Tab)}
+            className={`-mb-px border-b-2 pb-3 text-[15px] transition ${
+              tab === t.key ? "border-brand-purple font-semibold text-brand-purple" : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-5 py-2.5 font-medium">SUP ID</th>
-              <th className="px-5 py-2.5 font-medium">ชื่อฟาร์ม</th>
-              <th className="px-5 py-2.5 font-medium">จังหวัด</th>
-              <th className="px-5 py-2.5 font-medium">สถานะ</th>
-              <th className="px-5 py-2.5 text-right font-medium">จัดการ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((s) => (
-              <tr key={s.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-5 py-2.5 font-mono text-xs text-slate-600">{s.id}</td>
-                <td className="px-5 py-2.5 text-slate-800">{s.farmName}</td>
-                <td className="px-5 py-2.5 text-slate-600">{s.province ?? "—"}</td>
-                <td className="px-5 py-2.5">
-                  <Badge tone={SUP_STATUS[s.status].tone}>{SUP_STATUS[s.status].label}</Badge>
-                </td>
-                <td className="px-5 py-2.5 text-right">
-                  <div className="inline-flex items-center gap-3">
-                    <button onClick={() => setEditSup(s)} className="text-blue-600 hover:underline">
-                      แก้ไข
-                    </button>
-                    <button
-                      onClick={() => toggle(s)}
-                      disabled={busyId === s.id}
-                      className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 disabled:opacity-50"
-                    >
-                      {busyId === s.id ? <Loader2 size={13} className="animate-spin" /> : null}
-                      {s.status === "active" ? "ระงับ" : "เปิดใช้"}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {tab === "producer" ? (
+        <>
+          {/* Filters */}
+          <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">SUP ID</label>
+              <input value={supId} onChange={(e) => setSupId(e.target.value)} placeholder="SUP - 00214" className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none focus:border-brand-purple" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">ชื่อฟาร์ม</label>
+              <select value={farm} onChange={(e) => setFarm(e.target.value)} className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-slate-700 outline-none focus:border-brand-purple">
+                <option value="all">ทุกฟาร์ม</option>
+                {farmNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          </div>
 
-      <Modal
-        open={!!editSup}
-        onClose={() => setEditSup(null)}
-        title={editSup ? `แก้ไขข้อมูล ${editSup.id}` : ""}
-        wide
-      >
-        {editSup ? (
-          <FarmSettingsForm supplier={editSup} />
-        ) : null}
+          {/* Table */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">จัดการผู้ผลิต</h2>
+              <button onClick={() => { setSupId(""); setFarm("all"); }} className="rounded-[8px] border border-brand-purple px-4 py-2 text-[13px] font-medium text-brand-purple hover:bg-brand-purple-light">
+                จัดการทั้งหมด
+              </button>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="bg-brand-purple-head">
+                    <th className={th}>SUP ID</th>
+                    <th className={th}>แหล่งผลิต</th>
+                    <th className={th}>จังหวัด</th>
+                    <th className={th}>สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supRows.length === 0 ? (
+                    <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">ไม่พบผู้ผลิต</td></tr>
+                  ) : supRows.map((s) => (
+                    <tr key={s.id} onClick={() => setEditSup(s)} className="cursor-pointer border-b border-slate-50 text-center last:border-0 hover:bg-slate-50">
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.id}</td>
+                      <td className="px-5 py-3.5 text-slate-800">{s.farmName}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
+                      <td className="px-5 py-3.5">
+                        <select
+                          value={s.status}
+                          disabled={busyId === s.id}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setStatus(s, e.target.value as "active" | "suspended")}
+                          className={statusSel}
+                        >
+                          <option value="active">ใช้งาน</option>
+                          <option value="suspended">ระงับ</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* จัดการขนส่ง — logistics accounts, mirrored layout */
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900">จัดการขนส่ง</h2>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="bg-brand-purple-head">
+                  <th className={th}>รหัสผู้ใช้</th>
+                  <th className={th}>บริษัทขนส่ง</th>
+                  <th className={th}>สาขา</th>
+                  <th className={th}>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logistics.length === 0 ? (
+                  <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">ยังไม่มีบัญชีขนส่ง</td></tr>
+                ) : logistics.map((u) => (
+                  <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
+                    <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{u.id}</td>
+                    <td className="px-5 py-3.5 text-slate-800">{u.company ?? u.username}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{u.branch ?? "—"}</td>
+                    <td className="px-5 py-3.5">
+                      <select value="active" disabled className={statusSel} title="การระงับบัญชีขนส่งยังไม่เปิดใช้งาน">
+                        <option value="active">ใช้งาน</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Modal open={!!editSup} onClose={() => setEditSup(null)} title={editSup ? `แก้ไขข้อมูล ${editSup.id}` : ""} wide>
+        {editSup ? <FarmSettingsForm supplier={editSup} /> : null}
       </Modal>
     </div>
   );
