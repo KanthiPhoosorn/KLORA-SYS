@@ -1,14 +1,16 @@
 import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier } from "@/lib/store";
 import { FACTORS, transportCarbon, basketCarbonForRound, basketReuseCounts } from "@/lib/carbon";
-import { MetricCard, Card, Donut } from "@/components/ui";
+import { MetricCard, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { thaiDateShort } from "@/lib/format";
-import { Leaf, Trophy, TrendingDown, TrendingUp } from "lucide-react";
+import { Leaf, Trophy, TrendingDown, TrendingUp, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Batch } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+const MONTHS_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 
 function monthlyAvg(bs: Batch[]) {
   const m = new Map<string, { s: number; n: number }>();
@@ -91,6 +93,8 @@ export default async function CarbonDashboardPage() {
   const segments = activities.map((a) => ({ label: a.label, pct: Math.round((a.val / actTotal) * 100), color: a.color }));
 
   const rows = [...computed].sort((a, b) => b.cutDate.localeCompare(a.cutDate));
+  const now = new Date();
+  const periodLabel = `${MONTHS_FULL[now.getMonth()]} ${now.getFullYear() + 543}`;
 
   return (
     <div className="space-y-6">
@@ -121,20 +125,20 @@ export default async function CarbonDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         {/* Details table */}
         <Card className="overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <div className="flex items-center justify-between px-5 py-3.5">
             <h2 className="text-base font-semibold text-slate-800">รายละเอียดการปล่อย CO₂e</h2>
-            <span className="text-xs text-slate-400">Result {rows.length} รายการ</span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500"><Calendar size={13} /> {periodLabel}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-2 font-medium">ลำดับ</th>
-                  <th className="px-4 py-2 font-medium">วันที่จัดส่ง</th>
-                  <th className="px-4 py-2 text-right font-medium">จำนวนดอกไม้</th>
-                  <th className="px-4 py-2 text-right font-medium">อายุหลังตัด (วัน)</th>
-                  <th className="px-4 py-2 text-right font-medium">CO₂e รวม (kg)</th>
-                  <th className="px-4 py-2 text-right font-medium">CO₂e ต่อดอก (kg)</th>
+                <tr className="bg-emerald-500 text-white">
+                  <th className="px-4 py-3 text-left font-semibold">ลำดับ</th>
+                  <th className="px-4 py-3 text-left font-semibold">วันที่จัดส่ง</th>
+                  <th className="px-4 py-3 text-right font-semibold">จำนวนดอกไม้</th>
+                  <th className="px-4 py-3 text-right font-semibold">อายุหลังตัด (วัน)</th>
+                  <th className="px-4 py-3 text-right font-semibold">CO₂e รวม (kg)</th>
+                  <th className="px-4 py-3 text-right font-semibold">CO₂e ต่อดอก (kg)</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,26 +157,39 @@ export default async function CarbonDashboardPage() {
               </tbody>
             </table>
           </div>
+          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+            <span className="text-xs text-slate-500">Result {rows.length} รายการ</span>
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <span>1 - {Math.min(50, rows.length)} of {rows.length}</span>
+              <div className="flex gap-1">
+                <button className="grid size-7 place-items-center rounded-md bg-brand-pink-light text-brand-pink"><ChevronLeft size={14} /></button>
+                <button className="grid size-7 place-items-center rounded-md bg-brand-pink-light text-brand-pink"><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          </div>
         </Card>
 
-        {/* Activity breakdown */}
+        {/* Activity breakdown — horizontal bars (Figma) */}
         <Card className="p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">สัดส่วนการปล่อย CO₂e ตามกิจกรรม</h2>
+          <h2 className="mb-5 text-base font-semibold text-slate-800">สัดส่วนการปล่อย CO₂e ตามกิจกรรม</h2>
           {segments.length === 0 ? (
             <p className="text-sm text-slate-400">ยังไม่มีข้อมูลที่คำนวณแล้ว</p>
           ) : (
             <div className="space-y-4">
-              <Donut segments={segments} centerTop="รวม" centerValue={actTotal.toFixed(1)} centerUnit="kgCO₂e" />
-              <ul className="space-y-2 text-sm">
-                {activities.map((a) => (
-                  <li key={a.label} className="flex items-center gap-2.5">
-                    <span className="h-3 w-3 rounded-full" style={{ background: a.color }} />
-                    <span className="text-slate-600">{a.label}</span>
-                    <span className="ml-auto tabular text-slate-400">{a.val.toFixed(1)} kgCO₂e</span>
-                    <span className="w-10 text-right tabular font-medium text-slate-800">{Math.round((a.val / actTotal) * 100)}%</span>
-                  </li>
-                ))}
-              </ul>
+              {activities.map((a) => {
+                const pct = Math.round((a.val / actTotal) * 100);
+                return (
+                  <div key={a.label}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">{a.label}</span>
+                      <span className="text-slate-400"><span className="tabular">{a.val.toFixed(1)}</span> kgCO₂e <span className="ml-2 font-medium text-slate-800">{pct}%</span></span>
+                    </div>
+                    <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, background: a.color }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
