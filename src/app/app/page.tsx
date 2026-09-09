@@ -3,8 +3,9 @@ import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier, getPrints } from "@/lib/store";
 import { MetricCard, BarChart, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
+import ShipmentStepper from "@/components/ShipmentStepper";
 import { buildMonthSeries, thaiDateShort } from "@/lib/format";
-import { Truck, Cloud, Package, Clock, Scissors, Inbox, QrCode, Check, Pencil } from "lucide-react";
+import { Truck, Cloud, Package, Clock, Pencil } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -46,18 +47,19 @@ export default async function SupplierOverview() {
   const printedIds = new Set(prints.filter((p) => !p.cancelled).map((p) => p.batchId));
   const sorted = [...batches].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const latest = sorted[0];
+  const printed = latest ? printedIds.has(latest.id) : false;
   const steps = latest
     ? [
-        { label: "ตัดดอก", icon: Scissors, done: true },
-        { label: "รับข้อมูล", icon: Inbox, done: latest.status === "computed" },
-        { label: "พิมพ์ QR code", icon: QrCode, done: printedIds.has(latest.id), inProgress: latest.status === "computed" && !printedIds.has(latest.id) },
+        { label: "ตัดดอก", img: "/figma/step-cut.webp", date: thaiDateShort(latest.cutDate), done: true },
+        { label: "รับข้อมูล", img: "/figma/step-receive.webp", date: thaiDateShort(latest.entryDate), done: latest.status === "computed" },
+        { label: "พิมพ์ QR code", img: "/figma/step-qr.webp", date: printed ? "พิมพ์แล้ว" : "กำลังดำเนินการ", done: printed, inProgress: latest.status === "computed" && !printed },
       ]
     : [];
 
   return (
     <div className="space-y-6">
       {/* Metric cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard label="จำนวนรอบการส่งออก" value={batches.length} unit="รอบ" tone="green" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="CO2e สะสม" value={totalCo2e.toFixed(0)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="CO2e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
@@ -80,32 +82,7 @@ export default async function SupplierOverview() {
         {/* Shipment stepper */}
         <Card className="p-5">
           <h2 className="mb-6 text-lg font-bold text-slate-800">สถานะการจัดส่งล่าสุด</h2>
-          {latest ? (
-            <div className="flex items-start">
-              {steps.map((s, i) => {
-                const Icon = s.icon;
-                const on = s.done || s.inProgress;
-                return (
-                  <div key={s.label} className="flex flex-1 items-start last:flex-none">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className={`grid h-14 w-14 place-items-center rounded-full ${s.done ? "bg-emerald-500 text-white" : s.inProgress ? "bg-white text-emerald-600 ring-2 ring-emerald-500" : "bg-slate-100 text-slate-400"}`}>
-                        {s.done ? <Check size={22} /> : <Icon size={22} />}
-                      </div>
-                      <div className="text-center">
-                        <div className={`text-sm font-medium ${on ? "text-slate-700" : "text-slate-400"}`}>{s.label}</div>
-                        {s.inProgress ? <div className="text-xs text-emerald-600">กำลังดำเนินการ</div> : null}
-                      </div>
-                    </div>
-                    {i < steps.length - 1 ? (
-                      <div className={`mt-7 h-1 flex-1 rounded ${steps[i + 1].done || steps[i + 1].inProgress ? "bg-emerald-500" : "bg-slate-200"}`} />
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400">ยังไม่มีรอบส่งออก</p>
-          )}
+          {latest ? <ShipmentStepper steps={steps} /> : <p className="text-sm text-slate-400">ยังไม่มีรอบส่งออก</p>}
         </Card>
       </div>
 
