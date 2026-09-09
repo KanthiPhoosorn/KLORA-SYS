@@ -61,10 +61,23 @@ export default function SupManager({
   const [tab, setTab] = useState<Tab>("producer");
   const [supId, setSupId] = useState("");
   const [farm, setFarm] = useState("all");
+  const [logCompany, setLogCompany] = useState("all");
+  const [logBranch, setLogBranch] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editSup, setEditSup] = useState<Supplier | null>(null);
 
   const farmNames = [...new Set(suppliers.map((s) => s.farmName))];
+
+  // จัดการขนส่ง — one row per logistics account (บริษัท / สาขา / จังหวัด / สถานะ).
+  const provinceOf = (branch?: string) => (branch ?? "").replace(/^สาขา\s*/, "").trim() || "—";
+  const companyOf = (u: User) => u.company ?? u.username;
+  const logCompanies = [...new Set(logistics.map(companyOf))];
+  const logBranches = [...new Set(logistics.map((u) => u.branch).filter((x): x is string => !!x))];
+  const logRows = logistics.filter(
+    (u) =>
+      (logCompany === "all" || companyOf(u) === logCompany) &&
+      (logBranch === "all" || u.branch === logBranch),
+  );
   const supRows = suppliers.filter(
     (s) =>
       (!supId || s.id.toLowerCase().includes(supId.toLowerCase())) &&
@@ -161,38 +174,60 @@ export default function SupManager({
           </div>
         </>
       ) : (
-        /* จัดการขนส่ง — logistics accounts, mirrored layout */
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">จัดการขนส่ง</h2>
+        /* จัดการขนส่ง — logistics accounts, mirrors the producer tab */
+        <>
+          <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">บริษัท</label>
+              <select value={logCompany} onChange={(e) => setLogCompany(e.target.value)} className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-slate-700 outline-none focus:border-brand-purple">
+                <option value="all">เลือกบริษัทที่ต้องการ</option>
+                {logCompanies.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">สาขา</label>
+              <select value={logBranch} onChange={(e) => setLogBranch(e.target.value)} className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-slate-700 outline-none focus:border-brand-purple">
+                <option value="all">เลือกสาขาที่ต้องการ</option>
+                {logBranches.map((br) => <option key={br} value={br}>{br}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="bg-brand-purple-head">
-                  <th className={th}>รหัสผู้ใช้</th>
-                  <th className={th}>บริษัทขนส่ง</th>
-                  <th className={th}>สาขา</th>
-                  <th className={th}>สถานะ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logistics.length === 0 ? (
-                  <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">ยังไม่มีบัญชีขนส่ง</td></tr>
-                ) : logistics.map((u) => (
-                  <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
-                    <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{u.id}</td>
-                    <td className="px-5 py-3.5 text-slate-800">{u.company ?? u.username}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{u.branch ?? "—"}</td>
-                    <td className="px-5 py-3.5">
-                      <StatusDropdown value="active" disabled />
-                    </td>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">จัดการขนส่ง</h2>
+              <button onClick={() => { setLogCompany("all"); setLogBranch("all"); }} className="rounded-[8px] border border-brand-purple px-4 py-2 text-[13px] font-medium text-brand-purple hover:bg-brand-purple-light">
+                จัดการทั้งหมด
+              </button>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead>
+                  <tr className="bg-brand-purple-head">
+                    <th className={th}>บริษัท</th>
+                    <th className={th}>สาขา</th>
+                    <th className={th}>จังหวัด</th>
+                    <th className={th}>สถานะ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {logRows.length === 0 ? (
+                    <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">ยังไม่มีบัญชีขนส่ง</td></tr>
+                  ) : logRows.map((u) => (
+                    <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
+                      <td className="px-5 py-3.5 text-slate-800">{companyOf(u)}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{u.branch ?? "—"}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{provinceOf(u.branch)}</td>
+                      <td className="px-5 py-3.5">
+                        <StatusDropdown value="active" disabled />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       <Modal open={!!editSup} onClose={() => setEditSup(null)} title={editSup ? `แก้ไขข้อมูล ${editSup.id}` : ""} wide>
