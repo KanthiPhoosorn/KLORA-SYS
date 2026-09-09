@@ -13,6 +13,8 @@ import {
   Inbox,
   Search,
   FileBarChart,
+  FileText,
+  Building2,
   Users2,
   QrCode,
   Lock,
@@ -24,6 +26,8 @@ const ICONS: Record<string, LucideIcon> = {
   plus: PlusCircle,
   chart: LineChart,
   history: History,
+  file: FileText,
+  building: Building2,
   farm: Store,
   settings: Settings,
   inbox: Inbox,
@@ -98,8 +102,8 @@ export default function PortalShell({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                  active ? a.active : "text-slate-600 hover:bg-slate-100"
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+                  active ? `${a.active} font-semibold` : "font-medium text-slate-600 hover:bg-slate-100"
                 }`}
               >
                 <Icon size={18} className={active ? "" : a.dot} />

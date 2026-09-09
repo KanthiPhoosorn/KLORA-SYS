@@ -8,13 +8,12 @@ export const dynamic = "force-dynamic";
 
 const ITEMS: PortalNavItem[] = [
   { href: "/logistic", label: "ภาพรวม", icon: "home", exact: true },
-  { href: "/logistic/new", label: "เพิ่มข้อมูลส่งออก", icon: "plus" },
+  { href: "/logistic/new", label: "เพิ่มข้อมูลรอบส่งออก", icon: "plus" },
   { href: "/logistic/incoming", label: "รายการรับเข้าจากผู้ผลิต", icon: "inbox" },
-  { href: "/logistic/search", label: "ค้นหา / พิมพ์ QR", icon: "search" },
-  { href: "/logistic/scan", label: "สแกน QR Code", icon: "qr" },
-  { href: "/logistic/status", label: "สถานะพัสดุ", icon: "inbox" },
-  { href: "/logistic/history", label: "ประวัติการพิมพ์", icon: "history" },
-  { href: "/logistic/settings", label: "จัดการระบบ", icon: "settings" },
+  { href: "/logistic/search", label: "ค้นหา QR code", icon: "search" },
+  { href: "/logistic/branches", label: "ข้อมูลรายสาขา", icon: "building" },
+  { href: "/logistic/history", label: "ประวัติ", icon: "file" },
+  { href: "/logistic/settings", label: "จัดการระบบ", icon: "users" },
 ];
 
 export default async function LogisticLayout({ children }: { children: React.ReactNode }) {
