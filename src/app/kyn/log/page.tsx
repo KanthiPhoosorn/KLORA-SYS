@@ -73,8 +73,8 @@ export default async function KynActionLogPage() {
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>1 - {Math.min(50, rows.length)} of {rows.length}</span>
           <div className="flex gap-1">
-            <button className="grid size-7 place-items-center rounded-md bg-indigo-600 text-white"><ChevronLeft size={14} /></button>
-            <button className="grid size-7 place-items-center rounded-md bg-indigo-600 text-white"><ChevronRight size={14} /></button>
+            <button className="grid size-7 place-items-center rounded-md bg-brand-purple text-white"><ChevronLeft size={14} /></button>
+            <button className="grid size-7 place-items-center rounded-md bg-brand-purple text-white"><ChevronRight size={14} /></button>
           </div>
         </div>
       </div>
@@ -82,7 +82,7 @@ export default async function KynActionLogPage() {
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-sm">
           <thead>
-            <tr className="bg-indigo-600 text-left font-semibold text-white">
+            <tr className="bg-brand-purple-head text-left font-semibold text-white">
               <th className="px-5 py-3">เวลาที่ทำ</th>
               <th className="px-5 py-3">ผู้ทำ</th>
               <th className="px-5 py-3">ประเภท</th>

@@ -1,13 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, Loader2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import FarmSettingsForm from "@/components/FarmSettingsForm";
 import type { Supplier, User } from "@/lib/types";
 
 type Tab = "producer" | "logistic";
+type SupStatus = "active" | "suspended";
 const th = "px-5 py-3.5 text-center text-[13px] font-semibold text-white";
+const STATUS_LABEL: Record<SupStatus, string> = { active: "เปิดใช้งาน", suspended: "ระงับการใช้งาน" };
+
+// Figma #102: a coloured status pill that opens a menu (เปิดใช้งาน / ระงับการใช้งาน).
+function StatusDropdown({
+  value, onChange, disabled, busy,
+}: {
+  value: SupStatus; onChange?: (v: SupStatus) => void; disabled?: boolean; busy?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const pill = value === "active" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500";
+  return (
+    <div ref={ref} className="relative inline-block text-left">
+      <button
+        type="button" disabled={disabled}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium ${pill} disabled:opacity-60`}
+      >
+        {busy ? <Loader2 size={13} className="animate-spin" /> : null}
+        {STATUS_LABEL[value]} <ChevronDown size={14} className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && !disabled ? (
+        <div onClick={(e) => e.stopPropagation()} className="absolute left-0 top-9 z-30 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg">
+          {(["active", "suspended"] as SupStatus[]).map((v) => (
+            <button key={v} type="button" onClick={() => { setOpen(false); if (v !== value) onChange?.(v); }} className="block w-full px-4 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50">
+              {STATUS_LABEL[v]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function SupManager({
   suppliers,
@@ -41,9 +82,6 @@ export default function SupManager({
     setBusyId(null);
     router.refresh();
   }
-
-  const statusSel =
-    "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[13px] text-slate-600 outline-none disabled:opacity-60";
 
   return (
     <div className="space-y-5">
@@ -113,16 +151,7 @@ export default function SupManager({
                       <td className="px-5 py-3.5 text-slate-800">{s.farmName}</td>
                       <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
                       <td className="px-5 py-3.5">
-                        <select
-                          value={s.status}
-                          disabled={busyId === s.id}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setStatus(s, e.target.value as "active" | "suspended")}
-                          className={statusSel}
-                        >
-                          <option value="active">ใช้งาน</option>
-                          <option value="suspended">ระงับ</option>
-                        </select>
+                        <StatusDropdown value={s.status} busy={busyId === s.id} onChange={(v) => setStatus(s, v)} />
                       </td>
                     </tr>
                   ))}
@@ -156,9 +185,7 @@ export default function SupManager({
                     <td className="px-5 py-3.5 text-slate-800">{u.company ?? u.username}</td>
                     <td className="px-5 py-3.5 text-slate-600">{u.branch ?? "—"}</td>
                     <td className="px-5 py-3.5">
-                      <select value="active" disabled className={statusSel} title="การระงับบัญชีขนส่งยังไม่เปิดใช้งาน">
-                        <option value="active">ใช้งาน</option>
-                      </select>
+                      <StatusDropdown value="active" disabled />
                     </td>
                   </tr>
                 ))}
