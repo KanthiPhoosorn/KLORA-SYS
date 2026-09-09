@@ -48,14 +48,32 @@ export default function LoginForm({
   accent = "pink",
   registerHref = "/register",
   showGoogle = false,
+  size = "sm",
 }: {
   accent?: Accent;
   registerHref?: string;
   showGoogle?: boolean;
+  size?: "sm" | "lg";
 } = {}) {
   const router = useRouter();
   const ac = ACCENT[accent];
-  const inputCls = `w-full rounded-[5px] border border-gray-300 bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-gray-500 ${ac.input}`;
+  const lg = size === "lg";
+  // KYN login (Figma #109) uses a larger, more spacious form than the compact pink/blue variants.
+  const S = {
+    card: lg ? "max-w-[440px]" : "max-w-[425px]",
+    stack: lg ? "space-y-8" : "space-y-[30px]",
+    heading: lg ? "text-[34px] leading-[42px]" : "text-[32px] leading-[38px]",
+    sub: lg ? "text-[14px] leading-[22px]" : "text-[12px] leading-[16px]",
+    formGap: lg ? "space-y-6" : "space-y-[24px]",
+    label: lg ? "text-[14px]" : "text-[12px]",
+    field: lg ? "rounded-[8px] px-4 py-3 text-[14px]" : "rounded-[5px] px-[15px] py-[10px] text-[12px]",
+    fieldWrap: lg ? "rounded-[8px] px-4" : "rounded-[5px] px-[15px]",
+    fieldInner: lg ? "py-3 text-[14px]" : "py-[10px] text-[12px]",
+    meta: lg ? "text-[13px]" : "text-[10px]",
+    btn: lg ? "h-[48px] rounded-[8px] text-[15px]" : "h-[35px] rounded-[5px] text-[14px]",
+    gbtn: lg ? "h-[48px] rounded-[8px] text-[14px]" : "h-[38px] rounded-[5px] text-[13px]",
+  };
+  const inputCls = `w-full border border-gray-300 bg-white text-black outline-none placeholder:text-gray-500 ${S.field} ${ac.input}`;
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,37 +100,37 @@ export default function LoginForm({
   }
 
   return (
-    <div className="w-full max-w-[425px]">
-      <div className="space-y-[30px]">
+    <div className={`w-full ${S.card}`}>
+      <div className={S.stack}>
         <div className="space-y-2">
-          <h1 className="text-[32px] font-semibold leading-[38px] text-black">เข้าสู่ระบบ</h1>
-          <p className="text-[12px] leading-[16px] text-black">
+          <h1 className={`font-semibold text-black ${S.heading}`}>เข้าสู่ระบบ</h1>
+          <p className={`text-black ${S.sub}`}>
             สวัสดี!
             <br />
             กรุณาป้อนข้อมูลของคุณเพื่อเข้าสู่ระบบบัญชีของคุณ
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-[24px]">
+        <form onSubmit={onSubmit} className={S.formGap}>
           <label className="block space-y-[5px]">
-            <span className="text-[12px] font-medium text-black">
+            <span className={`font-medium text-black ${S.label}`}>
               อีเมล <span className="text-[#ee443f]">*</span>
             </span>
             <input name="login" required autoComplete="username" placeholder="กรอกชื่อผู้ใช้ของคุณ" className={inputCls} />
           </label>
 
           <label className="block space-y-[5px]">
-            <span className="text-[12px] font-medium text-black">
+            <span className={`font-medium text-black ${S.label}`}>
               รหัสผ่าน <span className="text-[#ee443f]">*</span>
             </span>
-            <div className="flex items-center rounded-[5px] border border-gray-300 bg-white px-[15px]">
+            <div className={`flex items-center border border-gray-300 bg-white ${S.fieldWrap}`}>
               <input
                 name="password"
                 type={showPw ? "text" : "password"}
                 required
                 autoComplete="current-password"
                 placeholder="กรอกรหัสผ่านของคุณ"
-                className="w-full bg-transparent py-[10px] text-[12px] text-[#616161] outline-none"
+                className={`w-full bg-transparent text-[#616161] outline-none ${S.fieldInner}`}
               />
               <button type="button" onClick={() => setShowPw((v) => !v)} className="text-gray-500" tabIndex={-1}>
                 {showPw ? <Eye size={18} /> : <EyeOff size={18} />}
@@ -121,11 +139,11 @@ export default function LoginForm({
           </label>
 
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-[10px] font-semibold text-black">
+            <label className={`flex items-center gap-2 font-semibold text-black ${S.meta}`}>
               <input type="checkbox" name="remember" className={`size-[17px] rounded-[3px] border-gray-600 ${ac.check}`} />
               จดจำฉันไว้
             </label>
-            <Link href="/forgot" className="text-[10px] text-black underline">ลืมรหัสผ่าน?</Link>
+            <Link href="/forgot" className={`text-black underline ${S.meta}`}>ลืมรหัสผ่าน?</Link>
           </div>
 
           {error ? <p className={`rounded-[5px] px-3 py-2 text-[12px] ${ac.err}`}>{error}</p> : null}
@@ -133,7 +151,7 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={busy}
-            className={`flex h-[35px] w-full items-center justify-center gap-2 rounded-[5px] ${ac.btn} text-[14px] font-medium text-white transition hover:opacity-90 disabled:opacity-60`}
+            className={`flex w-full items-center justify-center gap-2 ${S.btn} ${ac.btn} font-medium text-white transition hover:opacity-90 disabled:opacity-60`}
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             เข้าสู่ระบบ
@@ -141,20 +159,20 @@ export default function LoginForm({
 
           {showGoogle ? (
             <>
-              <div className="flex items-center gap-3 text-[10px] text-gray-400">
+              <div className={`flex items-center gap-3 text-gray-400 ${S.meta}`}>
                 <span className="h-px flex-1 bg-gray-200" /> หรือดำเนินการต่อด้วย <span className="h-px flex-1 bg-gray-200" />
               </div>
               <button
                 type="button"
                 onClick={() => setError("การเข้าสู่ระบบด้วย Google ยังไม่เปิดให้บริการ")}
-                className="flex h-[38px] w-full items-center justify-center gap-2.5 rounded-[5px] border border-gray-300 bg-white text-[13px] font-medium text-slate-700 transition hover:bg-gray-50"
+                className={`flex w-full items-center justify-center gap-2.5 border border-gray-300 bg-white font-medium text-slate-700 transition hover:bg-gray-50 ${S.gbtn}`}
               >
                 <GoogleG /> ดำเนินการต่อด้วย Google
               </button>
             </>
           ) : null}
 
-          <p className="text-center text-[10px] text-black">
+          <p className={`text-center text-black ${S.meta}`}>
             ยังไม่มีบัญชี?{" "}
             <Link href={registerHref} className={`${ac.link} underline`}>สมัครสมาชิก</Link>
           </p>

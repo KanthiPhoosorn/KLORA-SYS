@@ -36,7 +36,7 @@ export default function KynLoginPage() {
 
         {/* Right — form */}
         <div className="flex flex-1 items-center justify-center px-8 py-10">
-          <LoginForm accent="purple" registerHref="/register" showGoogle />
+          <LoginForm accent="purple" registerHref="/register" showGoogle size="lg" />
         </div>
       </div>
     </div>
