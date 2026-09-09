@@ -34,6 +34,13 @@ export function thaiDateShort(iso: string): string {
   return p ? `${p.d} ${THAI_MONTHS[p.mo]}` : iso;
 }
 
+// "04 ส.ค. 2569" (วัน + เดือนย่อ + พ.ศ.)
+export function thaiDateFull(iso: string): string {
+  const p = parts(iso);
+  if (!p) return iso;
+  return `${String(p.d).padStart(2, "0")} ${THAI_MONTHS[p.mo]} ${p.y + 543}`;
+}
+
 // "26 ก.ค. 14:32"
 export function thaiDateTime(iso: string): string {
   const p = parts(iso);
