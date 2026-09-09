@@ -12,5 +12,5 @@ export default async function TeamPage() {
     getInvites(org),
     user.supplierId ? getSupplier(user.supplierId) : Promise.resolve(null),
   ]);
-  return <TeamManager members={members} invites={invites} orgName={supplier?.farmName ?? "องค์กรของฉัน"} />;
+  return <TeamManager members={members} invites={invites} orgName={supplier?.farmName ?? "องค์กรของฉัน"} accent="pink" joinedAt={supplier?.createdAt} />;
 }
