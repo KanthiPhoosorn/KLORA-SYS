@@ -104,8 +104,9 @@ export default async function LogisticDashboard() {
   return (
     <div className="space-y-6">
       {/* Overview banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 p-6">
-        <div aria-hidden className="pointer-events-none absolute -bottom-6 left-1/3 hidden h-32 w-96 bg-[url('/figma/delivery-truck.webp')] bg-contain bg-left-bottom bg-no-repeat opacity-20 lg:block" />
+      <div className="relative overflow-hidden rounded-2xl p-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/figma/overview-banner.webp" alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
         <div className="relative grid gap-4 lg:grid-cols-[1.1fr_2fr] lg:items-center">
           <div>
             <h1 className="text-xl font-bold text-slate-800">ภาพรวมการขนส่ง</h1>
