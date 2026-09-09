@@ -19,6 +19,7 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
   const [dest, setDest] = useState("all");
   const [status, setStatus] = useState("all");
   const [cut, setCut] = useState("");
+  const [ship, setShip] = useState("");
 
   const dests = useMemo(() => Array.from(new Set(rows.map((r) => r.destination).filter(Boolean))), [rows]);
   const statuses = useMemo(() => Array.from(new Set(rows.map((r) => r.statusLabel))), [rows]);
@@ -27,12 +28,17 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
     (r) =>
       (dest === "all" || r.destination === dest) &&
       (status === "all" || r.statusLabel === status) &&
-      (!cut || r.cutDate.includes(cut)),
+      (!cut || r.cutDate.includes(cut)) &&
+      (!ship || r.shipDate.includes(ship)),
   );
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="space-y-1">
+          <span className="text-[12px] text-slate-500">วันที่จัดส่ง</span>
+          <input value={ship} onChange={(e) => setShip(e.target.value)} placeholder="วว/ดด/ปปปป" className={`${selCls} w-full`} />
+        </label>
         <label className="space-y-1">
           <span className="text-[12px] text-slate-500">วันที่ตัดดอกไม้</span>
           <input value={cut} onChange={(e) => setCut(e.target.value)} placeholder="วว/ดด/ปปปป" className={`${selCls} w-full`} />

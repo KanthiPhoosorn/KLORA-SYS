@@ -148,6 +148,8 @@ export default function RoundForm({
   const [branch, setBranch] = useState("");
 
   const isThaipost = carrier === "thaipost";
+  // Freemium: a free SUP account can only ship via ไปรษณีย์ไทย; other carriers unlock with Pro.
+  const showUpsell = accent === "pink" && supplier.plan !== "pro";
   const varieties = Array.from(
     new Set([...variantsForType(flowerType), ...varietyOptions, ...(supplier.varieties ?? [])]),
   );
@@ -478,23 +480,28 @@ export default function RoundForm({
         <div>
           <label className={labelCls}>รูปแบบการขนส่ง</label>
           <div className="grid gap-2.5 sm:grid-cols-3">
-            {CARRIERS.map((c) => (
-              <label key={c.key} className={`flex cursor-pointer items-center gap-2.5 rounded-[10px] border px-4 py-3 text-[13px] transition ${carrier === c.key ? T.radioSel : "border-gray-300 text-slate-600 hover:border-gray-400"}`}>
-                <input type="radio" name="carrier" checked={carrier === c.key} onChange={() => setCarrier(c.key)} className={`size-4 ${T.ring}`} />
-                {c.label}
-              </label>
-            ))}
+            {CARRIERS.map((c) => {
+              const locked = showUpsell && c.key !== "thaipost";
+              return (
+                <label key={c.key} className={`flex items-center gap-2.5 rounded-[10px] border px-4 py-3 text-[13px] transition ${locked ? "cursor-not-allowed border-gray-200 text-slate-300" : carrier === c.key ? `cursor-pointer ${T.radioSel}` : "cursor-pointer border-gray-300 text-slate-600 hover:border-gray-400"}`}>
+                  <input type="radio" name="carrier" checked={carrier === c.key} disabled={locked} onChange={() => setCarrier(c.key)} className={`size-4 ${T.ring} disabled:opacity-40`} />
+                  {c.label}
+                </label>
+              );
+            })}
           </div>
         </div>
 
-        {/* Pro upsell banner */}
-        <div className="flex items-start gap-3 rounded-[10px] border border-indigo-100 bg-indigo-50/70 px-4 py-3.5">
-          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-500"><Lock size={14} /></span>
-          <div className="text-[12.5px] leading-relaxed">
-            <p className="font-medium text-slate-700">ต้องการจัดส่งกับผู้ให้บริการอื่น?</p>
-            <p className="text-slate-400">อัปเกรดระบบเพื่อเข้าถึงผู้ให้บริการจัดส่งที่หลากหลาย <span className={`cursor-pointer font-medium ${T.link} hover:underline`}>อัปเกรดแพ็กเกจ</span></p>
+        {/* Pro upsell banner — only for free accounts */}
+        {showUpsell ? (
+          <div className="flex items-start gap-3 rounded-[10px] border border-indigo-100 bg-indigo-50/70 px-4 py-3.5">
+            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-500"><Lock size={14} /></span>
+            <div className="text-[12.5px] leading-relaxed">
+              <p className="font-medium text-slate-700">ต้องการจัดส่งกับผู้ให้บริการอื่น?</p>
+              <p className="text-slate-400">อัปเกรดระบบเพื่อเข้าถึงผู้ให้บริการจัดส่งที่หลากหลาย <span className={`cursor-pointer font-medium ${T.link} hover:underline`}>อัปเกรดแพ็กเกจ</span></p>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {isThaipost ? (
