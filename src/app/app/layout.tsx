@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Bell, Flower2, LifeBuoy } from "lucide-react";
+import { Flower2, LifeBuoy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getSupplier } from "@/lib/store";
+import { getSupplier, getNotifications } from "@/lib/store";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
+import NotificationBell from "@/components/NotificationBell";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function SupplierLayout({
   const user = await requireRole("supplier");
   const supplier = user.supplierId ? await getSupplier(user.supplierId) : null;
   if (!supplier) notFound();
+  const notifs = await getNotifications(user.supplierId);
 
   // Freemium (Figma "Lock" state): ภาพรวม + แดชบอร์ดคาร์บอน are Pro-only; the rest stay free.
   const isPro = supplier.plan === "pro";
@@ -48,9 +50,7 @@ export default async function SupplierLayout({
         >
           <LifeBuoy size={16} /> Help center
         </Link>
-        <Link href="/app/notifications" className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100" title="แจ้งเตือน">
-          <Bell size={18} />
-        </Link>
+        <NotificationBell notifs={notifs} />
         <AccountButton label="SUP ID" id={supplier.id} profileHref="/app/profile" />
       </div>
     </>
