@@ -73,11 +73,12 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         )}
 
         {tab === "freshness" && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {data.freshness.map((f) => (
-              <div key={f.label} className="space-y-1.5">
-                <div className="flex justify-between text-sm"><span className="text-slate-600">{f.label}</span><span className="font-semibold tabular text-slate-800">{f.pct}%</span></div>
-                <Bar value={f.count} max={Math.max(1, ...data.freshness.map((x) => x.count))} className="bg-emerald-500" />
+              <div key={f.label} className="rounded-xl border border-slate-200 bg-white px-5 py-6 text-center">
+                <div className="text-3xl font-bold tabular text-brand-purple">{f.pct}%</div>
+                <div className="mt-1 text-sm text-slate-600">{f.label}</div>
+                <div className="mt-0.5 text-xs text-slate-400">{f.count.toLocaleString()} รอบ</div>
               </div>
             ))}
           </div>
