@@ -5,11 +5,44 @@ import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVertical, Trash2, X } from "lucide-react";
 import type { Supplier, FlowerTypeEntry } from "@/lib/types";
 import { FLOWERS, FLOWER_TYPES, variantsForType } from "@/lib/master-data";
-import SearchSelect, { type SelectOption } from "@/components/SearchSelect";
+import { type SelectOption } from "@/components/SearchSelect";
 
 const inputCls =
   "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
 const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
+
+// Plain dropdown (Figma #116) — a native select styled like the design, no search box.
+function PlainSelect({
+  value, onChange, options, placeholder,
+}: {
+  value: string; onChange: (v: string) => void; options: SelectOption[]; placeholder: string;
+}) {
+  const groups: { name: string; items: SelectOption[] }[] = [];
+  for (const o of options) {
+    const n = o.group ?? "";
+    let g = groups.find((x) => x.name === n);
+    if (!g) { g = { name: n, items: [] }; groups.push(g); }
+    g.items.push(o);
+  }
+  const grouped = groups.some((g) => g.name);
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] pr-9 text-[13px] text-slate-700 outline-none focus:border-brand-green"
+      >
+        <option value="">{placeholder}</option>
+        {grouped
+          ? groups.map((g) => g.name
+              ? <optgroup key={g.name} label={g.name}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+              : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>))
+          : options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+    </div>
+  );
+}
 
 // ชนิดดอกไม้ทั้งหมด จับกลุ่มตามหมวด (ไม้ดอกหลัก / ไม้แซม / ฯลฯ) สำหรับ dropdown "เพิ่มชนิดดอกไม้"
 const TYPE_OPTIONS: SelectOption[] = FLOWER_TYPES.map((t) => {
@@ -120,12 +153,11 @@ function FlowerTypeCard({
             <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
               <Plus size={15} className="text-brand-green" /> เพิ่มพันธุ์ดอกไม้
             </label>
-            <SearchSelect
+            <PlainSelect
               value=""
               onChange={(v) => { if (v.trim()) onAddVariety(v.trim()); }}
               options={varietyOptions}
               placeholder="เลือกพันธุ์ดอกไม้"
-              allowCustom
             />
           </div>
           {entry.varieties.length ? (
@@ -359,12 +391,11 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             {adding ? (
               <div className="flex items-start gap-2">
                 <div className="flex-1">
-                  <SearchSelect
+                  <PlainSelect
                     value=""
                     onChange={addType}
                     options={typeOptionsLeft}
                     placeholder="เลือกชนิดดอกไม้ที่จะเพิ่ม"
-                    allowCustom
                   />
                 </div>
                 <button type="button" onClick={() => setAdding(false)} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50">
