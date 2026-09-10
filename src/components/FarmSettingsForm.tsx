@@ -86,9 +86,9 @@ function FlowerTypeCard({
     .map((v) => ({ value: v, label: v }));
 
   return (
-    <div className={`relative overflow-hidden rounded-[12px] border border-emerald-200 ${menu ? "z-20" : ""}`}>
+    <div className={`relative overflow-hidden rounded-[12px] border border-brand-green/40 ${menu ? "z-20" : ""}`}>
       {/* หัวการ์ดสีเขียว */}
-      <div className="flex items-center gap-3 bg-emerald-500 px-4 py-3 text-white">
+      <div className="flex items-center gap-3 bg-brand-green px-4 py-3 text-white">
         <button type="button" onClick={onToggle} className="flex flex-1 items-center gap-2 text-left">
           <Flower2 size={17} className="shrink-0" />
           <span className="text-[14px] font-semibold">{entry.type || "เลือกชนิดดอกไม้"}</span>
@@ -115,9 +115,11 @@ function FlowerTypeCard({
 
       {/* เนื้อในการ์ด */}
       {open ? (
-        <div className="space-y-3 bg-emerald-50/40 px-4 py-4">
+        <div className="space-y-3 bg-[#f5fbf6] px-4 py-4">
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-slate-600">เพิ่มพันธุ์ดอกไม้</label>
+            <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
+              <Plus size={15} className="text-brand-green" /> เพิ่มพันธุ์ดอกไม้
+            </label>
             <SearchSelect
               value=""
               onChange={(v) => { if (v.trim()) onAddVariety(v.trim()); }}
@@ -129,16 +131,16 @@ function FlowerTypeCard({
           {entry.varieties.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {entry.varieties.map((v, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={i} className="group relative">
                   <input
                     value={v}
                     onChange={(e) => onEditVariety(i, e.target.value)}
-                    className="w-full rounded-[8px] border border-emerald-200 bg-white px-[12px] py-[9px] text-[13px] text-black outline-none focus:border-emerald-400"
+                    className="w-full rounded-[8px] border border-gray-300 bg-white px-[12px] py-[10px] pr-9 text-[13px] text-black outline-none focus:border-brand-green"
                   />
                   <button
                     type="button"
                     onClick={() => onRemoveVariety(i)}
-                    className="grid size-8 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    className="absolute right-1.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-slate-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 focus:opacity-100"
                     title="ลบพันธุ์นี้"
                   >
                     <X size={15} />
