@@ -15,6 +15,7 @@ const notoThai = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://corta.tech"),
   title: "KLORA · ระบบตรวจสอบคาร์บอนการขนส่งดอกไม้",
   description: "ระบบปฏิบัติการการขนส่งดอกไม้",
 };
