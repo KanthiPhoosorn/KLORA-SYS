@@ -5,6 +5,7 @@
 // optional (`?`, i.e. `undefined`). `clean()` converts null -> undefined on every row read.
 
 import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { db } from "./db";
 import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs } from "./db/schema";
 import type {
@@ -368,9 +369,16 @@ export async function addInvite(supplierId: string, email: string, role: MemberR
     role,
     invitedAt: new Date().toISOString(),
     status: "pending" as const,
+    token: randomBytes(24).toString("base64url"),
   };
   const [inserted] = await db.insert(invites).values(row).returning();
   return clean<Invite>(inserted);
+}
+
+export async function getInviteByToken(token: string): Promise<Invite | null> {
+  if (!token) return null;
+  const [row] = await db.select().from(invites).where(eq(invites.token, token)).limit(1);
+  return row ? clean<Invite>(row) : null;
 }
 
 export async function updateInvite(id: string, status: Invite["status"]): Promise<Invite | null> {

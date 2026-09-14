@@ -39,6 +39,8 @@ export async function sendEmail(mail: Mail): Promise<{ sent: boolean }> {
   }
 }
 
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 const wrap = (body: string) =>
   `<div style="font-family:'Noto Sans Thai',Inter,sans-serif;line-height:1.7;color:#0f172a;max-width:520px">` +
   `<p style="font-weight:700;color:#ff1694;font-size:18px;margin:0 0 12px">KLORA</p>${body}` +
@@ -58,18 +60,18 @@ export function sendOtpEmail(to: string, code: string) {
   });
 }
 
-// Team invite (จัดการระบบ → เชิญผู้ใช้). Links to registration on the current deployment.
-export function sendInviteEmail(to: string, orgName: string, role: string, origin: string) {
+// Team invite (จัดการระบบ → เชิญผู้ใช้). The secret /join link creates an account INSIDE the
+// inviting farm (see /api/auth/join) — not a new farm.
+export function sendInviteEmail(to: string, orgName: string, role: string, joinUrl: string) {
   const roleTh = role === "org_admin" ? "ผู้ดูแลองค์กร" : "สมาชิก";
-  const link = `${origin}/register`;
   return sendEmail({
     to,
     subject: `คุณได้รับเชิญให้เข้าร่วม ${orgName} บน KLORA`,
     html: wrap(
-      `<p><strong>${orgName}</strong> เชิญคุณเข้าร่วมทีมบน KLORA ในบทบาท <strong>${roleTh}</strong></p>` +
-        `<p>สมัครสมาชิกด้วยอีเมลนี้ (${to}) เพื่อเริ่มใช้งาน</p>` +
-        `<p><a href="${link}" style="display:inline-block;background:#ff1694;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:600">สมัครสมาชิก</a></p>` +
-        `<p style="color:#64748b;font-size:13px">หรือเปิดลิงก์ ${link}</p>`,
+      `<p><strong>${esc(orgName)}</strong> เชิญคุณเข้าร่วมทีมบน KLORA ในบทบาท <strong>${roleTh}</strong></p>` +
+        `<p>กดปุ่มด้านล่างเพื่อตั้งชื่อผู้ใช้และรหัสผ่านสำหรับอีเมลนี้ (${esc(to)}) แล้วเริ่มใช้งานได้ทันที</p>` +
+        `<p><a href="${esc(joinUrl)}" style="display:inline-block;background:#ff1694;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:600">ตอบรับคำเชิญ</a></p>` +
+        `<p style="color:#64748b;font-size:13px">หรือเปิดลิงก์ ${esc(joinUrl)}<br>ลิงก์นี้ใช้ได้ครั้งเดียว หากคุณไม่รู้จักผู้เชิญ กรุณาเพิกเฉยอีเมลฉบับนี้</p>`,
     ),
   });
 }

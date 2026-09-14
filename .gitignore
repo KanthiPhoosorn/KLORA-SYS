@@ -46,4 +46,5 @@ CREDENTIALS.local.txt
 
 .vercel
 .env*
-.qa
+scripts/qa/*.json
+scripts/qa/*.png

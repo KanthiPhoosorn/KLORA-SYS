@@ -173,6 +173,7 @@ export interface Invite {
   role: MemberRole;
   invitedAt: string;
   status: "pending" | "cancelled" | "accepted";
+  token?: string; // secret for the /join/<token> link in the invite email
 }
 
 // Notification (bell / Noti screen).

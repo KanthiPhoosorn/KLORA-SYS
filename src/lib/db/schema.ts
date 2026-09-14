@@ -112,6 +112,7 @@ export const invites = pgTable("invites", {
   role: text("role").$type<MemberRole>().notNull(),
   invitedAt: text("invited_at").notNull(),
   status: text("status").$type<Invite["status"]>().notNull(),
+  token: text("token"), // secret join link; null on legacy rows
 });
 
 export const notifications = pgTable("notifications", {
