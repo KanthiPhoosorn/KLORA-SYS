@@ -195,6 +195,9 @@ export default function LoginForm({
             ยังไม่มีบัญชี?{" "}
             <Link href={registerHref} className={`${ac.link} underline`}>สมัครสมาชิก</Link>
           </p>
+          <p className="text-center text-[10px] text-gray-400">
+            <Link href="/privacy" className="hover:text-gray-600">นโยบายความเป็นส่วนตัว</Link>
+          </p>
         </form>
       </div>
     </div>
