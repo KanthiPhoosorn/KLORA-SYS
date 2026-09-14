@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -33,6 +33,16 @@ const ACCENT: Record<Accent, { input: string; btn: string; check: string; link: 
   },
 };
 
+// ?error=<code> set by /api/auth/google/callback when Google sign-in cannot complete.
+const OAUTH_ERRORS: Record<string, string> = {
+  google_unconfigured: "ยังไม่ได้เปิดใช้งานการเข้าสู่ระบบด้วย Google ในระบบนี้",
+  google_state: "การยืนยันตัวตนไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง",
+  google_failed: "เข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+  google_unverified: "อีเมล Google นี้ยังไม่ได้รับการยืนยัน",
+  no_account: "ไม่พบบัญชี KLORA ที่ใช้อีเมล Google นี้ กรุณาสมัครสมาชิกด้วยอีเมลเดียวกันก่อน",
+  suspended: "บัญชีฟาร์มนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN",
+};
+
 function GoogleG() {
   return (
     <svg viewBox="0 0 48 48" className="size-[18px]" aria-hidden>
@@ -49,11 +59,13 @@ export default function LoginForm({
   registerHref = "/register",
   showGoogle = false,
   size = "sm",
+  portal = "supplier",
 }: {
   accent?: Accent;
   registerHref?: string;
   showGoogle?: boolean;
   size?: "sm" | "lg";
+  portal?: "supplier" | "logistic" | "kyn";
 } = {}) {
   const router = useRouter();
   const ac = ACCENT[accent];
@@ -77,6 +89,14 @@ export default function LoginForm({
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Surface an OAuth failure passed back on the URL (read client-side; the page stays static).
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code) {
+      setError(OAUTH_ERRORS[code] ?? OAUTH_ERRORS.google_failed);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -162,13 +182,12 @@ export default function LoginForm({
               <div className={`flex items-center gap-3 text-gray-400 ${S.meta}`}>
                 <span className="h-px flex-1 bg-gray-200" /> หรือดำเนินการต่อด้วย <span className="h-px flex-1 bg-gray-200" />
               </div>
-              <button
-                type="button"
-                onClick={() => setError("การเข้าสู่ระบบด้วย Google ยังไม่เปิดให้บริการ")}
+              <a
+                href={`/api/auth/google?portal=${portal}`}
                 className={`flex w-full items-center justify-center gap-2.5 border border-gray-300 bg-white font-medium text-slate-700 transition hover:bg-gray-50 ${S.gbtn}`}
               >
                 <GoogleG /> ดำเนินการต่อด้วย Google
-              </button>
+              </a>
             </>
           ) : null}
 

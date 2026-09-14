@@ -35,7 +35,16 @@ export async function POST(req: Request) {
   const { sent } = await sendOtpEmail(user.email, code);
 
   const resp: { ok: true; email: string; devCode?: string } = { ok: true, email: user.email };
-  // Only surface the code for local/dev when no provider sent it. Never in production.
-  if (!sent && process.env.NODE_ENV !== "production") resp.devCode = code;
+  if (!sent) {
+    // In production an unsent OTP is a dead end for the user — say so instead of pretending.
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "ระบบส่งอีเมลยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ" },
+        { status: 503 },
+      );
+    }
+    // Local/dev with no provider: surface the code so the flow can be exercised. Never in production.
+    resp.devCode = code;
+  }
   return NextResponse.json(resp);
 }

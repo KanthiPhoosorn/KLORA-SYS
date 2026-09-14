@@ -66,15 +66,26 @@ function verifyToken(token: string): string | null {
 
 // --- Cookie helpers (call from route handlers / server actions) -----------
 
+// The session cookie as { name, value, options } — for handlers that build their own
+// NextResponse (e.g. an OAuth redirect) instead of going through cookies().
+export function sessionCookie(userId: string) {
+  return {
+    name: COOKIE,
+    value: makeToken(userId),
+    options: {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      path: "/",
+      maxAge: MAX_AGE_S,
+      secure: process.env.NODE_ENV === "production",
+    },
+  };
+}
+
 export async function setSessionCookie(userId: string): Promise<void> {
   const store = await cookies();
-  store.set(COOKIE, makeToken(userId), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE_S,
-    secure: process.env.NODE_ENV === "production",
-  });
+  const c = sessionCookie(userId);
+  store.set(c.name, c.value, c.options);
 }
 
 export async function clearSessionCookie(): Promise<void> {
