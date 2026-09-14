@@ -48,7 +48,7 @@ export default function LogisticLoginPage() {
 
         {/* Right — form */}
         <div className="flex flex-1 items-center justify-center px-8 py-10">
-          <LoginForm accent="blue" registerHref="/logistic/register" portal="logistic" />
+          <LoginForm accent="blue" registerHref="/logistic/register" portal="logistic" showGoogle />
         </div>
       </div>
     </div>

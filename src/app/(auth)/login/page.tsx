@@ -16,7 +16,7 @@ export default function LoginPage() {
       </div>
       {/* Right — form */}
       <div className="flex flex-1 items-center justify-center bg-white px-8 py-10">
-        <LoginForm />
+        <LoginForm showGoogle portal="supplier" />
       </div>
     </div>
   );
