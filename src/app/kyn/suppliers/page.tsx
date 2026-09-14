@@ -1,12 +1,14 @@
 import { requireRole } from "@/lib/auth";
-import { getSuppliers, getUsers } from "@/lib/store";
+import { KYN_ORG } from "@/lib/api-guard";
+import { getSuppliers, getUsers, getInvites } from "@/lib/store";
 import SupManager from "@/components/SupManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function KynSuppliersPage() {
-  await requireRole("kyn");
-  const [suppliers, users] = await Promise.all([getSuppliers(), getUsers()]);
+  const me = await requireRole("kyn");
+  const [suppliers, users, kynInvites] = await Promise.all([getSuppliers(), getUsers(), getInvites(KYN_ORG)]);
   const logistics = users.filter((u) => u.role === "logistic");
-  return <SupManager suppliers={suppliers} logistics={logistics} />;
+  const kynUsers = users.filter((u) => u.role === "kyn");
+  return <SupManager suppliers={suppliers} logistics={logistics} kynUsers={kynUsers} kynInvites={kynInvites} currentUserId={me.id} />;
 }

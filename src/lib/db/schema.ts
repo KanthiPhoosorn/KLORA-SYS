@@ -93,6 +93,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   salt: text("salt").notNull(),
   createdAt: text("created_at").notNull(),
+  status: text("status").$type<"active" | "suspended">(), // null = active (legacy rows)
 });
 
 export const members = pgTable("members", {

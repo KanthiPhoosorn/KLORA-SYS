@@ -29,6 +29,7 @@ import {
   nextPrintId,
   nextMemberId,
   nextInviteId,
+  nextNotificationId,
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
@@ -318,6 +319,38 @@ export async function getNotifications(supplierId?: string): Promise<Notificatio
     .where(supplierId ? or(isNull(notifications.supplierId), eq(notifications.supplierId, supplierId)) : undefined)
     .orderBy(desc(notifications.createdAt));
   return rows.map((r) => clean<Notification>(r));
+}
+
+// Event-driven notifications (compute done, shipment status, invites, plan/status changes).
+export async function addNotification(input: Omit<Notification, "id" | "createdAt" | "read">): Promise<Notification> {
+  const ids = await db.select({ id: notifications.id }).from(notifications);
+  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const row = { ...input, id: nextNotificationId(maxN), createdAt: new Date().toISOString(), read: false };
+  const [inserted] = await db.insert(notifications).values(row).returning();
+  return clean<Notification>(inserted);
+}
+
+export async function markNotificationsRead(supplierId: string): Promise<void> {
+  await db.update(notifications).set({ read: true }).where(eq(notifications.supplierId, supplierId));
+}
+
+// Account self-deletion (PDPA). Removes the login + its team rows; the farm profile is
+// anonymised (contact details wiped, suspended) only when no other login remains, and batches
+// are kept as non-personal operational history.
+export async function deleteUserAccount(userId: string): Promise<void> {
+  const [u] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!u) return;
+  await db.delete(members).where(sql`lower(${members.email}) = ${u.email.toLowerCase()}`);
+  await db.delete(otp).where(sql`lower(${otp.email}) = ${u.email.toLowerCase()}`);
+  await db.delete(users).where(eq(users.id, userId));
+  if (u.supplierId) {
+    const rest = await db.select({ id: users.id }).from(users).where(eq(users.supplierId, u.supplierId));
+    if (rest.length === 0) {
+      await db.update(suppliers).set({
+        contactName: null, phone: null, lineId: null, contact: "—", gpsLat: 0, gpsLng: 0, status: "suspended",
+      }).where(eq(suppliers.id, u.supplierId));
+    }
+  }
 }
 
 // --- Team members + invites (จัดการระบบ) ----------------------------------

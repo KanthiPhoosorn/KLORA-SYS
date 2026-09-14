@@ -17,7 +17,10 @@ export async function guard(roles?: UserRole[]): Promise<Guarded> {
   return { user };
 }
 
-// Organisation key for team features: a farm account's supplier, else the user itself.
-export function orgOf(u: { supplierId?: string; id: string }): string {
+// Organisation key for team features: a farm account's supplier; all KYN operators share one
+// org ("KYN"); a logistic account is its own org (members it invites hang off its user id).
+export const KYN_ORG = "KYN";
+export function orgOf(u: { supplierId?: string; id: string; role?: string }): string {
+  if (u.role === "kyn") return KYN_ORG;
   return u.supplierId ?? u.id;
 }

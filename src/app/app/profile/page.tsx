@@ -2,22 +2,17 @@ import { requireRole } from "@/lib/auth";
 import { getSupplier } from "@/lib/store";
 import { Card } from "@/components/ui";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import ProfileEditForm from "@/components/ProfileEditForm";
+import DeleteAccountButton from "@/components/DeleteAccountButton";
 import { User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-const fieldCls = "w-full rounded-[8px] border border-gray-300 bg-slate-50 px-[14px] py-[10px] text-[13px] text-slate-700";
 
 export default async function ProfilePage() {
   const user = await requireRole("supplier");
   const supplier = user.supplierId ? await getSupplier(user.supplierId) : null;
 
-  const Field = ({ label, value }: { label: string; value: string }) => (
-    <div>
-      <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{label}</label>
-      <div className={fieldCls}>{value || "—"}</div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -33,11 +28,9 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        {/* Info fields */}
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <Field label="ชื่อผู้ใช้" value={user.username} />
-          <Field label="เบอร์โทร" value={supplier?.phone ?? "—"} />
-          <div className="sm:col-span-2"><Field label="Email" value={user.email} /></div>
+        {/* Info fields — editable (the email is also the Google sign-in match key) */}
+        <div className="mt-6">
+          <ProfileEditForm initial={{ username: user.username, email: user.email, phone: user.phone ?? supplier?.phone }} accent="pink" />
         </div>
 
         {/* Password row */}
@@ -47,6 +40,15 @@ export default async function ProfilePage() {
             <div className="text-[13px] text-slate-400">เปลี่ยนรหัสผ่านสำหรับการเข้าสู่ระบบ</div>
           </div>
           <ChangePasswordModal />
+        </div>
+
+        {/* Danger zone */}
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-6">
+          <div>
+            <div className="text-[14px] font-medium text-slate-800">ลบบัญชี</div>
+            <div className="text-[13px] text-slate-400">ลบข้อมูลส่วนบุคคลของคุณออกจากระบบอย่างถาวร</div>
+          </div>
+          <DeleteAccountButton isFarmOwner />
         </div>
       </Card>
     </div>

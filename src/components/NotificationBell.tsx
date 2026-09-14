@@ -20,8 +20,16 @@ function iconFor(n: Notification) {
 
 export default function NotificationBell({ notifs }: { notifs: Notification[] }) {
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const unread = notifs.some((n) => !n.read);
+  const unread = !seen && notifs.some((n) => n.supplierId && !n.read);
+
+  // Opening the panel marks everything read (server-side) and clears the dot at once.
+  useEffect(() => {
+    if (!open || !unread) return;
+    setSeen(true);
+    fetch("/api/notifications/read", { method: "POST" }).catch(() => {});
+  }, [open, unread]);
 
   useEffect(() => {
     if (!open) return;

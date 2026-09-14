@@ -38,6 +38,7 @@ export async function GET(req: Request) {
 
   const user = await getUserByLogin(identity.email);
   if (!user) return fail("no_account");
+  if (user.status === "suspended") return fail("suspended");
   if (user.role === "supplier" && user.supplierId) {
     const sup = await getSupplier(user.supplierId);
     if (sup?.status === "suspended") return fail("suspended");

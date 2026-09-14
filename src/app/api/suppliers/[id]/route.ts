@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupplier, getBatchesBySupplier, updateSupplier } from "@/lib/store";
+import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
 import type { Supplier } from "@/lib/types";
@@ -102,11 +102,29 @@ export async function PATCH(
   if (isKyn && (body.status === "active" || body.status === "suspended")) {
     patch.status = body.status;
   }
+  // Subscription plan is a KYN decision (no self-serve billing yet).
+  if (isKyn && (body.plan === "free" || body.plan === "pro")) {
+    patch.plan = body.plan;
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "ไม่มีข้อมูลให้แก้ไข" }, { status: 400 });
   }
 
   const updated = await updateSupplier(id, patch);
+  if (patch.plan && patch.plan !== supplier.plan) {
+    await addNotification({
+      supplierId: id, kind: patch.plan === "pro" ? "success" : "info",
+      title: patch.plan === "pro" ? "อัปเกรดเป็นแพ็กเกจ Pro แล้ว" : "แพ็กเกจเปลี่ยนเป็น Free",
+      body: patch.plan === "pro" ? "ภาพรวมและแดชบอร์ดคาร์บอนเปิดใช้งานแล้ว" : "ฟีเจอร์ภาพรวมและแดชบอร์ดคาร์บอนถูกจำกัด ติดต่อ KYN หากต้องการใช้งานต่อ",
+    });
+  }
+  if (patch.status && patch.status !== supplier.status) {
+    await addNotification({
+      supplierId: id, kind: patch.status === "active" ? "success" : "warning",
+      title: patch.status === "active" ? "บัญชีฟาร์มเปิดใช้งานแล้ว" : "บัญชีฟาร์มถูกระงับการใช้งาน",
+      body: patch.status === "active" ? "คุณสามารถเข้าสู่ระบบและบันทึกรอบส่งออกได้ตามปกติ" : "กรุณาติดต่อ KYN เพื่อขอเปิดใช้งานอีกครั้ง",
+    });
+  }
   return NextResponse.json(updated);
 }

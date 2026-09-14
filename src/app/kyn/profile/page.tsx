@@ -1,6 +1,8 @@
 import { requireRole } from "@/lib/auth";
 import { Card } from "@/components/ui";
 import ChangePasswordForm from "@/components/ChangePasswordForm";
+import ProfileEditForm from "@/components/ProfileEditForm";
+import DeleteAccountButton from "@/components/DeleteAccountButton";
 import { User } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -21,15 +23,22 @@ export default async function KynProfilePage() {
             <div className="mt-1 inline-block rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white">KYN · {user.id}</div>
           </div>
         </div>
-        <dl className="mt-6 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div><dt className="text-slate-400">บทบาท</dt><dd className="text-slate-800">ผู้ดูแลระบบ KYN</dd></div>
-          <div><dt className="text-slate-400">อีเมล</dt><dd className="text-slate-800">{user.email}</dd></div>
-        </dl>
+        <div className="mt-6">
+          <ProfileEditForm initial={{ username: user.username, email: user.email, phone: user.phone }} accent="purple" />
+        </div>
       </Card>
 
       <Card className="p-6">
         <h2 className="mb-4 text-base font-semibold text-slate-800">เปลี่ยนรหัสผ่าน</h2>
         <ChangePasswordForm />
+      </Card>
+
+      <Card className="flex items-center justify-between p-6">
+        <div>
+          <div className="text-[14px] font-medium text-slate-800">ลบบัญชี</div>
+          <div className="text-[13px] text-slate-400">ลบข้อมูลส่วนบุคคลของคุณออกจากระบบอย่างถาวร</div>
+        </div>
+        <DeleteAccountButton />
       </Card>
     </div>
   );

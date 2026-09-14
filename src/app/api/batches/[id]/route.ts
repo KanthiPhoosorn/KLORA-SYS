@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
-import { getBatch, computeBatch, updateBatch } from "@/lib/store";
+import { getBatch, computeBatch, updateBatch, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import type { ShipmentStatus } from "@/lib/types";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
+const SHIPMENT_TH: Record<ShipmentStatus, string> = { cutting: "รอจัดส่ง", in_transit: "กำลังขนส่ง", delivered: "ส่งถึงปลายทางแล้ว" };
+
+// Tell the farm what just happened to its round (shows in the supplier bell).
+async function notifyFarm(supplierId: string, title: string, body: string, kind: "info" | "success" | "warning" = "info") {
+  await addNotification({ supplierId, title, body, kind });
+}
 
 // PATCH /api/batches/[id] — signed-in only. A farm may only touch its own rounds;
 // logistic / KYN operate on any batch.
@@ -43,6 +49,9 @@ export async function PATCH(
     if (Array.isArray(body.packagingItems)) patch.packagingItems = body.packagingItems;
     await updateBatch(id, patch);
     const updated = await computeBatch(id);
+    if (updated?.status === "computed") {
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * updated.flowerCount).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg/ดอก)`, "success");
+    }
     return NextResponse.json(updated);
   }
 
@@ -54,6 +63,9 @@ export async function PATCH(
       );
     }
     const updated = await computeBatch(id);
+    if (updated?.status === "computed") {
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว — CO₂e รวม ${(updated.co2ePerFlower * updated.flowerCount).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg/ดอก)`, "success");
+    }
     return NextResponse.json(updated);
   }
 
@@ -72,6 +84,7 @@ export async function PATCH(
       );
     }
     const updated = await updateBatch(id, { forwardedCount: forwarded, discardedCount: discarded });
+    await notifyFarm(batch.supplierId, `บันทึกการส่งต่อ/คัดทิ้ง ${id}`, `ส่งต่อ ${forwarded.toLocaleString("th-TH")} ดอก · คัดทิ้ง ${discarded.toLocaleString("th-TH")} ดอก จาก ${batch.flowerCount.toLocaleString("th-TH")} ดอก`, discarded > 0 ? "warning" : "info");
     return NextResponse.json(updated);
   }
 
@@ -79,9 +92,11 @@ export async function PATCH(
     if (!SHIPMENT.includes(body.shipmentStatus as ShipmentStatus)) {
       return NextResponse.json({ error: "สถานะขนส่งไม่ถูกต้อง" }, { status: 400 });
     }
-    const updated = await updateBatch(id, {
-      shipmentStatus: body.shipmentStatus as ShipmentStatus,
-    });
+    const next = body.shipmentStatus as ShipmentStatus;
+    const updated = await updateBatch(id, { shipmentStatus: next });
+    if (next !== batch.shipmentStatus) {
+      await notifyFarm(batch.supplierId, `สถานะขนส่ง ${id}: ${SHIPMENT_TH[next]}`, next === "delivered" ? "พัสดุถึงปลายทางเรียบร้อยแล้ว" : "ผู้ขนส่งอัปเดตสถานะพัสดุของคุณ", next === "delivered" ? "success" : "info");
+    }
     return NextResponse.json(updated);
   }
 

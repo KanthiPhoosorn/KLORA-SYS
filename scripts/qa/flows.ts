@@ -211,6 +211,71 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   r = await api("/api/prints");
   log("prints list without session → 401 (SECURITY)", r.status === 401, String(r.status));
 
+  // ---------- Plan toggle (KYN) + event notifications + mark-read ----------
+  r = await api("/api/suppliers/" + supId, { method: "PATCH", cookie: kynCookie, body: { plan: "pro" } });
+  log("kyn sets plan=pro", r.status === 200 && r.json?.plan === "pro", `${r.status} ${r.json?.plan || r.json?.error}`);
+  r = await api("/api/suppliers/" + supId, { method: "PATCH", cookie: supCookie, body: { plan: "free" } });
+  log("supplier cannot change own plan", r.status === 400 || (r.status === 200 && r.json?.plan === "pro"), `${r.status} ${r.json?.plan || r.json?.error}`);
+  const nAll = (await sql`SELECT count(*)::int c FROM notifications WHERE supplier_id = ${supId}`)[0].c as number;
+  const nUnread = (await sql`SELECT count(*)::int c FROM notifications WHERE supplier_id = ${supId} AND read = false`)[0].c as number;
+  log("event notifications were created (compute/status/discard/join/plan)", nAll >= 5 && nUnread >= 5, `total=${nAll} unread=${nUnread}`);
+  r = await api("/api/batches/" + batchId, { method: "PATCH", cookie: logCookie, body: { shipmentStatus: "delivered" } });
+  const titles = (await sql`SELECT title FROM notifications WHERE supplier_id = ${supId} ORDER BY id`).map((x) => x.title as string);
+  log("notification titles cover compute + shipment + discard + join + plan + status", ["คำนวณคาร์บอน", "ส่งถึงปลายทางแล้ว", "ส่งต่อ/คัดทิ้ง", "สมาชิกใหม่", "Pro", "ระงับ"].every((k) => titles.some((t) => t.includes(k))), titles.join(" | "));
+  r = await api("/api/notifications/read", { method: "POST", cookie: supCookie });
+  const nUnread2 = (await sql`SELECT count(*)::int c FROM notifications WHERE supplier_id = ${supId} AND read = false`)[0].c as number;
+  log("mark notifications read", r.status === 200 && nUnread2 === 0, `${r.status} unread=${nUnread2}`);
+  r = await api("/api/notifications/read", { method: "POST", cookie: logCookie });
+  log("mark-read is supplier-only → 403", r.status === 403, String(r.status));
+
+  // ---------- KYN staff invite → join as role kyn ----------
+  const KYN_EMAIL = "qa-kyn-" + TS + "@klora-qa.test";
+  r = await api("/api/invites", { method: "POST", cookie: kynCookie, body: { email: KYN_EMAIL, role: "org_admin" } });
+  log("kyn invites staff (org KYN)", r.status === 201 && r.json?.supplierId === "KYN", `${r.status} org=${r.json?.supplierId || r.json?.error}`);
+  const ktok = (await sql`SELECT token FROM invites WHERE email = ${KYN_EMAIL}`)[0]?.token as string;
+  const kj = await fetch(BASE + "/join/" + ktok);
+  log("KYN join page shows org KYN", kj.status === 200 && (await kj.text()).includes("KYN"), String(kj.status));
+  r = await api("/api/auth/join", { method: "POST", body: { token: ktok, username: "qa_kyn_" + TS, password: PW, confirmPassword: PW } });
+  log("KYN staff join → role kyn, redirect /kyn", r.status === 201 && r.json?.redirect === "/kyn", `${r.status} ${r.json?.redirect || r.json?.error}`);
+  const kynStaffCookie = r.cookie || "";
+  const kynStaffId = (() => { try { return Buffer.from(kynStaffCookie.split(".")[0], "base64url").toString().split(":")[0]; } catch { return ""; } })();
+  const ks = await fetch(BASE + "/kyn/suppliers", { headers: { Cookie: `klora_session=${kynStaffCookie}` }, redirect: "manual" });
+  log("new KYN staff opens /kyn/suppliers", ks.status === 200, String(ks.status));
+  const ku = (await sql`SELECT role, supplier_id FROM users WHERE email = ${KYN_EMAIL}`)[0];
+  log("joined KYN user has role kyn and no farm", ku?.role === "kyn" && ku?.supplier_id == null, JSON.stringify(ku));
+
+  // ---------- Per-user suspend (logistic / KYN) ----------
+  r = await api("/api/users/" + logUserId, { method: "PATCH", cookie: kynCookie, body: { status: "suspended" } });
+  log("kyn suspends logistic login", r.status === 200 && r.json?.status === "suspended" && !("passwordHash" in r.json), `${r.status} ${r.json?.status || r.json?.error}`);
+  r = await api("/api/auth/login", { method: "POST", body: { login: LOG_EMAIL, password: PW } });
+  log("suspended logistic login → 403", r.status === 403, String(r.status));
+  r = await api("/api/users/" + logUserId, { method: "PATCH", cookie: kynCookie, body: { status: "active" } });
+  log("kyn re-activates logistic login", r.status === 200 && r.json?.status === "active", String(r.status));
+  r = await api("/api/users/USR-0003", { method: "PATCH", cookie: kynCookie, body: { status: "suspended" } });
+  log("kyn cannot suspend itself → 400", r.status === 400, String(r.status));
+  r = await api("/api/users/" + supUserId, { method: "PATCH", cookie: kynCookie, body: { status: "suspended" } });
+  log("farm logins not suspendable here → 400", r.status === 400, String(r.status));
+  r = await api("/api/users/" + logUserId, { method: "PATCH", cookie: logCookie, body: { status: "suspended" } });
+  log("logistic cannot suspend users → 403", r.status === 403, String(r.status));
+
+  // ---------- Self-service account deletion (PDPA) ----------
+  r = await api("/api/profile", { method: "DELETE", cookie: joinCookie, body: { password: "wrong-password" } });
+  log("delete account wrong password → 400", r.status === 400, String(r.status));
+  r = await api("/api/profile", { method: "DELETE", cookie: joinCookie, body: { password: PW } });
+  log("member deletes own account", r.status === 200, `${r.status} ${r.json?.error || ""}`);
+  r = await api("/api/auth/login", { method: "POST", body: { login: JOIN_EMAIL, password: PW } });
+  log("deleted account cannot log in → 401", r.status === 401, String(r.status));
+  const supAfter = (await sql`SELECT status, contact_name FROM suppliers WHERE id = ${supId}`)[0];
+  log("farm untouched while another login remains", supAfter?.status === "active" && supAfter?.contact_name != null, JSON.stringify(supAfter));
+  r = await api("/api/auth/login", { method: "POST", body: { login: SUP_EMAIL, password: PW + "3" } });
+  supCookie = r.cookie || supCookie;
+  r = await api("/api/profile", { method: "DELETE", cookie: supCookie, body: { password: PW + "3" } });
+  log("last farm login deletes account", r.status === 200, String(r.status));
+  const supAnon = (await sql`SELECT status, contact_name, phone, gps_lat FROM suppliers WHERE id = ${supId}`)[0];
+  const batchesLeft = (await sql`SELECT count(*)::int c FROM batches WHERE supplier_id = ${supId}`)[0].c as number;
+  log("farm anonymised + suspended, batches kept", supAnon?.status === "suspended" && supAnon?.contact_name == null && supAnon?.phone == null && Number(supAnon?.gps_lat) === 0 && batchesLeft >= 2, `${JSON.stringify(supAnon)} batches=${batchesLeft}`);
+  void kynStaffId;
+
   // ---------- Trace + QR public ----------
   const tr = await fetch(BASE + "/trace/" + batchId);
   log("trace page public 200", tr.status === 200, String(tr.status));
@@ -218,14 +283,14 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   log("qr image", qr.status === 200 && /image/.test(qr.headers.get("content-type") || ""), `${qr.status} ${qr.headers.get("content-type")}`);
 
   // ---------- Logout ----------
-  r = await api("/api/auth/logout", { method: "POST", cookie: supCookie });
+  r = await api("/api/auth/logout", { method: "POST", cookie: logCookie });
   log("logout", r.status === 200 || r.status === 204 || (r.status >= 300 && r.status < 400), String(r.status));
 
   // ---------- Cleanup ----------
   await sql`DELETE FROM prints WHERE supplier_id = ${supId}`;
   await sql`DELETE FROM batches WHERE supplier_id = ${supId}`;
-  await sql`DELETE FROM invites WHERE supplier_id = ${supId}`;
-  await sql`DELETE FROM members WHERE supplier_id = ${supId}`;
+  await sql`DELETE FROM invites WHERE supplier_id = ${supId} OR email LIKE '%@klora-qa.test'`;
+  await sql`DELETE FROM members WHERE supplier_id = ${supId} OR email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`;
   await sql`DELETE FROM farm_monthly_inputs WHERE supplier_id = ${supId}`;
   await sql`DELETE FROM otp WHERE email LIKE '%@klora-qa.test'`;

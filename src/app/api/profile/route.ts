@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { getUserByLogin, updateUser } from "@/lib/store";
+import { getCurrentUser, verifyPassword, clearSessionCookie } from "@/lib/auth";
+import { getUserByLogin, updateUser, deleteUserAccount } from "@/lib/store";
 
 // PATCH /api/profile — update the signed-in user's own ชื่อผู้ใช้ / เบอร์โทร / อีเมล
 export async function PATCH(req: Request) {
@@ -29,4 +29,18 @@ export async function PATCH(req: Request) {
 
   const updated = await updateUser(user.id, { username, email, phone: phone || undefined });
   return NextResponse.json({ ok: true, user: { username: updated?.username, email: updated?.email, phone: updated?.phone } });
+}
+
+// DELETE /api/profile — { password } · self-service account deletion (PDPA). Requires the
+// current password so a hijacked session cannot wipe the account. Clears the session cookie.
+export async function DELETE(req: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  let body: { password?: string };
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
+  if (!verifyPassword(String(body.password ?? ""), user.salt, user.passwordHash))
+    return NextResponse.json({ error: "รหัสผ่านไม่ถูกต้อง" }, { status: 400 });
+  await deleteUserAccount(user.id);
+  await clearSessionCookie();
+  return NextResponse.json({ ok: true });
 }

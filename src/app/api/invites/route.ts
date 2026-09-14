@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "อีเมลนี้มีคำเชิญที่รอตอบรับอยู่แล้ว" }, { status: 409 });
   const role: MemberRole = body.role === "org_admin" ? "org_admin" : "member";
   const inv = await addInvite(org, email, role);
-  const orgName = (user.supplierId && (await getSupplier(user.supplierId))?.farmName) || user.company || user.username;
+  const orgName = user.role === "kyn" ? "KYN" : (user.supplierId && (await getSupplier(user.supplierId))?.farmName) || user.company || user.username;
   const { sent } = await sendInviteEmail(email, orgName, role, `${siteOrigin(req)}/join/${inv.token}`);
   return NextResponse.json({ ...pub(inv), emailSent: sent }, { status: 201 });
 }

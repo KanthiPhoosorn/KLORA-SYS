@@ -34,6 +34,9 @@ export async function POST(req: Request) {
     );
   }
 
+  if (user.status === "suspended") {
+    return NextResponse.json({ error: "บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN" }, { status: 403 });
+  }
   if (user.role === "supplier" && user.supplierId) {
     const supplier = await getSupplier(user.supplierId);
     if (supplier?.status === "suspended") {

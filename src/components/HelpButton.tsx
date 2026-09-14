@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LifeBuoy, Mail, MessageCircle, Phone } from "lucide-react";
 import Modal from "./Modal";
+import { CONTACT } from "@/lib/contact";
 
 // "ช่องทางติดต่อแอดมิน" — help channel shown when the system has a problem (from the spec).
 export default function HelpButton({ compact }: { compact?: boolean }) {
@@ -22,17 +23,17 @@ export default function HelpButton({ compact }: { compact?: boolean }) {
           หากระบบมีปัญหาหรือต้องการคำแนะนำ ติดต่อทีมงาน KLORA ได้ตามช่องทางด้านล่าง
         </p>
         <div className="mt-4 space-y-2 text-sm">
-          <a href="https://line.me/R/ti/p/@klora-support" className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
+          <a href={CONTACT.lineUrl} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
             <MessageCircle size={16} className="text-emerald-600" />
-            <span className="text-slate-700">LINE Official: <b>@klora-support</b></span>
+            <span className="text-slate-700">LINE Official: <b>{CONTACT.lineId}</b></span>
           </a>
-          <a href="mailto:support@klora.app" className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
+          <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
             <Mail size={16} className="text-blue-600" />
-            <span className="text-slate-700">อีเมล: <b>support@klora.app</b></span>
+            <span className="text-slate-700">อีเมล: <b>{CONTACT.email}</b></span>
           </a>
-          <a href="tel:052000000" className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
+          <a href={CONTACT.phoneHref} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">
             <Phone size={16} className="text-slate-500" />
-            <span className="text-slate-700">โทร: <b>052-000-000</b> (จ.–ศ. 8:30–17:30)</span>
+            <span className="text-slate-700">โทร: <b>{CONTACT.phone}</b> ({CONTACT.hours})</span>
           </a>
         </div>
       </Modal>

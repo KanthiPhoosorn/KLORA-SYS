@@ -25,6 +25,10 @@ export function nextMemberId(existingCount: number): string {
   return `MEM-${pad(existingCount + 1)}`;
 }
 
+export function nextNotificationId(existingCount: number): string {
+  return `NTF-${String(existingCount + 1).padStart(4, "0")}`;
+}
+
 export function nextInviteId(existingCount: number): string {
   return `INV-${pad(existingCount + 1)}`;
 }

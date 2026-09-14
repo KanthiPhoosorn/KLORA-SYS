@@ -151,6 +151,7 @@ export interface User {
   passwordHash: string; // hex
   salt: string; // hex
   createdAt: string; // ISO
+  status?: "active" | "suspended"; // KYN can suspend a login; undefined = active
 }
 
 // Team management (จัดการระบบ) — members + invites, scoped to an org (supplierId).

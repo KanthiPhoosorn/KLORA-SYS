@@ -14,7 +14,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   if (invite?.status === "pending") {
     orgName = invite.supplierId.startsWith("SUP-")
       ? (await getSupplier(invite.supplierId))?.farmName ?? ""
-      : (await getUsers()).find((u) => u.id === invite.supplierId)?.company ?? "";
+      : invite.supplierId === "KYN"
+        ? "KYN"
+        : (await getUsers()).find((u) => u.id === invite.supplierId)?.company ?? "";
   }
   const problem = !invite
     ? "ลิงก์คำเชิญไม่ถูกต้อง"

@@ -1,5 +1,13 @@
+"use client";
+
+import { useState } from "react";
+import { Mail, MessageCircle, Phone } from "lucide-react";
+import Modal from "@/components/Modal";
+import { CONTACT } from "@/lib/contact";
+
 // Freemium paywall (Figma "Lock / Pro" state): a centred card floating over a blurred,
 // faded preview of the gated dashboard. Used on ภาพรวม and แดชบอร์ดคาร์บอน for free-plan farms.
+// There is no self-serve billing yet — the upgrade button explains how to get KYN to enable Pro.
 export default function ProLock({
   title = "ปลดล็อกแดชบอร์ดคาร์บอน",
   desc = "อัปเกรดเพื่อดูภาพรวมการปล่อย CO₂e วิเคราะห์แนวโน้ม และติดตามผลการลดคาร์บอนของฟาร์มได้ในที่เดียว",
@@ -7,6 +15,7 @@ export default function ProLock({
   title?: string;
   desc?: string;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="relative min-h-[560px]">
       {/* Blurred faux-dashboard behind the card */}
@@ -45,11 +54,27 @@ export default function ProLock({
           <h1 className="text-2xl font-bold text-brand-pink">{title}</h1>
           <p className="mt-1.5 text-sm font-semibold text-emerald-600">ฟีเจอร์นี้รวมอยู่ในแพ็กเกจ Pro</p>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-500">{desc}</p>
-          <button className="mt-7 w-full rounded-[10px] bg-brand-pink px-6 py-3 text-sm font-semibold text-white hover:opacity-90">
+          <button type="button" onClick={() => setOpen(true)} className="mt-7 w-full rounded-[10px] bg-brand-pink px-6 py-3 text-sm font-semibold text-white hover:opacity-90">
             ดูแพ็กเกจและอัปเกรด
           </button>
         </div>
       </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="แพ็กเกจ Pro">
+        <div className="space-y-4 text-[14px] text-slate-700">
+          <ul className="space-y-1.5 rounded-xl bg-brand-pink-light/60 px-4 py-3 text-[13px]">
+            <li>✓ ภาพรวมการส่งออกและแนวโน้ม CO₂e รายเดือน</li>
+            <li>✓ แดชบอร์ดคาร์บอน — สัดส่วนการปล่อย อันดับ และการเปรียบเทียบ</li>
+            <li>✓ ประวัติการส่งออกย้อนหลังทั้งหมด</li>
+          </ul>
+          <p>การเปิดใช้แพ็กเกจ Pro ทำโดยทีม KYN — แจ้ง SUP ID ของฟาร์มคุณผ่านช่องทางด้านล่าง ทีมงานจะเปิดให้ภายใน 1 วันทำการ</p>
+          <div className="space-y-2 text-sm">
+            <a href={CONTACT.lineUrl} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><MessageCircle size={16} className="text-emerald-600" /> LINE Official: <b>{CONTACT.lineId}</b></a>
+            <a href={`mailto:${CONTACT.email}?subject=ขอเปิดแพ็กเกจ Pro KLORA`} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Mail size={16} className="text-blue-600" /> อีเมล: <b>{CONTACT.email}</b></a>
+            <a href={CONTACT.phoneHref} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Phone size={16} className="text-slate-500" /> โทร: <b>{CONTACT.phone}</b> ({CONTACT.hours})</a>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
