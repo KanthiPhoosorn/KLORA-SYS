@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
 import { updateUser } from "@/lib/store";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 // POST /api/auth/change-password — { oldPassword, newPassword }
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  // Brute-force guard: the old-password check is a password oracle for anyone holding the cookie.
+  const rl = await rateLimit(`pwcheck:user:${user.id}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) return tooMany(rl.retryAfter);
   let body: { oldPassword?: string; newPassword?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
   const oldPassword = String(body.oldPassword ?? "");

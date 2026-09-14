@@ -249,6 +249,8 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   log("kyn suspends logistic login", r.status === 200 && r.json?.status === "suspended" && !("passwordHash" in r.json), `${r.status} ${r.json?.status || r.json?.error}`);
   r = await api("/api/auth/login", { method: "POST", body: { login: LOG_EMAIL, password: PW } });
   log("suspended logistic login → 403", r.status === 403, String(r.status));
+  const sus = await fetch(BASE + "/logistic", { headers: { Cookie: `klora_session=${logCookie}` }, redirect: "manual" });
+  log("suspended login's existing cookie is dead → bounced to login", sus.status === 307 && /\/logistic\/login$/.test(sus.headers.get("location") || ""), `${sus.status} ${sus.headers.get("location") || ""}`);
   r = await api("/api/users/" + logUserId, { method: "PATCH", cookie: kynCookie, body: { status: "active" } });
   log("kyn re-activates logistic login", r.status === 200 && r.json?.status === "active", String(r.status));
   r = await api("/api/users/USR-0003", { method: "PATCH", cookie: kynCookie, body: { status: "suspended" } });
@@ -259,6 +261,8 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   log("logistic cannot suspend users → 403", r.status === 403, String(r.status));
 
   // ---------- Self-service account deletion (PDPA) ----------
+  r = await api("/api/profile", { method: "DELETE", cookie: kynStaffCookie, body: { password: PW } });
+  log("KYN staff can delete self while another KYN remains", r.status === 200, `${r.status} ${r.json?.error || ""}`);
   r = await api("/api/profile", { method: "DELETE", cookie: joinCookie, body: { password: "wrong-password" } });
   log("delete account wrong password → 400", r.status === 400, String(r.status));
   r = await api("/api/profile", { method: "DELETE", cookie: joinCookie, body: { password: PW } });
@@ -296,7 +300,7 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   await sql`DELETE FROM otp WHERE email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM users WHERE email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM suppliers WHERE id = ${supId}`;
-  await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%' OR key LIKE '%klora-qa.test%'`;
+  await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%' OR key LIKE '%klora-qa.test%' OR key LIKE 'pwcheck:user:%'`;
   const left = await sql`SELECT (SELECT count(*) FROM users WHERE email LIKE '%@klora-qa.test') u, (SELECT count(*) FROM suppliers WHERE id = ${supId}) s, (SELECT count(*) FROM batches WHERE supplier_id = ${supId}) b`;
   log("cleanup complete", left[0].u === "0" && left[0].s === "0" && left[0].b === "0", JSON.stringify(left[0]));
   void supUserId; void logUserId;

@@ -6,7 +6,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
 
 // PDPA self-service deletion: confirm with the current password, then DELETE /api/profile.
-export default function DeleteAccountButton({ isFarmOwner = false }: { isFarmOwner?: boolean }) {
+export default function DeleteAccountButton({ isFarmOwner = false, loginHref = "/login" }: { isFarmOwner?: boolean; loginHref?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -19,7 +19,7 @@ export default function DeleteAccountButton({ isFarmOwner = false }: { isFarmOwn
       const res = await fetch("/api/profile", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "ลบบัญชีไม่สำเร็จ");
-      router.push("/login");
+      router.push(loginHref);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

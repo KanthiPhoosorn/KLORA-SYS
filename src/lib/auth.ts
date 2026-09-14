@@ -5,7 +5,7 @@
 import { scryptSync, randomBytes, timingSafeEqual, createHmac } from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getUsers } from "./store";
+import { getUsers, getSupplier } from "./store";
 import type { User, UserRole } from "./types";
 
 const SECRET =
@@ -102,7 +102,14 @@ export async function getCurrentUser(): Promise<User | null> {
   const userId = verifyToken(token);
   if (!userId) return null;
   const users = await getUsers();
-  return users.find((u) => u.id === userId) ?? null;
+  const user = users.find((u) => u.id === userId) ?? null;
+  if (!user || user.status === "suspended") return null;
+  // A suspended farm locks out its logins at once, not only at the next password login.
+  if (user.role === "supplier" && user.supplierId) {
+    const sup = await getSupplier(user.supplierId);
+    if (sup?.status === "suspended") return null;
+  }
+  return user;
 }
 
 // Guard: returns the signed-in user or redirects to /login.

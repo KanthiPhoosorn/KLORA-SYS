@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, verifyPassword, clearSessionCookie } from "@/lib/auth";
-import { getUserByLogin, updateUser, deleteUserAccount } from "@/lib/store";
+import { getUserByLogin, updateUser, deleteUserAccount, getUsers } from "@/lib/store";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 
 // PATCH /api/profile — update the signed-in user's own ชื่อผู้ใช้ / เบอร์โทร / อีเมล
 export async function PATCH(req: Request) {
@@ -36,10 +37,18 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  const rl = await rateLimit(`pwcheck:user:${user.id}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) return tooMany(rl.retryAfter);
   let body: { password?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
   if (!verifyPassword(String(body.password ?? ""), user.salt, user.passwordHash))
     return NextResponse.json({ error: "รหัสผ่านไม่ถูกต้อง" }, { status: 400 });
+  // (3) Never let the last KYN operator delete themselves — nobody could administer the system.
+  if (user.role === "kyn") {
+    const others = (await getUsers()).filter((u) => u.role === "kyn" && u.id !== user.id && u.status !== "suspended");
+    if (others.length === 0)
+      return NextResponse.json({ error: "ต้องมีเจ้าหน้าที่ KYN ที่ใช้งานได้อย่างน้อย 1 บัญชี — เชิญเจ้าหน้าที่คนอื่นก่อนลบบัญชีนี้" }, { status: 409 });
+  }
   await deleteUserAccount(user.id);
   await clearSessionCookie();
   return NextResponse.json({ ok: true });

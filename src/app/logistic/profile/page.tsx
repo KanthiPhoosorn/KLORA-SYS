@@ -16,7 +16,7 @@ export default async function LogisticProfilePage() {
           <div className="text-[14px] font-medium text-slate-800">ลบบัญชี</div>
           <div className="text-[13px] text-slate-400">ลบข้อมูลส่วนบุคคลของคุณออกจากระบบอย่างถาวร</div>
         </div>
-        <DeleteAccountButton />
+        <DeleteAccountButton loginHref="/logistic/login" />
       </div>
     </div>
   );
