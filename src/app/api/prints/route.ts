@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { getPrints, addPrint, getBatch } from "@/lib/store";
+import { guard } from "@/lib/api-guard";
 
+// Print logs are an operator concern (logistic / KYN) — never public.
 export async function GET() {
+  const g = await guard(["logistic", "kyn"]);
+  if (g.deny) return g.deny;
   const prints = await getPrints();
   return NextResponse.json(prints);
 }
 
 // POST /api/prints — Thai Post logs a QR label print (feeds the KYN Shipment/QR log).
 export async function POST(req: Request) {
+  const g = await guard(["logistic", "kyn"]);
+  if (g.deny) return g.deny;
   let body: Record<string, unknown>;
   try {
     body = await req.json();

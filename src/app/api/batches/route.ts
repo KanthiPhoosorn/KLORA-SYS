@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { getBatches, getBatchesBySupplier, addBatch, getSupplier } from "@/lib/store";
 import { getCurrentUser } from "@/lib/auth";
+import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
 
+// GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
+// logistic / KYN may list every farm (optionally filtered).
 export async function GET(req: Request) {
-  const supplierId = new URL(req.url).searchParams.get("supplierId");
+  const g = await guard();
+  if (g.deny) return g.deny;
+  const q = new URL(req.url).searchParams.get("supplierId");
+  const supplierId = g.user.role === "supplier" ? (g.user.supplierId ?? "") : q;
   const batches = supplierId
     ? await getBatchesBySupplier(supplierId)
     : await getBatches();

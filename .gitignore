@@ -46,3 +46,4 @@ CREDENTIALS.local.txt
 
 .vercel
 .env*
+.qa

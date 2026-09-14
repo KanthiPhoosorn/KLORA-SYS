@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import { getUserByLogin, checkOtp, clearOtp, updateUser } from "@/lib/store";
 import { hashPassword } from "@/lib/auth";
 
@@ -12,6 +13,12 @@ export async function POST(req: Request) {
   }
   const email = String(body.email ?? "").trim();
   const code = String(body.code ?? "").trim();
+  // Anti brute-force: a 6-digit code must not be guessable within its 10-minute life.
+  const ip = clientIp(req);
+  const byIp = await rateLimit(`otp:ip:${ip}`, 10, 15 * 60 * 1000);
+  if (!byIp.allowed) return tooMany(byIp.retryAfter);
+  const byEmail = await rateLimit(`otp:email:${email.toLowerCase()}`, 10, 15 * 60 * 1000);
+  if (!byEmail.allowed) return tooMany(byEmail.retryAfter);
   const password = String(body.password ?? "");
   if (password.length < 8) {
     return NextResponse.json({ error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร" }, { status: 400 });

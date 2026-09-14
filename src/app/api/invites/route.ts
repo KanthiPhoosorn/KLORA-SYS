@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { orgOf } from "@/lib/api-guard";
 import { getInvites, addInvite } from "@/lib/store";
 import type { MemberRole } from "@/lib/types";
-
-function orgOf(u: { supplierId?: string; id: string }) {
-  return u.supplierId ?? u.id;
-}
 
 // GET /api/invites — pending invites for the org.  POST — invite by email (stubbed email).
 export async function GET() {

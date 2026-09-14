@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 import { getBatch, computeBatch, updateBatch } from "@/lib/store";
+import { guard, forbidden } from "@/lib/api-guard";
 import type { ShipmentStatus } from "@/lib/types";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
 
-// PATCH /api/batches/[id]
+// PATCH /api/batches/[id] — signed-in only. A farm may only touch its own rounds;
+// logistic / KYN operate on any batch.
 //   { action: "compute" }            → KYN runs the carbon calc (needs a basket)
 //   { shipmentStatus: "in_transit" } → update the shipment status
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const g = await guard();
+  if (g.deny) return g.deny;
   const { id } = await params;
   let body: Record<string, unknown>;
   try {
@@ -23,6 +27,7 @@ export async function PATCH(
   if (!batch) {
     return NextResponse.json({ error: "ไม่พบ Batch นี้" }, { status: 404 });
   }
+  if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
 
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
   const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems"];

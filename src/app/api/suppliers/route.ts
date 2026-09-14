@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSuppliers, addSupplier } from "@/lib/store";
+import { guard } from "@/lib/api-guard";
 import type { SupplierInput } from "@/lib/types";
 
+// GET /api/suppliers — signed-in only. A farm sees only itself; logistic / KYN see every farm.
 export async function GET() {
+  const g = await guard();
+  if (g.deny) return g.deny;
   const suppliers = await getSuppliers();
-  return NextResponse.json(suppliers);
+  return NextResponse.json(
+    g.user.role === "supplier" ? suppliers.filter((s) => s.id === g.user.supplierId) : suppliers,
+  );
 }
 
+// POST /api/suppliers — KYN operators only (farms self-register via /api/auth/register).
 export async function POST(req: Request) {
+  const g = await guard(["kyn"]);
+  if (g.deny) return g.deny;
   let body: Partial<SupplierInput>;
   try {
     body = await req.json();

@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { orgOf } from "@/lib/api-guard";
 import { getMembers } from "@/lib/store";
-
-function orgOf(u: { supplierId?: string; id: string }) {
-  return u.supplierId ?? u.id;
-}
 
 // GET /api/members — members of the current user's organisation.
 export async function GET() {

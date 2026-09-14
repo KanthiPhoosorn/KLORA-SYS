@@ -101,13 +101,20 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-// Guard for a specific portal role. Wrong role → bounced to that role's home
-// (or /login if signed out). Keeps each portal isolated to its role.
+// Guard for a specific portal role. Signed out → that portal's own login page;
+// wrong role → bounced to the caller's own home. Keeps each portal isolated to its role.
 export async function requireRole(role: UserRole): Promise<User> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect(loginForRole(role));
   if (user.role !== role) redirect(homeForRole(user.role));
   return user;
+}
+
+// Each portal's login page.
+export function loginForRole(role: UserRole): string {
+  if (role === "logistic") return "/logistic/login";
+  if (role === "kyn") return "/kyn/login";
+  return "/login";
 }
 
 // Where each role lands after login.

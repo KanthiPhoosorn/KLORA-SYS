@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { getSupplier, getBatchesBySupplier, updateSupplier } from "@/lib/store";
-import { getCurrentUser } from "@/lib/auth";
+import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
 import type { Supplier } from "@/lib/types";
 
+// GET /api/suppliers/[id] — signed-in only; a farm may only read itself.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const g = await guard();
+  if (g.deny) return g.deny;
   const { id } = await params;
+  if (g.user.role === "supplier" && g.user.supplierId !== id) return forbidden();
   const supplier = await getSupplier(id);
   if (!supplier) {
     return NextResponse.json({ error: "ไม่พบ SUP ID นี้" }, { status: 404 });
@@ -23,17 +27,19 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const g = await guard();
+  if (g.deny) return g.deny;
   const { id } = await params;
   const supplier = await getSupplier(id);
   if (!supplier) {
     return NextResponse.json({ error: "ไม่พบ SUP ID นี้" }, { status: 404 });
   }
 
-  // Authorization: the farm's own logged-in user may edit its profile. Status changes
-  // and edits without a matching session are treated as KYN operator actions (open
-  // console, as in the spec). A production deployment would add a KYN role check here.
-  const user = await getCurrentUser();
-  const isOwner = user?.supplierId === id;
+  // Authorization: the farm's own account edits its profile; a KYN operator may edit any
+  // farm and is the only one who may toggle active/suspended. Everyone else is refused.
+  const isKyn = g.user.role === "kyn";
+  const isOwner = g.user.role === "supplier" && g.user.supplierId === id;
+  if (!isKyn && !isOwner) return forbidden();
 
   let body: Record<string, unknown>;
   try {
@@ -93,14 +99,13 @@ export async function PATCH(
   if (typeof patch.address === "string") {
     patch.province = provinceFromAddress(patch.address) || supplier.province;
   }
-  if (body.status === "active" || body.status === "suspended") {
+  if (isKyn && (body.status === "active" || body.status === "suspended")) {
     patch.status = body.status;
   }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "ไม่มีข้อมูลให้แก้ไข" }, { status: 400 });
   }
-  void isOwner; // owner vs KYN-operator distinction reserved for future role hardening
 
   const updated = await updateSupplier(id, patch);
   return NextResponse.json(updated);
