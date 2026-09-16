@@ -6,7 +6,10 @@ import { Loader2, PlusCircle, Trash2, Lock, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
-import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
+import { PRODUCT_CATEGORIES, typesFor, variantsFor, categoryOfType } from "@/lib/master-data";
+import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_OPTIONS, UNIT_LABEL } from "@/lib/produce";
+import type { ProductCategory, QuantityUnit, Ripeness } from "@/lib/types";
+import { AlertTriangle } from "lucide-react";
 import { BRANCHES } from "@/lib/branches";
 import type { Supplier } from "@/lib/types";
 
@@ -131,11 +134,33 @@ export default function RoundForm({
   const [serverError, setServerError] = useState<string | null>(null);
 
   // Flowers
-  const [flowerType, setFlowerType] = useState(supplier.flowerType || "");
+  // ประเภทสินค้า → ชนิด → พันธุ์. The farm's own produce list drives the defaults; every master
+  // type stays available. Flowers are counted (ดอก/ช่อ), produce is weighed (กก./ตัน).
+  const farmGroups = (supplier.flowerTypes ?? []).map((g) => ({ ...g, category: g.category ?? categoryOfType(g.type) ?? ("flower" as ProductCategory) }));
+  const firstCat: ProductCategory = farmGroups[0]?.category ?? categoryOfType(supplier.flowerType) ?? "flower";
+  const [category, setCategory] = useState<ProductCategory>(firstCat);
+  const isFlower = category === "flower";
+  const [flowerType, setFlowerType] = useState(farmGroups.find((g) => g.category === firstCat)?.type ?? supplier.flowerType ?? "");
   const [variety, setVariety] = useState("");
-  const [flowerCount, setFlowerCount] = useState("");
+  const [flowerCount, setFlowerCount] = useState(""); // quantity in `unit`
+  const [unit, setUnit] = useState<QuantityUnit>(firstCat === "flower" ? "stem" : "kg");
   const [cutDate, setCutDate] = useState("");
   const [ageDays, setAgeDays] = useState("");
+  const [plantingDate, setPlantingDate] = useState("");
+  const [ripeness, setRipeness] = useState<Ripeness | "">("");
+  const [grade, setGrade] = useState("");
+  const [ethylene, setEthylene] = useState(false);
+  const [ethyleneNote, setEthyleneNote] = useState("");
+  const farmTypes = farmGroups.filter((g) => g.category === category).map((g) => g.type);
+  const typeOptions = Array.from(new Set([...farmTypes, ...typesFor(category)]));
+  function pickCategory(c: ProductCategory) {
+    setCategory(c);
+    setUnit(c === "flower" ? "stem" : "kg");
+    setFlowerType(farmGroups.find((g) => g.category === c)?.type ?? "");
+    setVariety("");
+    setRipeness("");
+    setErrs((x) => ({ ...x, flowerType: "", variety: "", flowerCount: "", ageDays: "" }));
+  }
   // Packaging
   const [packs, setPacks] = useState<Pack[]>([emptyPack()]);
   // Shipping
@@ -151,8 +176,13 @@ export default function RoundForm({
   // Freemium: a free SUP account can only ship via ไปรษณีย์ไทย; other carriers unlock with Pro.
   const showUpsell = accent === "pink" && supplier.plan !== "pro";
   const varieties = Array.from(
-    new Set([...variantsForType(flowerType), ...varietyOptions, ...(supplier.varieties ?? [])]),
+    new Set([
+      ...farmGroups.filter((g) => g.type === flowerType).flatMap((g) => g.varieties),
+      ...variantsFor(category, flowerType),
+      ...(isFlower ? [...varietyOptions, ...(supplier.varieties ?? [])] : []),
+    ]),
   );
+  const chillWarning = coldChainWarning({ isReeferUsed: CARRIER_DEFAULTS[carrier].reefer, productType: flowerType, productCategory: category });
 
   function onCut(v: string) {
     setCutDate(v);
@@ -179,11 +209,12 @@ export default function RoundForm({
   // ---- validation (drives the inline-error state) ----
   function validate(): Errors {
     const e: Errors = {};
-    if (!flowerType) e.flowerType = "กรุณาเลือกชนิดดอกไม้";
-    if (!variety) e.variety = "กรุณาเลือกพันธุ์ดอกไม้";
-    if (!flowerCount || Number(flowerCount) <= 0) e.flowerCount = "กรุณาระบุจำนวนดอกไม้";
-    if (!cutDate) e.cutDate = "กรุณาเลือกวันที่ตัดดอกไม้";
-    if (!ageDays) e.ageDays = "กรุณาระบุอายุดอกไม้";
+    if (!flowerType) e.flowerType = "กรุณาเลือกชนิดสินค้า";
+    if (!variety) e.variety = "กรุณาเลือกพันธุ์";
+    if (!flowerCount || Number(flowerCount) <= 0) e.flowerCount = isFlower ? "กรุณาระบุจำนวนดอกไม้" : "กรุณาระบุน้ำหนักสินค้า";
+    if (!cutDate) e.cutDate = isFlower ? "กรุณาเลือกวันที่ตัดดอกไม้" : "กรุณาเลือกวันที่เก็บเกี่ยว";
+    if (isFlower && !ageDays) e.ageDays = "กรุณาระบุอายุดอกไม้";
+    if (category === "fruit" && !ripeness) e.ripeness = "กรุณาระบุระยะการสุก";
     packs.forEach((p, i) => {
       if (!p.kind) e[`pack.${i}.kind`] = "กรุณาเลือกบรรจุภัณฑ์";
       if (p.kind === "basket" && !p.basketNo.trim()) e[`pack.${i}.basketNo`] = "กรุณาระบุหมายเลขตะกร้า";
@@ -236,9 +267,18 @@ export default function RoundForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(postSupplierId ? { supplierId: postSupplierId } : {}),
-          flowerCount: Number(flowerCount) || 0,
+          flowerCount: isFlower ? Number(flowerCount) || 0 : 0,
+          quantity: Number(flowerCount) || 0,
+          unit,
+          productCategory: category,
+          productType: flowerType,
           variety: variety || flowerType,
           cutDate,
+          plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
+          ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
+          grade: !isFlower && grade ? grade : undefined,
+          ethyleneUsed: category === "fruit" ? ethylene : undefined,
+          ethyleneNote: category === "fruit" && ethylene ? ethyleneNote : undefined,
           destination,
           distanceKm: Number(distanceKm) || 0,
           carrier: carrierLabel,
@@ -288,12 +328,17 @@ export default function RoundForm({
           <div className="grid grid-cols-1 md:grid-cols-3">
             {/* Col 1 — flowers */}
             <div className="space-y-4 border-slate-100 p-6 md:border-r">
-              <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลดอกไม้</div>
-              <F label="ชนิดดอกไม้" value={flowerType} />
-              <F label="พันธุ์ดอกไม้" value={variety} />
-              <F label="จำนวนดอกไม้" value={flowerCount ? `${Number(flowerCount).toLocaleString()} ดอก` : ""} />
-              <F label="วันที่ตัดดอกไม้" value={formatThaiDate(cutDate)} />
-              <F label="อายุดอกไม้" value={ageDays ? `${ageDays} วัน` : ""} />
+              <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลสินค้า</div>
+              <F label="ประเภทสินค้า" value={PRODUCT_CATEGORIES.find((c) => c.key === category)?.label ?? ""} />
+              <F label="ชนิด" value={flowerType} />
+              <F label="พันธุ์" value={variety} />
+              <F label={isFlower ? "จำนวนดอกไม้" : "น้ำหนักสินค้า"} value={flowerCount ? `${Number(flowerCount).toLocaleString()} ${UNIT_LABEL[unit]}` : ""} />
+              {!isFlower && plantingDate ? <F label="วันที่ปลูก" value={formatThaiDate(plantingDate)} /> : null}
+              <F label={harvestLabel(category)} value={formatThaiDate(cutDate)} />
+              {isFlower ? <F label="อายุดอกไม้" value={ageDays ? `${ageDays} วัน` : ""} /> : null}
+              {category === "fruit" && ripeness ? <F label="ระยะการสุก" value={RIPENESS_LABEL[ripeness]} /> : null}
+              {!isFlower && grade ? <F label="เกรด" value={grade} /> : null}
+              {category === "fruit" && ethylene ? <F label="เอทิลีน/สารยับยั้งการสุก" value={ethyleneNote || "ใช้"} /> : null}
             </div>
             {/* Col 2 — packaging */}
             <div className="space-y-4 border-slate-100 p-6 md:border-r">
@@ -352,40 +397,92 @@ export default function RoundForm({
     <div className="max-w-3xl space-y-5">
       <Toast show={toast} />
 
-      {/* Flowers */}
-      <Section title="ข้อมูลดอกไม้" sub="ระบุรายละเอียดดอกไม้ในรอบการจัดส่งนี้">
-        <div className="grid gap-4 sm:grid-cols-2">
+      {/* Product (ดอกไม้ / ผลไม้ / ผัก) */}
+      <Section title="ข้อมูลสินค้า" sub="ระบุประเภทสินค้าและรายละเอียดของรอบการจัดส่งนี้">
+        <div className="space-y-4">
           <div>
-            <label className={labelCls}>ชนิดดอกไม้{req}</label>
-            <select value={flowerType} onChange={(e) => { setFlowerType(e.target.value); setVariety(""); setErrs((x) => ({ ...x, flowerType: "" })); }} className={`${inputCls} ${errs.flowerType ? "border-[#ee443f]" : ""}`}>
-              <option value="">เลือกประเภทดอกไม้</option>
-              {FLOWER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <Err msg={errs.flowerType} />
+            <label className={labelCls}>ประเภทสินค้า{req}</label>
+            <div className="grid grid-cols-3 gap-2.5">
+              {PRODUCT_CATEGORIES.map((c) => (
+                <label key={c.key} className={`flex cursor-pointer items-center justify-center gap-2 rounded-[10px] border px-4 py-3 text-[13px] transition ${category === c.key ? T.radioSel : "border-gray-300 text-slate-600 hover:border-gray-400"}`}>
+                  <input type="radio" name="category" checked={category === c.key} onChange={() => pickCategory(c.key)} className={`size-4 ${T.ring}`} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
           </div>
-          <div>
-            <label className={labelCls}>พันธุ์ดอกไม้{req}</label>
-            <input list="fvars" value={variety} onChange={(e) => { setVariety(e.target.value); setErrs((x) => ({ ...x, variety: "" })); }} placeholder="พันธุ์ดอกไม้" className={`${inputCls} ${errs.variety ? "border-[#ee443f]" : ""}`} />
-            <datalist id="fvars">{varieties.map((v) => <option key={v} value={v} />)}</datalist>
-            <Err msg={errs.variety} />
-          </div>
-          <div>
-            <label className={labelCls}>จำนวนดอกไม้ (ดอก){req}</label>
-            <input type="number" min="0" value={flowerCount} onChange={(e) => { setFlowerCount(e.target.value); setErrs((x) => ({ ...x, flowerCount: "" })); }} placeholder="ระบุจำนวนดอกไม้" className={`${inputCls} ${errs.flowerCount ? "border-[#ee443f]" : ""}`} />
-            <Err msg={errs.flowerCount} />
-          </div>
-          <div>
-            <label className={labelCls}>วันที่ตัดดอกไม้{req}</label>
-            <DateField value={cutDate} onChange={onCut} className={inputCls} invalid={!!errs.cutDate} />
-            <Err msg={errs.cutDate} />
-          </div>
-          <div>
-            <label className={labelCls}>อายุดอกไม้ (วัน){req}</label>
-            <select value={ageDays} onChange={(e) => { setAgeDays(e.target.value); setErrs((x) => ({ ...x, ageDays: "" })); }} className={`${inputCls} ${errs.ageDays ? "border-[#ee443f]" : ""}`}>
-              <option value="">ระบุอายุดอกไม้</option>
-              {AGE_OPTIONS.map((d) => <option key={d} value={d}>{d} วัน</option>)}
-            </select>
-            <Err msg={errs.ageDays} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>ชนิด{req}</label>
+              <input list="ptypes" value={flowerType} onChange={(e) => { setFlowerType(e.target.value); setVariety(""); setErrs((x) => ({ ...x, flowerType: "" })); }} placeholder={isFlower ? "เช่น กุหลาบ" : category === "fruit" ? "เช่น มะม่วง" : "เช่น คะน้า"} className={`${inputCls} ${errs.flowerType ? "border-[#ee443f]" : ""}`} />
+              <datalist id="ptypes">{typeOptions.map((t) => <option key={t} value={t} />)}</datalist>
+              <Err msg={errs.flowerType} />
+            </div>
+            <div>
+              <label className={labelCls}>พันธุ์{req}</label>
+              <input list="fvars" value={variety} onChange={(e) => { setVariety(e.target.value); setErrs((x) => ({ ...x, variety: "" })); }} placeholder="เลือกหรือพิมพ์พันธุ์" className={`${inputCls} ${errs.variety ? "border-[#ee443f]" : ""}`} />
+              <datalist id="fvars">{varieties.map((v) => <option key={v} value={v} />)}</datalist>
+              <Err msg={errs.variety} />
+            </div>
+            <div>
+              <label className={labelCls}>{isFlower ? "จำนวนดอกไม้" : "น้ำหนักสินค้า"}{req}</label>
+              <div className="flex gap-2">
+                <input type="number" min="0" step={isFlower ? 1 : 0.1} value={flowerCount} onChange={(e) => { setFlowerCount(e.target.value); setErrs((x) => ({ ...x, flowerCount: "" })); }} placeholder={isFlower ? "ระบุจำนวน" : "ระบุน้ำหนัก"} className={`${inputCls} min-w-0 flex-1 ${errs.flowerCount ? "border-[#ee443f]" : ""}`} />
+                <select value={unit} onChange={(e) => setUnit(e.target.value as QuantityUnit)} className={`${inputCls.replace("w-full", "")} w-28 shrink-0`}>
+                  {(isFlower ? (["stem", "bunch"] as QuantityUnit[]) : (["kg", "ton"] as QuantityUnit[])).map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
+                </select>
+              </div>
+              <Err msg={errs.flowerCount} />
+            </div>
+            {!isFlower ? (
+              <div>
+                <label className={labelCls}>วันที่ปลูก</label>
+                <DateField value={plantingDate} onChange={setPlantingDate} className={inputCls} />
+              </div>
+            ) : null}
+            <div>
+              <label className={labelCls}>{harvestLabel(category)}{req}</label>
+              <DateField value={cutDate} onChange={onCut} className={inputCls} invalid={!!errs.cutDate} />
+              <Err msg={errs.cutDate} />
+            </div>
+            {isFlower ? (
+              <div>
+                <label className={labelCls}>อายุดอกไม้ (วัน){req}</label>
+                <select value={ageDays} onChange={(e) => { setAgeDays(e.target.value); setErrs((x) => ({ ...x, ageDays: "" })); }} className={`${inputCls} ${errs.ageDays ? "border-[#ee443f]" : ""}`}>
+                  <option value="">ระบุอายุดอกไม้</option>
+                  {AGE_OPTIONS.map((d) => <option key={d} value={d}>{d} วัน</option>)}
+                </select>
+                <Err msg={errs.ageDays} />
+              </div>
+            ) : null}
+            {category === "fruit" ? (
+              <div>
+                <label className={labelCls}>ระยะการสุก ณ วันเก็บเกี่ยว{req}</label>
+                <select value={ripeness} onChange={(e) => { setRipeness(e.target.value as Ripeness); setErrs((x) => ({ ...x, ripeness: "" })); }} className={`${inputCls} ${errs.ripeness ? "border-[#ee443f]" : ""}`}>
+                  <option value="">เลือกระยะการสุก</option>
+                  {(Object.keys(RIPENESS_LABEL) as Ripeness[]).map((r) => <option key={r} value={r}>{RIPENESS_LABEL[r]}</option>)}
+                </select>
+                <Err msg={errs.ripeness} />
+              </div>
+            ) : null}
+            {!isFlower ? (
+              <div>
+                <label className={labelCls}>เกรดคุณภาพ</label>
+                <select value={grade} onChange={(e) => setGrade(e.target.value)} className={inputCls}>
+                  <option value="">ไม่ระบุ</option>
+                  {GRADE_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            ) : null}
+            {category === "fruit" ? (
+              <div className="sm:col-span-2">
+                <label className="flex items-center gap-2 text-[13px] text-slate-700">
+                  <input type="checkbox" checked={ethylene} onChange={(e) => setEthylene(e.target.checked)} className={`size-4 ${T.ring}`} />
+                  ใช้ก๊าซเอทิลีนเร่งสุก / สารยับยั้งการสุก
+                </label>
+                {ethylene ? <input value={ethyleneNote} onChange={(e) => setEthyleneNote(e.target.value)} placeholder="ชนิดและปริมาณ เช่น เอทิลีน 100 ppm 24 ชม." className={`${inputCls} mt-2`} /> : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </Section>
@@ -491,6 +588,13 @@ export default function RoundForm({
             })}
           </div>
         </div>
+
+        {chillWarning ? (
+          <div className="flex items-start gap-3 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3.5 text-[12.5px] leading-relaxed text-amber-800">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div><p className="font-medium">ตรวจสอบอุณหภูมิขนส่ง</p><p>{chillWarning}</p></div>
+          </div>
+        ) : null}
 
         {/* Pro upsell banner — only for free accounts */}
         {showUpsell ? (

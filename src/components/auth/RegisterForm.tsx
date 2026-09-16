@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, MapPin, Plus, Trash2, Check } from "lucide-react";
-import { FLOWER_TYPES, variantsForType } from "@/lib/master-data";
+import { Eye, EyeOff, Loader2, MapPin, Check } from "lucide-react";
+import ProduceGroupsEditor, { CertificationsEditor, emptyGroup, type ProduceGroup } from "@/components/ProduceGroupsEditor";
+import type { Certification } from "@/lib/types";
 
 const inputCls =
   "w-full rounded-[5px] border border-gray-300 bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
@@ -55,30 +56,12 @@ export default function RegisterForm() {
     flowerType: "",
     fuelLitres: "", electricityKwh: "", fertilizerKg: "", agriChemicalsKg: "", waterM3: "", wasteKg: "", flowersPerMonth: "",
   });
-  // ดอกไม้และพันธุ์ที่ปลูก — one group per flower type, each holding many varieties.
-  const [groups, setGroups] = useState<{ type: string; varieties: string[] }[]>([
-    { type: "", varieties: [] },
-  ]);
-  const setGroupType = (gi: number, type: string) =>
-    setGroups((gs) => gs.map((g, i) => (i === gi ? { type, varieties: [] } : g)));
-  const setVarietyAt = (gi: number, vi: number, value: string) =>
-    setGroups((gs) =>
-      gs.map((g, i) => {
-        if (i !== gi) return g;
-        const vs = [...g.varieties];
-        if (vi >= vs.length) {
-          if (value) vs.push(value); // picking the trailing empty select adds a row
-        } else if (value) vs[vi] = value;
-        else vs.splice(vi, 1);
-        return { ...g, varieties: vs };
-      }),
-    );
-  const removeVariety = (gi: number, vi: number) =>
-    setGroups((gs) => gs.map((g, i) => (i === gi ? { ...g, varieties: g.varieties.filter((_, j) => j !== vi) } : g)));
-  const clearGroup = (gi: number) =>
-    setGroups((gs) => (gs.length > 1 ? gs.filter((_, i) => i !== gi) : [{ type: "", varieties: [] }]));
+  // ผลผลิตและพันธุ์ที่ปลูก — one group per ชนิด (ดอกไม้ / ผลไม้ / ผัก), each holding many varieties.
+  const [groups, setGroups] = useState<ProduceGroup[]>([emptyGroup()]);
+  const [certs, setCerts] = useState<Certification[]>([]);
   // flattened for the API (Supplier keeps a primary flowerType + a flat variety list)
-  const varieties = Array.from(new Set(groups.flatMap((g) => g.varieties).filter(Boolean)));
+  const cleanGroups = groups.map((g) => ({ ...g, type: g.type.trim(), varieties: g.varieties.map((v) => v.trim()).filter(Boolean) })).filter((g) => g.type);
+  const varieties = Array.from(new Set(cleanGroups.flatMap((g) => g.varieties)));
   // Per-field inline errors (Figma "Register - Inline Error Message" state)
   const [errs, setErrs] = useState<Partial<Record<keyof typeof f, string>>>({});
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -114,7 +97,7 @@ export default function RegisterForm() {
       if (!f.phone.trim()) e.phone = "กรุณากรอกเบอร์โทร";
       if (!f.address.trim()) e.address = "กรุณากรอกที่อยู่";
       if (!f.gps.trim()) e.gps = "กรุณาระบุพิกัด GPS";
-      if (!groups.some((g) => g.type.trim())) e.flowerType = "กรุณาเลือกชนิดดอกไม้อย่างน้อย 1 ชนิด";
+      if (cleanGroups.length === 0) e.flowerType = "กรุณาเลือกผลผลิตที่ปลูกอย่างน้อย 1 ชนิด";
     }
     setErrs(e);
     if (Object.keys(e).length > 0) return;
@@ -126,7 +109,7 @@ export default function RegisterForm() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, flowerType: groups.find((g) => g.type)?.type ?? f.flowerType, varieties, flowerTypes: groups.filter((g) => g.type) }),
+        body: JSON.stringify({ ...f, flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: certs }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "สมัครไม่สำเร็จ");
@@ -204,69 +187,8 @@ export default function RegisterForm() {
             <Field label={<>รายละเอียดเพิ่มเติม{req}</>}>
               <textarea value={f.details} onChange={set("details")} rows={2} placeholder="จุดเด่น : ผลผลิตดี ดอกสวยงาม" className={inputCls} />
             </Field>
-            <div className="space-y-[14px]">
-              <p className="text-[14px] font-semibold text-black">ดอกไม้และพันธุ์ที่ปลูก</p>
-              {errs.flowerType ? <p className="text-[11px] text-[#ee443f]">{errs.flowerType}</p> : null}
-
-              {groups.map((g, gi) => (
-                <div key={gi} className="space-y-[10px] border-t border-gray-200 pt-[14px]">
-                  <div className="grid grid-cols-2 gap-[20px]">
-                    {/* ชนิดดอกไม้ */}
-                    <Field label={<>ชนิดดอกไม้{req}</>}>
-                      <select
-                        value={g.type}
-                        onChange={(e) => setGroupType(gi, e.target.value)}
-                        className={`${gi === 0 && errs.flowerType ? ic("flowerType") : inputCls} ${g.type ? "text-black" : "text-[#bdbdbd]"}`}
-                      >
-                        <option value="">เลือกประเภทดอกไม้</option>
-                        {FLOWER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </Field>
-
-                    {/* พันธุ์ดอกไม้ — one select per chosen variety, plus a trailing empty one */}
-                    <Field label={<>พันธุ์ดอกไม้{req}</>}>
-                      <div className="space-y-[10px]">
-                        {[...g.varieties, ""].map((v, vi) => (
-                          <div key={vi} className="flex items-center gap-2">
-                            <select
-                              value={v}
-                              onChange={(e) => setVarietyAt(gi, vi, e.target.value)}
-                              className={`${inputCls} ${v ? "text-black" : "text-[#bdbdbd]"}`}
-                            >
-                              <option value="">เลือกพันธุ์ดอกไม้</option>
-                              {variantsForType(g.type)
-                                .filter((opt) => opt === v || !g.varieties.includes(opt))
-                                .map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => removeVariety(gi, vi)}
-                              aria-label="ลบพันธุ์"
-                              className="shrink-0 text-slate-400 hover:text-[#ee443f]"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </Field>
-                  </div>
-                  <div className="text-right">
-                    <button type="button" onClick={() => clearGroup(gi)} className="text-[12px] text-[#ee443f] underline">
-                      ลบทั้งหมด
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => setGroups((gs) => [...gs, { type: "", varieties: [] }])}
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-blue hover:underline"
-              >
-                <Plus size={15} /> เพิ่มชนิดดอกไม้
-              </button>
-            </div>
+            <ProduceGroupsEditor groups={groups} onChange={setGroups} inputCls={inputCls} error={errs.flowerType} accent="pink" />
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="pink" />
           </div>
         )}
 

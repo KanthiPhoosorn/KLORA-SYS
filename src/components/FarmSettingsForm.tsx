@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVertical, Trash2, X } from "lucide-react";
-import type { Supplier, FlowerTypeEntry } from "@/lib/types";
-import { FLOWERS, FLOWER_TYPES, variantsForType } from "@/lib/master-data";
+import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "@/lib/types";
+import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
 import { type SelectOption } from "@/components/SearchSelect";
+import { CertificationsEditor } from "@/components/ProduceGroupsEditor";
+
+const OTHER = "__other__";
+const CAT_ICON: Record<ProductCategory, string> = { flower: "🌸", fruit: "🍊", vegetable: "🥬" };
 
 const inputCls =
   "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
@@ -44,11 +48,19 @@ function PlainSelect({
   );
 }
 
-// ชนิดดอกไม้ทั้งหมด จับกลุ่มตามหมวด (ไม้ดอกหลัก / ไม้แซม / ฯลฯ) สำหรับ dropdown "เพิ่มชนิดดอกไม้"
-const TYPE_OPTIONS: SelectOption[] = FLOWER_TYPES.map((t) => {
-  const f = FLOWERS.find((x) => x.type === t);
-  return { value: t, label: t, group: f?.category };
-});
+// ชนิดทั้งหมด (ดอกไม้ / ผลไม้ / ผัก) จับกลุ่ม "ประเภท · หมวด" สำหรับ dropdown "เพิ่มรายการผลผลิต"
+const TYPE_OPTIONS: SelectOption[] = (() => {
+  const seen = new Set<string>();
+  const out: SelectOption[] = [];
+  for (const cat of PRODUCT_CATEGORIES) {
+    for (const p of PRODUCTS) {
+      if (p.productCategory !== cat.key || seen.has(p.type)) continue;
+      seen.add(p.type);
+      out.push({ value: p.type, label: p.type, group: `${cat.label} · ${p.category}` });
+    }
+  }
+  return out;
+})();
 
 function useSaver(id: string, onSaved: () => void) {
   const router = useRouter();
@@ -113,19 +125,22 @@ function FlowerTypeCard({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [menu]);
 
-  // พันธุ์ที่ยังไม่ได้เลือกของชนิดนี้ (ตัดที่เลือกแล้วออก)
-  const varietyOptions: SelectOption[] = variantsForType(entry.type)
-    .filter((v) => !entry.varieties.includes(v))
-    .map((v) => ({ value: v, label: v }));
+  const category: ProductCategory = entry.category ?? categoryOfType(entry.type) ?? "flower";
+  // พันธุ์ที่ยังไม่ได้เลือกของชนิดนี้ (ตัดที่เลือกแล้วออก) + อื่นๆ ระบุเอง
+  const varietyOptions: SelectOption[] = [
+    ...variantsFor(category, entry.type).filter((v) => !entry.varieties.includes(v)).map((v) => ({ value: v, label: v })),
+    { value: OTHER, label: "อื่นๆ (ระบุเอง)" },
+  ];
+  const [customVariety, setCustomVariety] = useState<string | null>(null);
 
   return (
     <div className={`relative overflow-hidden rounded-[12px] border border-brand-green/40 ${menu ? "z-20" : ""}`}>
       {/* หัวการ์ดสีเขียว */}
       <div className="flex items-center gap-3 bg-brand-green px-4 py-3 text-white">
         <button type="button" onClick={onToggle} className="flex flex-1 items-center gap-2 text-left">
-          <Flower2 size={17} className="shrink-0" />
-          <span className="text-[14px] font-semibold">{entry.type || "เลือกชนิดดอกไม้"}</span>
-          <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-medium">{entry.varieties.length} สายพันธุ์</span>
+          <span className="shrink-0 text-[15px] leading-none">{CAT_ICON[category]}</span>
+          <span className="text-[14px] font-semibold">{entry.type || "เลือกชนิด"}</span>
+          <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-medium">{CATEGORY_LABEL[category]} · {entry.varieties.length} พันธุ์</span>
           <ChevronDown size={17} className={`ml-auto shrink-0 transition ${open ? "rotate-180" : ""}`} />
         </button>
         <div ref={menuRef} className="relative">
@@ -139,7 +154,7 @@ function FlowerTypeCard({
                 onClick={() => { setMenu(false); onRemoveType(); }}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-red-600 hover:bg-red-50"
               >
-                <Trash2 size={14} /> ลบชนิดดอกไม้
+                <Trash2 size={14} /> ลบรายการนี้
               </button>
             </div>
           ) : null}
@@ -151,14 +166,29 @@ function FlowerTypeCard({
         <div className="space-y-3 bg-[#f5fbf6] px-4 py-4">
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
-              <Plus size={15} className="text-brand-green" /> เพิ่มพันธุ์ดอกไม้
+              <Plus size={15} className="text-brand-green" /> เพิ่มพันธุ์{CATEGORY_LABEL[category]}
             </label>
-            <PlainSelect
-              value=""
-              onChange={(v) => { if (v.trim()) onAddVariety(v.trim()); }}
-              options={varietyOptions}
-              placeholder="เลือกพันธุ์ดอกไม้"
-            />
+            {customVariety === null ? (
+              <PlainSelect
+                value=""
+                onChange={(v) => { if (v === OTHER) setCustomVariety(""); else if (v.trim()) onAddVariety(v.trim()); }}
+                options={varietyOptions}
+                placeholder="เลือกพันธุ์"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={customVariety}
+                  onChange={(e) => setCustomVariety(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (customVariety.trim()) onAddVariety(customVariety.trim()); setCustomVariety(null); } }}
+                  placeholder="พิมพ์ชื่อพันธุ์"
+                  className="w-full rounded-[8px] border border-gray-300 bg-white px-[12px] py-[10px] text-[13px] text-black outline-none focus:border-brand-green"
+                />
+                <button type="button" onClick={() => { if (customVariety.trim()) onAddVariety(customVariety.trim()); setCustomVariety(null); }} className="shrink-0 rounded-[8px] bg-brand-green px-3 py-[10px] text-[13px] font-medium text-white">เพิ่ม</button>
+                <button type="button" onClick={() => setCustomVariety(null)} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50"><X size={16} /></button>
+              </div>
+            )}
           </div>
           {entry.varieties.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -210,11 +240,14 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   // (กันกรณีกดบันทึกแล้วล้างพันธุ์ที่เคยมี)
   const [fts, setFts] = useState<FlowerTypeEntry[]>(
     supplier.flowerTypes?.length
-      ? supplier.flowerTypes.map((f) => ({ type: f.type, varieties: [...f.varieties] }))
+      ? supplier.flowerTypes.map((f) => ({ category: f.category ?? categoryOfType(f.type) ?? "flower", type: f.type, varieties: [...f.varieties] }))
       : supplier.flowerType
-        ? [{ type: supplier.flowerType, varieties: supplier.varieties ? [...supplier.varieties] : [] }]
+        ? [{ category: categoryOfType(supplier.flowerType) ?? "flower", type: supplier.flowerType, varieties: supplier.varieties ? [...supplier.varieties] : [] }]
         : [],
   );
+  const [certs, setCerts] = useState<Certification[]>(supplier.certifications ?? []);
+  // "อื่นๆ" type: free text + which category it belongs to
+  const [customType, setCustomType] = useState<{ name: string; category: ProductCategory } | null>(null);
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
   const [adding, setAdding] = useState(false);
 
@@ -231,11 +264,13 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const sc = (k: keyof typeof c) => (e: React.ChangeEvent<HTMLInputElement>) => setC({ ...c, [k]: e.target.value });
 
   // ── ตัวช่วยแก้ไข fts ──
-  const addType = (type: string) => {
+  const addType = (type: string, category?: ProductCategory) => {
+    if (type === OTHER) { setCustomType({ name: "", category: "fruit" }); return; }
     if (!type || fts.some((f) => f.type === type)) return;
-    setFts((prev) => [...prev, { type, varieties: [] }]);
+    setFts((prev) => [...prev, { category: category ?? categoryOfType(type) ?? "flower", type, varieties: [] }]);
     setOpenType(type);
     setAdding(false);
+    setCustomType(null);
   };
   const removeType = (type: string) => {
     setFts((prev) => prev.filter((f) => f.type !== type));
@@ -244,7 +279,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const mutVarieties = (type: string, fn: (vs: string[]) => string[]) =>
     setFts((prev) => prev.map((f) => (f.type === type ? { ...f, varieties: fn(f.varieties) } : f)));
 
-  const typeOptionsLeft = TYPE_OPTIONS.filter((o) => !fts.some((f) => f.type === o.value));
+  const typeOptionsLeft = [...TYPE_OPTIONS.filter((o) => !fts.some((f) => f.type === o.value)), { value: OTHER, label: "อื่นๆ (ระบุเอง)", group: "อื่นๆ" }];
 
   const RESOURCE_FIELDS: { k: keyof typeof c; label: string }[] = [
     { k: "fuelLitres", label: "ปริมาณเชื้อเพลิง (ลิตร/เดือน)" },
@@ -262,7 +297,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
     // contact: สร้างจากเบอร์โทร + Line ID เดิม (ฟอร์มนี้ไม่ได้โชว์ Line ID) — ไม่ส่งถ้าว่างเพื่อไม่ล้างของเดิม
     const contactParts = [p.phone && `โทร ${p.phone}`, supplier.lineId && `LINE ${supplier.lineId}`].filter(Boolean);
     const cleanFts = fts
-      .map((f) => ({ type: f.type.trim(), varieties: f.varieties.map((v) => v.trim()).filter(Boolean) }))
+      .map((f) => ({ category: f.category, type: f.type.trim(), varieties: f.varieties.map((v) => v.trim()).filter(Boolean) }))
       .filter((f) => f.type);
     profile.save({
       farmName: p.farmName,
@@ -272,6 +307,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
       gpsLng: ln ? Number(ln) : undefined,
       highlights: p.highlights,
       flowerTypes: cleanFts,
+      certifications: certs,
       ...(contactParts.length ? { contact: contactParts.join(" / ") } : {}),
     });
   }
@@ -362,7 +398,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
                 <span className="flex size-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-500"><Flower2 size={15} /></span>
-                รายละเอียดดอกไม้และพืชที่ปลูก
+                ผลผลิตและพันธุ์ที่ปลูก (ดอกไม้ / ผลไม้ / ผัก)
               </h3>
             </div>
 
@@ -383,19 +419,33 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
               </div>
             ) : (
               <p className="rounded-[10px] border border-dashed border-slate-200 px-4 py-6 text-center text-[13px] text-slate-400">
-                ยังไม่มีชนิดดอกไม้ — กดปุ่มด้านล่างเพื่อเพิ่ม
+                ยังไม่มีรายการผลผลิต — กดปุ่มด้านล่างเพื่อเพิ่ม
               </p>
             )}
 
             {/* เพิ่มชนิดดอกไม้ */}
-            {adding ? (
+            {adding && customType ? (
+              <div className="space-y-2 rounded-[10px] border border-dashed border-slate-300 p-3">
+                <div className="flex gap-2">
+                  {PRODUCT_CATEGORIES.map((c) => (
+                    <button key={c.key} type="button" onClick={() => setCustomType({ ...customType, category: c.key })} className={`flex-1 rounded-[8px] border px-3 py-2 text-[12px] ${customType.category === c.key ? "border-brand-green bg-brand-green font-medium text-white" : "border-gray-300 text-slate-600"}`}>{c.label}</button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input autoFocus value={customType.name} onChange={(e) => setCustomType({ ...customType, name: e.target.value })} placeholder="พิมพ์ชื่อชนิด เช่น อะโวคาโด" className={inputCls}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addType(customType.name.trim(), customType.category); } }} />
+                  <button type="button" onClick={() => addType(customType.name.trim(), customType.category)} className="shrink-0 rounded-[8px] bg-brand-green px-4 py-[10px] text-[13px] font-medium text-white">เพิ่ม</button>
+                  <button type="button" onClick={() => { setCustomType(null); setAdding(false); }} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50"><X size={16} /></button>
+                </div>
+              </div>
+            ) : adding ? (
               <div className="flex items-start gap-2">
                 <div className="flex-1">
                   <PlainSelect
                     value=""
-                    onChange={addType}
+                    onChange={(v) => addType(v)}
                     options={typeOptionsLeft}
-                    placeholder="เลือกชนิดดอกไม้ที่จะเพิ่ม"
+                    placeholder="เลือกชนิดที่จะเพิ่ม (ดอกไม้ / ผลไม้ / ผัก)"
                   />
                 </div>
                 <button type="button" onClick={() => setAdding(false)} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50">
@@ -408,9 +458,14 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
                 onClick={() => setAdding(true)}
                 className="inline-flex items-center gap-2 rounded-[8px] border border-brand-pink px-4 py-2.5 text-[13px] font-medium text-brand-pink hover:bg-brand-pink-light"
               >
-                <Plus size={16} /> เพิ่มชนิดดอกไม้
+                <Plus size={16} /> เพิ่มรายการผลผลิต
               </button>
             )}
+          </div>
+
+          {/* ใบรับรองมาตรฐานสินค้าเกษตร */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="green" />
           </div>
 
           {profile.error ? <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{profile.error}</p> : null}
