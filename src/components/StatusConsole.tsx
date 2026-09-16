@@ -8,6 +8,7 @@ import Modal from "@/components/Modal";
 import { thaiDateTime, thaiDateShort } from "@/lib/format";
 import { SHIP_STATUS } from "@/lib/status";
 import type { Supplier, Batch, PrintLog } from "@/lib/types";
+import { quantityLabel } from "@/lib/produce";
 
 export default function StatusConsole({
   suppliers,
@@ -135,7 +136,7 @@ export default function StatusConsole({
                 <th className="px-5 py-3">วันที่จัดส่ง</th>
                 <th className="px-5 py-3">วันที่ตัด</th>
                 <th className="px-5 py-3">ฟาร์ม</th>
-                <th className="px-5 py-3 text-right">จำนวนดอกไม้</th>
+                <th className="px-5 py-3 text-right">จำนวน</th>
                 <th className="px-5 py-3">ปลายทาง</th>
                 <th className="px-5 py-3">สถานะ</th>
                 <th className="px-5 py-3 text-right">คัดทิ้ง (ดอก)</th>
@@ -150,7 +151,7 @@ export default function StatusConsole({
                   <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.entryDate)}</td>
                   <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.cutDate)}</td>
                   <td className="px-5 py-3 text-slate-600">{supName(b.supplierId)}</td>
-                  <td className="px-5 py-3 text-right tabular">{b.flowerCount.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right tabular">{quantityLabel(b)}</td>
                   <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
                   <td className="px-5 py-3"><Badge tone={SHIP_STATUS[b.shipmentStatus].tone as Tone}>{SHIP_STATUS[b.shipmentStatus].label}</Badge></td>
                   <td className="px-5 py-3 text-right tabular">{b.discardedCount != null ? b.discardedCount.toLocaleString() : "—"}</td>

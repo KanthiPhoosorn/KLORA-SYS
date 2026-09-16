@@ -21,6 +21,7 @@ export interface ShipRow {
   shipDateIso: string; // YYYY-MM-DD
   cutDateIso: string; // YYYY-MM-DD
   flowerCount: number;
+  quantity?: string;
   destination: string;
   state: ShipState;
 }
@@ -205,7 +206,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
             <table className="w-full min-w-[720px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#e9ebf8]">
-                  <Th>วันที่จัดส่ง</Th><Th>Batch ID</Th><Th>จำนวนดอกไม้</Th><Th>ปลายทาง</Th><Th>สถานะ</Th>
+                  <Th>วันที่จัดส่ง</Th><Th>Batch ID</Th><Th>จำนวน</Th><Th>ปลายทาง</Th><Th>สถานะ</Th>
                 </tr>
               </thead>
               <tbody>
@@ -216,7 +217,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
                     <tr key={r.batchId} className="border-t border-slate-100">
                       <Td>{fmtDate(r.shipDateIso)}</Td>
                       <Td className="font-mono text-[12px]">{r.batchId}</Td>
-                      <Td className="tabular">{r.flowerCount.toLocaleString("en-US")}</Td>
+                      <Td className="tabular">{r.quantity ?? r.flowerCount.toLocaleString("en-US")}</Td>
                       <Td>{r.destination}</Td>
                       <Td><Badge tone={SHIP_META[r.state].tone}>{SHIP_META[r.state].label}</Badge></Td>
                     </tr>

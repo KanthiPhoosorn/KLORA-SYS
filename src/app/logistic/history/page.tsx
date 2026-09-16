@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/auth";
 import { getBatches, getPrints } from "@/lib/store";
 import LogisticHistory, { type PrintRow, type ShipRow, type ShipState } from "@/components/LogisticHistory";
+import { quantityLabel } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function LogisticHistoryPage() {
         shipDateIso: b.entryDate,
         cutDateIso: b.cutDate,
         flowerCount: b.flowerCount,
+        quantity: quantityLabel(b),
         destination: b.destination ?? "—",
         state,
       };

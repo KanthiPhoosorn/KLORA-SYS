@@ -3,6 +3,7 @@ import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { Truck, Package, Cloud, Leaf, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
+import { batchCo2e, quantityLabel } from "@/lib/produce";
 
 export default function KynOverviewSection({
   suppliers,
@@ -16,7 +17,7 @@ export default function KynOverviewSection({
   const rows = [...computed].sort((a, b) => b.id.localeCompare(a.id));
 
   const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
-  const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
+  const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
   const avgCo2e = computed.length
     ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
     : 0;
@@ -26,7 +27,7 @@ export default function KynOverviewSection({
       s,
       total: computed
         .filter((b) => b.supplierId === s.id)
-        .reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0),
+        .reduce((n, b) => n + batchCo2e(b), 0),
     }))
     .filter((r) => r.total > 0)
     .sort((a, b) => b.total - a.total);
@@ -63,7 +64,7 @@ export default function KynOverviewSection({
                 <tr className="bg-brand-purple-head text-white">
                   <th className="px-4 py-3 text-left font-semibold">Batch ID</th>
                   <th className="px-4 py-3 text-left font-semibold">ชื่อฟาร์ม</th>
-                  <th className="px-4 py-3 text-right font-semibold">จำนวนดอก</th>
+                  <th className="px-4 py-3 text-right font-semibold">จำนวน</th>
                   <th className="px-4 py-3 text-right font-semibold">ระยะทาง (กม.)</th>
                   <th className="px-4 py-3 text-right font-semibold">CO₂e kg</th>
                   <th className="px-4 py-3 text-right font-semibold">อายุหลังตัด (วัน)</th>
@@ -81,9 +82,9 @@ export default function KynOverviewSection({
                       <tr key={b.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                         <td className="px-4 py-3 font-mono text-xs text-slate-500">{b.id}</td>
                         <td className="px-4 py-3 text-slate-800">{s?.farmName ?? "—"}</td>
-                        <td className="px-4 py-3 text-right tabular">{b.flowerCount.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
                         <td className="px-4 py-3 text-right tabular">{b.distanceKm}</td>
-                        <td className="px-4 py-3 text-right font-semibold tabular text-slate-800">{(b.co2ePerFlower * b.flowerCount).toFixed(3)}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular text-slate-800">{(batchCo2e(b)).toFixed(3)}</td>
                         <td className="px-4 py-3 text-right tabular text-slate-600">{b.ageDays}</td>
                       </tr>
                     );

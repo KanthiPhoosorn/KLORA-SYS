@@ -3,6 +3,7 @@ import { getSuppliers, getBatches, getPrints } from "@/lib/store";
 import { Badge, Card, type Tone } from "@/components/ui";
 import { thaiDateTime } from "@/lib/format";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { quantityLabel } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function KynActionLogPage() {
       actor: supName(b.supplierId),
       actorSub: b.supplierId,
       type: b.status === "computed" ? "คำนวณคาร์บอนแล้ว" : "ส่งข้อมูลรอบส่งออก",
-      detail: `${b.id} · ${b.flowerCount.toLocaleString()} ดอก → ${b.destination ?? "—"}`,
+      detail: `${b.id} · ${quantityLabel(b)} → ${b.destination ?? "—"}`,
       status: b.status === "computed" ? "คำนวณแล้ว" : "รอคำนวณ",
       tone: b.status === "computed" ? "green" : "amber",
     });

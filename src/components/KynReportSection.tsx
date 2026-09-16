@@ -4,6 +4,7 @@ import { Truck, Leaf, Cloud, Clock } from "lucide-react";
 import ReportTabs, { type ReportData } from "@/components/ReportTabs";
 import { buildMonthSeries } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
+import { batchCo2e, quantityLabel } from "@/lib/produce";
 
 function groupBy<T>(items: T[], key: (t: T) => string) {
   const m = new Map<string, T[]>();
@@ -20,15 +21,15 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
   const submitted = batches.filter((b) => b.status === "submitted").length;
 
   const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
-  const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
+  const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
   const avgCo2e = computed.length ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length : 0;
 
   const flowerSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.flowerCount, 5);
-  const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.co2ePerFlower * b.flowerCount, 5);
+  const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => batchCo2e(b), 5);
 
   const province = [...groupBy(computed, (b) => b.destination ?? "—")].map(([p, bs]) => {
     const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
-    const co2e = bs.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
+    const co2e = bs.reduce((n, b) => n + batchCo2e(b), 0);
     return { province: p, rounds: bs.length, flowers, km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perFlower: flowers ? co2e / flowers : 0 };
   }).sort((a, b) => b.flowers - a.flowers);
 
@@ -78,8 +79,8 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
   const csvRows = computed.map((b: Batch) => ({
     Batch: b.id, ฟาร์ม: supById.get(b.supplierId)?.farmName ?? "", พันธุ์: b.variety ?? "",
     จังหวัด: supById.get(b.supplierId)?.province ?? "", ปลายทาง: b.destination ?? "",
-    ดอก: b.flowerCount, ระยะทางกม: b.distanceKm, อายุวัน: b.ageDays,
-    "CO2e/ดอก": Number(b.co2ePerFlower.toFixed(4)), "CO2e รวม": Number((b.co2ePerFlower * b.flowerCount).toFixed(2)),
+    จำนวน: quantityLabel(b), ประเภท: b.productCategory ?? "flower", ชนิด: b.productType ?? "", ระยะทางกม: b.distanceKm, อายุวัน: b.ageDays,
+    "CO2e/ดอก": Number(b.co2ePerFlower.toFixed(4)), "CO2e รวม": Number((batchCo2e(b)).toFixed(2)),
   }));
 
   return (

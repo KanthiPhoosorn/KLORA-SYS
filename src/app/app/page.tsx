@@ -6,16 +6,23 @@ import ProLock from "@/components/ProLock";
 import ShipmentStepper from "@/components/ShipmentStepper";
 import { buildMonthSeries, thaiDateShort } from "@/lib/format";
 import { Truck, Cloud, Package, Clock, Pencil } from "lucide-react";
+import { batchCo2e, quantityLabel, categoryOf, perUnitLabel } from "@/lib/produce";
+import CategoryFilter, { CategoryTag, parseCat } from "@/components/CategoryFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function SupplierOverview() {
+export default async function SupplierOverview({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const user = await requireRole("supplier");
-  const [supplier, batches, prints] = await Promise.all([
+  const cat = parseCat((await searchParams).cat);
+  const [supplier, allBatches, prints] = await Promise.all([
     getSupplier(user.supplierId!),
     getBatchesBySupplier(user.supplierId!),
     getPrints(),
   ]);
+  // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every number on the page. Units never mix:
+  // a single category reports CO₂e per stem/kg, "ทั้งหมด" reports CO₂e per shipment instead.
+  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
+  const mixed = new Set(allBatches.map(categoryOf)).size > 1;
 
   // Freemium (Figma "Lock" state): the ภาพรวม overview is a Pro feature.
   if (supplier && supplier.plan !== "pro") {
@@ -31,16 +38,19 @@ export default async function SupplierOverview() {
   }
 
   const computed = batches.filter((b) => b.status === "computed");
-  const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
+  const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
   const avgCo2e = computed.length
-    ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
+    ? cat === "all" && mixed
+      ? totalCo2e / computed.length
+      : computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
     : 0;
+  const avgLabel = cat === "all" && mixed ? "CO2e เฉลี่ยต่อ Shipment" : `CO2e เฉลี่ย${computed[0] ? perUnitLabel(computed[0]) : cat === "flower" || cat === "all" ? "ต่อดอก" : "ต่อกก."}`;
   const pending = batches.filter((b) => b.status === "submitted").length;
 
   const series = buildMonthSeries(
     computed,
     (b) => b.cutDate,
-    (b) => b.co2ePerFlower * b.flowerCount,
+    (b) => batchCo2e(b),
     12,
   );
 
@@ -50,7 +60,7 @@ export default async function SupplierOverview() {
   const printed = latest ? printedIds.has(latest.id) : false;
   const steps = latest
     ? [
-        { label: "ตัดดอก", img: "/figma/step-cut.webp", date: thaiDateShort(latest.cutDate), done: true },
+        { label: categoryOf(latest) === "flower" ? "ตัดดอก" : "เก็บเกี่ยว", img: "/figma/step-cut.webp", date: thaiDateShort(latest.cutDate), done: true },
         { label: "รับข้อมูล", img: "/figma/step-receive.webp", date: thaiDateShort(latest.entryDate), done: latest.status === "computed" },
         { label: "พิมพ์ QR code", img: "/figma/step-qr.webp", date: printed ? "พิมพ์แล้ว" : "กำลังดำเนินการ", done: printed, inProgress: latest.status === "computed" && !printed },
       ]
@@ -58,11 +68,12 @@ export default async function SupplierOverview() {
 
   return (
     <div className="space-y-6">
+      {mixed ? <CategoryFilter value={cat} basePath="/app" accent="pink" /> : null}
       {/* Metric cards */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard label="จำนวนรอบการส่งออก" value={batches.length} unit="รอบ" tone="green" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="CO2e สะสม" value={totalCo2e.toFixed(0)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="CO2e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={avgLabel} value={avgCo2e.toFixed(cat === "all" && mixed ? 2 : 4)} unit="กิโลกรัม" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="รอคำนวณ" value={pending} unit="รายการ" tone="orange" icon={<Clock size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
@@ -94,7 +105,8 @@ export default async function SupplierOverview() {
             <thead>
               <tr className="bg-emerald-500 text-left text-white">
                 <th className="px-5 py-3 font-semibold">วันที่ส่ง</th>
-                <th className="px-5 py-3 text-center font-semibold">จำนวนดอก</th>
+                {cat === "all" && mixed ? <th className="px-5 py-3 text-center font-semibold">ประเภท</th> : null}
+                <th className="px-5 py-3 text-center font-semibold">จำนวน</th>
                 <th className="px-5 py-3 font-semibold">ปลายทาง</th>
                 <th className="px-5 py-3 font-semibold">ขนส่ง</th>
                 <th className="px-5 py-3 text-center font-semibold">สถานะ</th>
@@ -103,14 +115,15 @@ export default async function SupplierOverview() {
             </thead>
             <tbody>
               {sorted.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">ยังไม่มีรอบส่งออก</td></tr>
+                <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">ยังไม่มีรอบส่งออก</td></tr>
               ) : (
                 sorted.map((b) => {
                   const printed = printedIds.has(b.id);
                   return (
                     <tr key={b.id} className="border-b border-slate-50 last:border-0">
                       <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.cutDate)}</td>
-                      <td className="px-5 py-3 text-center tabular">{b.flowerCount.toLocaleString()}</td>
+                      {cat === "all" && mixed ? <td className="px-5 py-3 text-center"><CategoryTag category={categoryOf(b)} /></td> : null}
+                      <td className="px-5 py-3 text-center tabular">{quantityLabel(b)}</td>
                       <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
                       <td className="px-5 py-3 text-slate-600">{b.carrier ?? "—"}</td>
                       <td className="px-5 py-3 text-center">

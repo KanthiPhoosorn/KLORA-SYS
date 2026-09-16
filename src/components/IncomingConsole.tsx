@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui";
+import { unitsOf, quantityLabel } from "@/lib/produce";
 import {
   computeCarbon, basketCarbonForRound, basketReuseCounts, sourceBreakdown,
 } from "@/lib/carbon";
@@ -62,7 +63,7 @@ export default function IncomingConsole({
     const perFlower = open.status === "computed"
       ? open.co2ePerFlower
       : computeCarbon(openSup, open.flowerCount, open.distanceKm, basketRound).co2ePerFlower;
-    const total = perFlower * open.flowerCount;
+    const total = perFlower * unitsOf(open);
     const bd = sourceBreakdown([open], (id) => supById.get(id), (id) => reuse.get(id) ?? 0);
     const print = prints.find((p) => p.batchId === open.id && !p.cancelled);
     return { perFlower, total, bd, print };
@@ -119,7 +120,7 @@ export default function IncomingConsole({
               <th className={th}>SUP ID</th>
               <th className={th}>แหล่งผลิต</th>
               <th className={th}>วันที่ตัดดอก</th>
-              <th className="px-4 py-3 text-right font-semibold">จำนวนดอก</th>
+              <th className="px-4 py-3 text-right font-semibold">จำนวน</th>
               <th className="px-4 py-3 text-center font-semibold">สถานะ</th>
             </tr>
           </thead>
@@ -132,7 +133,7 @@ export default function IncomingConsole({
                 <td className="px-4 py-3 font-mono text-xs text-slate-600">{b.supplierId}</td>
                 <td className="px-4 py-3 text-slate-700">{s?.farmName ?? "—"}</td>
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.cutDate)}</td>
-                <td className="px-4 py-3 text-right tabular">{b.flowerCount.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
                 <td className="px-4 py-3 text-center"><Badge tone={st.tone}>{st.label}</Badge></td>
               </tr>
             ))}
@@ -188,7 +189,7 @@ export default function IncomingConsole({
                     ["พันธุ์ดอกไม้", open.variety || "—"],
                     ["วันที่ตัดดอก", thaiDateShort(open.cutDate)],
                     ["อายุหลังตัด", `${open.ageDays} วัน`],
-                    ["จำนวนดอก", `${open.flowerCount.toLocaleString()} ดอก`],
+                    [open.productCategory && open.productCategory !== "flower" ? "น้ำหนักสินค้า" : "จำนวนดอก", quantityLabel(open)],
                     ["ปลายทาง", open.destination || "—"],
                     ["Batch ID", open.id],
                     ["QR Code", detail.print ? detail.print.id : "ยังไม่พิมพ์"],

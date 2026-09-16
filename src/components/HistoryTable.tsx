@@ -2,12 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { Badge, type Tone } from "@/components/ui";
+import type { ProductCategory } from "@/lib/types";
+import { CATEGORY_LABEL } from "@/lib/master-data";
+import { CategoryTag } from "@/components/CategoryFilter";
 
 export interface HistoryRow {
   id: string;
   shipDate: string;
   cutDate: string;
   flowerCount: number;
+  quantity?: string; // "500 ดอก" / "120 กก."
+  category?: ProductCategory;
   destination: string;
   statusLabel: string;
   statusTone: Tone;
@@ -20,12 +25,15 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
   const [status, setStatus] = useState("all");
   const [cut, setCut] = useState("");
   const [ship, setShip] = useState("");
+  const [cat, setCat] = useState<ProductCategory | "all">("all");
+  const mixed = new Set(rows.map((r) => r.category ?? "flower")).size > 1;
 
   const dests = useMemo(() => Array.from(new Set(rows.map((r) => r.destination).filter(Boolean))), [rows]);
   const statuses = useMemo(() => Array.from(new Set(rows.map((r) => r.statusLabel))), [rows]);
 
   const filtered = rows.filter(
     (r) =>
+      (cat === "all" || (r.category ?? "flower") === cat) &&
       (dest === "all" || r.destination === dest) &&
       (status === "all" || r.statusLabel === status) &&
       (!cut || r.cutDate.includes(cut)) &&
@@ -34,13 +42,22 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-3 sm:grid-cols-2 ${mixed ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+        {mixed ? (
+          <label className="space-y-1">
+            <span className="text-[12px] text-slate-500">ประเภทสินค้า</span>
+            <select value={cat} onChange={(e) => setCat(e.target.value as ProductCategory | "all")} className={`${selCls} w-full`}>
+              <option value="all">ทั้งหมด</option>
+              {(["flower", "fruit", "vegetable"] as ProductCategory[]).map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
+            </select>
+          </label>
+        ) : null}
         <label className="space-y-1">
           <span className="text-[12px] text-slate-500">วันที่จัดส่ง</span>
           <input value={ship} onChange={(e) => setShip(e.target.value)} placeholder="วว/ดด/ปปปป" className={`${selCls} w-full`} />
         </label>
         <label className="space-y-1">
-          <span className="text-[12px] text-slate-500">วันที่ตัดดอกไม้</span>
+          <span className="text-[12px] text-slate-500">วันที่เก็บเกี่ยว/ตัด</span>
           <input value={cut} onChange={(e) => setCut(e.target.value)} placeholder="วว/ดด/ปปปป" className={`${selCls} w-full`} />
         </label>
         <label className="space-y-1">
@@ -75,7 +92,8 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
           <thead>
             <tr className="bg-emerald-500 text-center font-semibold text-white">
               <th className="px-5 py-3">วันที่ส่ง</th>
-              <th className="px-5 py-3">วันที่ตัด</th>
+              <th className="px-5 py-3">วันที่เก็บเกี่ยว/ตัด</th>
+              {mixed ? <th className="px-5 py-3">ประเภท</th> : null}
               <th className="px-5 py-3">จำนวน</th>
               <th className="px-5 py-3">ปลายทาง</th>
               <th className="px-5 py-3">สถานะ</th>
@@ -83,12 +101,13 @@ export default function HistoryTable({ rows }: { rows: HistoryRow[] }) {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>
+              <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>
             ) : filtered.map((r) => (
               <tr key={r.id} className="border-b border-slate-50 text-center last:border-0">
                 <td className="px-5 py-3 text-slate-700">{r.shipDate}</td>
                 <td className="px-5 py-3 text-slate-700">{r.cutDate}</td>
-                <td className="px-5 py-3 tabular">{r.flowerCount.toLocaleString()}</td>
+                {mixed ? <td className="px-5 py-3"><CategoryTag category={r.category ?? "flower"} /></td> : null}
+                <td className="px-5 py-3 tabular">{r.quantity ?? r.flowerCount.toLocaleString()}</td>
                 <td className="px-5 py-3 text-slate-700">{r.destination || "—"}</td>
                 <td className="px-5 py-3"><Badge tone={r.statusTone}>{r.statusLabel}</Badge></td>
               </tr>

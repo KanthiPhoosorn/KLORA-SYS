@@ -3,6 +3,7 @@ import { getBatches } from "@/lib/store";
 import BranchTable, { type BranchRow } from "@/components/BranchTable";
 import { DESTINATIONS } from "@/lib/geo";
 import type { Batch } from "@/lib/types";
+import { batchCo2e } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function LogisticBranchesPage() {
   const branchRows: BranchRow[] = [...branchMap.entries()]
     .map(([branch, list]) => {
       const flowers = list.reduce((n, b) => n + b.flowerCount, 0);
-      const co2eTotal = list.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
+      const co2eTotal = list.reduce((n, b) => n + batchCo2e(b), 0);
       return {
         province: provinceOf(branch),
         branch,

@@ -5,6 +5,7 @@ import HistoryTable, { type HistoryRow } from "@/components/HistoryTable";
 import { thaiDateShort } from "@/lib/format";
 import type { Tone } from "@/components/ui";
 import { Inbox } from "lucide-react";
+import { quantityLabel } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,8 @@ export default async function HistoryPage() {
       shipDate: thaiDateShort(b.entryDate),
       cutDate: thaiDateShort(b.cutDate),
       flowerCount: b.flowerCount,
+      quantity: quantityLabel(b),
+      category: b.productCategory ?? "flower",
       destination: b.destination ?? "",
       statusLabel,
       statusTone,

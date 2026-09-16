@@ -31,6 +31,11 @@ export function unitsOf(b: Pick<Batch, "unit" | "productCategory" | "quantity" |
   const n = b.quantity ?? b.flowerCount;
   return n > 0 ? n : 1;
 }
+/** Total CO₂e of a batch (kg) — per-unit value × counting units, whatever the unit is. */
+export const batchCo2e = (b: Pick<Batch, "co2ePerFlower" | "unit" | "productCategory" | "quantity" | "flowerCount">) => totalCo2e(b);
+export function totalCo2e(b: Pick<Batch, "co2ePerFlower" | "unit" | "productCategory" | "quantity" | "flowerCount">): number {
+  return b.co2ePerFlower * unitsOf(b);
+}
 /** "500 ดอก" / "120 กก." — quantity with its own unit (never fix the unit in a table header). */
 export function quantityLabel(b: Pick<Batch, "unit" | "productCategory" | "quantity" | "flowerCount">): string {
   const u = unitOf(b);

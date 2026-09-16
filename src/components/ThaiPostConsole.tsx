@@ -6,6 +6,7 @@ import { Search, Printer, Loader2, CheckCircle2, PackageSearch, Scissors, MapPin
 import Modal from "@/components/Modal";
 import { thaiDateShort } from "@/lib/format";
 import type { Supplier, Batch, PrintLog } from "@/lib/types";
+import { quantityLabel } from "@/lib/produce";
 
 export default function ThaiPostConsole({
   suppliers,
@@ -142,7 +143,7 @@ export default function ThaiPostConsole({
                     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
                       {[
                         { icon: <Flower2 size={16} />, label: "ประเภทดอก", val: b.variety || s?.flowerType || "—" },
-                        { icon: <Package size={16} />, label: "จำนวนดอก", val: `${b.flowerCount.toLocaleString()} ดอก` },
+                        { icon: <Package size={16} />, label: b.productCategory && b.productCategory !== "flower" ? "น้ำหนัก" : "จำนวนดอก", val: quantityLabel(b) },
                         { icon: <Cloud size={16} />, label: "Co2e/ดอก", val: `${b.co2ePerFlower.toFixed(4)} Kg` },
                         { icon: <Calendar size={16} />, label: "ตัดเมื่อ", val: thaiDateShort(b.cutDate) },
                       ].map((x, i) => (
