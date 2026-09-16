@@ -288,7 +288,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
     { k: "agriChemicalsKg", label: "ปริมาณสารเคมีทางการเกษตร (กิโลกรัม/เดือน)" },
     { k: "waterM3", label: "ปริมาณน้ำ (ลูกบาศก์เมตร/เดือน)" },
     { k: "wasteKg", label: "ปริมาณของเสีย (กิโลกรัม/เดือน)" },
-    { k: "flowersPerMonth", label: "จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)" },
+    { k: "flowersPerMonth", label: fts.some((f) => f.category && f.category !== "flower") ? "ผลผลิตรวมทุกชนิด (กก./เดือน)" : "จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)" },
   ];
 
   function saveProducer(e: React.FormEvent) {

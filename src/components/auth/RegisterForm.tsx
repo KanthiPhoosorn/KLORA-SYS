@@ -209,7 +209,7 @@ export default function RegisterForm() {
               <Field label="ปริมาณสารเคมีทางการเกษตร (กิโลกรัม/เดือน)"><input value={f.agriChemicalsKg} onChange={set("agriChemicalsKg")} type="number" placeholder="120" className={inputCls} /></Field>
               <Field label="ปริมาณน้ำ (ลูกบาศก์เมตร/เดือน)"><input value={f.waterM3} onChange={set("waterM3")} type="number" placeholder="18" className={inputCls} /></Field>
               <Field label="ปริมาณของเสีย (กิโลกรัม/เดือน)"><input value={f.wasteKg} onChange={set("wasteKg")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label="จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)"><input value={f.flowersPerMonth} onChange={set("flowersPerMonth")} type="number" placeholder="200" className={inputCls} /></Field>
+              <Field label={cleanGroups.some((g) => g.category !== "flower") ? "ผลผลิตรวมทุกชนิด (กก./เดือน)" : "จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)"}><input value={f.flowersPerMonth} onChange={set("flowersPerMonth")} type="number" placeholder={cleanGroups.some((g) => g.category !== "flower") ? "4000" : "200"} className={inputCls} /></Field>
             </div>
             <p className="text-[10px] text-black">
               By continuing, you agree to our <span className="text-brand-pink underline">Terms</span> and <span className="text-brand-pink underline">Privacy Policy.</span>

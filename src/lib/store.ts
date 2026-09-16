@@ -58,9 +58,16 @@ function supplierToMonthly(s: Supplier): FarmMonthlyInput | null {
     agrochemicalKg: s.agriChemicalsKg,
     waterM3: s.waterM3,
     organicWasteKg: s.wasteKg,
-    totalFlowerYieldKg: s.flowersPerMonth ? s.flowersPerMonth * AVG_STEM_KG : undefined,
+    // Flower farms enter a monthly stem COUNT (→ kg via avg stem weight); farms that grow
+    // produce enter their monthly yield in kg directly ("ผลผลิตรวม (กก./เดือน)").
+    totalFlowerYieldKg: s.flowersPerMonth
+      ? growsProduce(s) ? s.flowersPerMonth : s.flowersPerMonth * AVG_STEM_KG
+      : undefined,
     createdAt: s.createdAt,
   };
+}
+export function growsProduce(s: Pick<Supplier, "productCategories">): boolean {
+  return (s.productCategories ?? []).some((c) => c !== "flower");
 }
 
 // null -> undefined so rows match the domain types' optional fields.

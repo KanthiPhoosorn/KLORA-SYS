@@ -64,7 +64,7 @@ export function daysBetween(fromYmd: string, toDate = new Date()): number {
 // past shelf life, then reads as "สุกเกิน" (= ควรบริโภคโดยเร็ว).
 const ORDER: Ripeness[] = ["unripe", "turning", "ripe", "overripe"];
 export function ripenessAtScan(
-  b: Pick<Batch, "cutDate" | "ripenessAtHarvest" | "productType" | "productCategory">,
+  b: Pick<Batch, "cutDate" | "ripenessAtHarvest" | "productType" | "productCategory" | "ethyleneUsed">,
   now = new Date(),
 ): { stage: Ripeness; daysSinceHarvest: number; profile: ProduceProfile } {
   const profile = profileFor(b.productType, categoryOf(b));
@@ -72,7 +72,8 @@ export function ripenessAtScan(
   const start = b.ripenessAtHarvest ?? (profile.ripens ? "turning" : "ripe");
   let idx = ORDER.indexOf(start);
   if (profile.ripens) {
-    const step = Math.max(1, profile.shelfLifeDays * 0.3);
+    // Ethylene-treated fruit (บ่ม) ripens about twice as fast.
+    const step = Math.max(1, profile.shelfLifeDays * (b.ethyleneUsed ? 0.15 : 0.3));
     idx = Math.min(ORDER.length - 1, idx + Math.floor(days / step));
   } else if (days > profile.shelfLifeDays) {
     idx = ORDER.length - 1;
