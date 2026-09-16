@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
+import { parseProduceGroups, categoriesOf, parseCertifications } from "@/lib/produce-parse";
 import type { Supplier } from "@/lib/types";
 
 // GET /api/suppliers/[id] — signed-in only; a farm may only read itself.
@@ -81,14 +82,12 @@ export async function PATCH(
   if (Array.isArray(body.varieties)) {
     patch.varieties = (body.varieties as unknown[]).map((x) => String(x).trim()).filter(Boolean);
   }
-  if (Array.isArray(body.flowerTypes)) {
-    const fts = (body.flowerTypes as { type?: unknown; varieties?: unknown }[])
-      .map((ft) => ({
-        type: String(ft.type ?? "").trim(),
-        varieties: Array.isArray(ft.varieties) ? ft.varieties.map((v) => String(v).trim()).filter(Boolean) : [],
-      }))
-      .filter((ft) => ft.type);
+  const certs = parseCertifications(body.certifications);
+  if (certs) patch.certifications = certs;
+  const fts = parseProduceGroups(body.flowerTypes);
+  if (fts) {
     patch.flowerTypes = fts;
+    patch.productCategories = categoriesOf(fts);
     // keep the flat varieties list (feeds the round-form variety dropdown + passport) —
     // only overwrite when we actually have varieties, never wipe an existing list.
     const flat = [...new Set(fts.flatMap((ft) => ft.varieties))];

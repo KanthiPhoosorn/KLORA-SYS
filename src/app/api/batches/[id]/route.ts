@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatch, computeBatch, updateBatch, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
+import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
@@ -50,13 +51,14 @@ export async function PATCH(
     await updateBatch(id, patch);
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
-      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * updated.flowerCount).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg/ดอก)`, "success");
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
     }
     return NextResponse.json(updated);
   }
 
   if (body.action === "compute") {
-    if (!batch.basketIds || batch.basketIds.length === 0) {
+    // Flowers travel in reusable baskets (needed for the reuse amortisation); produce ships in boxes.
+    if (!isWeightBased(batch) && (!batch.basketIds || batch.basketIds.length === 0)) {
       return NextResponse.json(
         { error: "ขาดตะกร้า (Basket) — คำนวณไม่ได้" },
         { status: 422 },
@@ -64,7 +66,7 @@ export async function PATCH(
     }
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
-      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว — CO₂e รวม ${(updated.co2ePerFlower * updated.flowerCount).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg/ดอก)`, "success");
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
     }
     return NextResponse.json(updated);
   }

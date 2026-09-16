@@ -4,7 +4,9 @@
 export type SupplierStatus = "active" | "suspended"; // ใช้งาน / ระงับ
 
 // หนึ่งชนิดดอกไม้ + พันธุ์ที่ปลูกภายใต้ชนิดนั้น (ฟอร์มสมัครเลือกได้หลายกลุ่ม)
+// ชนิด + พันธุ์ที่ปลูก 1 กลุ่ม (category ว่าง = ดอกไม้ สำหรับข้อมูลเก่า)
 export interface FlowerTypeEntry {
+  category?: ProductCategory;
   type: string;
   varieties: string[];
 }
@@ -49,6 +51,25 @@ export interface Supplier {
   plan?: "free" | "pro"; // แพ็กเกจ — carbon dashboard เป็นฟีเจอร์ Pro
   status: SupplierStatus; // ใช้งาน / ระงับ (managed by KYN)
   createdAt: string; // ISO
+
+  // --- produce extension (ดอกไม้ → ผลไม้/ผัก) ---
+  productCategories?: ProductCategory[]; // ประเภทสินค้าที่ปลูก (derived from flowerTypes[].category)
+  certifications?: Certification[]; // ใบรับรองมาตรฐานสินค้าเกษตร
+}
+
+// ประเภทสินค้า 3 ชั้น: ประเภท → ชนิด → พันธุ์
+export type ProductCategory = "flower" | "fruit" | "vegetable";
+// หน่วยนับ: ดอกไม้ = ดอก/ช่อ, ผัก-ผลไม้ = กก./ตัน (ตันเก็บเป็น kg ×1000)
+export type QuantityUnit = "stem" | "bunch" | "kg" | "ton";
+// ระยะการสุก ณ วันเก็บเกี่ยว
+export type Ripeness = "unripe" | "turning" | "ripe" | "overripe";
+
+export interface Certification {
+  kind: "GAP" | "GlobalGAP" | "Organic Thailand" | "other";
+  name?: string; // ชื่อใบรับรอง (เมื่อ kind = other)
+  appliesTo: ProductCategory[]; // ใช้กับประเภทสินค้า
+  certNo?: string; // เลขที่ใบรับรอง
+  expiresAt?: string; // YYYY-MM-DD
 }
 
 // บรรจุภัณฑ์ 1 รายการพร้อมมิติ (หน่วย ซม.) สำหรับสูตรพื้นที่ผิวของ KYN
@@ -99,6 +120,17 @@ export interface Batch {
   forwardedCount?: number; // ส่งต่อ (ดอก) — logistics throughput; received = flowerCount
   discardedCount?: number; // คัดทิ้ง (ดอก) — logistics reject; คงเหลือ = flowerCount − forwarded − discarded
   basketIds: string[]; // ตะกร้าที่ใช้รอบนี้ (หลายใบได้) — ระบบนับจำนวนการใช้ซ้ำเองเพื่อคิดคาร์บอน
+
+  // --- produce extension (ผลไม้/ผัก) — legacy rows: productCategory "flower", unit "stem", quantity = flowerCount ---
+  productCategory?: ProductCategory; // ประเภทสินค้า
+  productType?: string; // ชนิด (เช่น มะม่วง, กุหลาบ)
+  quantity?: number; // จำนวนในหน่วย `unit` (ดอกไม้: = flowerCount; ผัก/ผลไม้: กก.)
+  unit?: QuantityUnit; // หน่วยนับ
+  plantingDate?: string; // วันที่ปลูก (YYYY-MM-DD) — ผัก/ผลไม้
+  ripenessAtHarvest?: Ripeness; // ระยะการสุก ณ วันเก็บเกี่ยว — ผลไม้
+  grade?: string; // เกรด A / B / C / export
+  ethyleneUsed?: boolean; // ใช้ก๊าซเอทิลีน/สารยับยั้งการสุก
+  ethyleneNote?: string; // ปริมาณ/รายละเอียด
 
   // --- KYN full-spec inputs (ถ้ามีครบ ระบบจะใช้เครื่องคำนวณชุดใหม่) ---
   packagingItems?: PackagingLine[]; // บรรจุภัณฑ์พร้อมมิติ W×L×H
@@ -221,6 +253,16 @@ export type BatchInput = Pick<
   fuelKey?: string;
   isReeferUsed?: boolean;
   status?: BatchStatus; // "draft" | "submitted"
+  // produce extension
+  productCategory?: ProductCategory;
+  productType?: string;
+  quantity?: number;
+  unit?: QuantityUnit;
+  plantingDate?: string;
+  ripenessAtHarvest?: Ripeness;
+  grade?: string;
+  ethyleneUsed?: boolean;
+  ethyleneNote?: string;
 };
 
 // A batch joined to its supplier — what the KYN table and trace page consume.

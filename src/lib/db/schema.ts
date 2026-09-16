@@ -15,6 +15,10 @@ import type {
   MemberRole,
   Invite,
   Notification,
+  ProductCategory,
+  QuantityUnit,
+  Ripeness,
+  Certification,
 } from "../types";
 
 export const suppliers = pgTable("suppliers", {
@@ -46,6 +50,9 @@ export const suppliers = pgTable("suppliers", {
   plan: text("plan").$type<"free" | "pro">(),
   status: text("status").$type<SupplierStatus>().notNull(),
   createdAt: text("created_at").notNull(),
+  // Produce extension (16 Sep 2026): which product categories the farm grows + agri certifications.
+  productCategories: text("product_categories").array().$type<ProductCategory[]>(),
+  certifications: jsonb("certifications").$type<Certification[]>(),
 });
 
 export const batches = pgTable("batches", {
@@ -73,6 +80,16 @@ export const batches = pgTable("batches", {
   fuelKey: text("fuel_key"),
   isReeferUsed: boolean("is_reefer_used"),
   carbonBreakdown: jsonb("carbon_breakdown"),
+  // Produce extension: ประเภทสินค้า / ชนิด / จำนวน+หน่วย / ข้อมูลผลไม้-ผัก. Null = legacy flower row.
+  productCategory: text("product_category").$type<ProductCategory>(),
+  productType: text("product_type"),
+  quantity: doublePrecision("quantity"),
+  unit: text("unit").$type<QuantityUnit>(),
+  plantingDate: text("planting_date"),
+  ripenessAtHarvest: text("ripeness_at_harvest").$type<Ripeness>(),
+  grade: text("grade"),
+  ethyleneUsed: boolean("ethylene_used"),
+  ethyleneNote: text("ethylene_note"),
   entryDate: text("entry_date").notNull(),
   co2ePerFlower: doublePrecision("co2e_per_flower").notNull(),
   ageDays: integer("age_days").notNull(),

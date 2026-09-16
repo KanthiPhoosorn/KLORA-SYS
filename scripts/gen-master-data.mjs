@@ -2,6 +2,8 @@
 // Run: node scripts/gen-master-data.mjs
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const dir = path.join(process.cwd(), "data", "master");
 const rows = (file) => {
@@ -16,6 +18,17 @@ const rows = (file) => {
 const q = (s) => JSON.stringify(s ?? "");
 
 const flowers = rows("thailand_cut_flowers_list.csv");
+
+// Fruit + vegetable master (KYN xlsx, 16 Sep 2026 — sheets ผลไม้ / ผัก; the ดอกไม้ sheet is a
+// re-spelled copy of the flower CSV and is intentionally NOT used so stored varieties keep matching).
+const XLSX = require("xlsx");
+const wb = XLSX.readFile(path.join(dir, "produce_master.xlsx"));
+const sheetRows = (name) => XLSX.utils.sheet_to_json(wb.Sheets[name]);
+const produce = [
+  ...sheetRows("ผลไม้").map((r) => ({ ...r, cat: "fruit" })),
+  ...sheetRows("ผัก").map((r) => ({ ...r, cat: "vegetable" })),
+];
+const profiles = rows("produce_profile.csv");
 const packaging = rows("flower_shipping_packaging_ef_list.csv");
 const vehicles = rows("vehicle_and_fuel_mapping_list.csv");
 
@@ -52,6 +65,78 @@ export function variantsForType(type: string): string[] {
 
 /** All variety names (used when no type is chosen yet). */
 export const FLOWER_VARIANTS: string[] = Array.from(new Set(FLOWERS.map((f) => f.variant)));
+
+export type ProductCategory = "flower" | "fruit" | "vegetable";
+export const PRODUCT_CATEGORIES: { key: ProductCategory; label: string; unitDefault: "stem" | "kg" }[] = [
+  { key: "flower", label: "ดอกไม้", unitDefault: "stem" },
+  { key: "fruit", label: "ผลไม้", unitDefault: "kg" },
+  { key: "vegetable", label: "ผัก", unitDefault: "kg" },
+];
+export const CATEGORY_LABEL: Record<ProductCategory, string> = { flower: "ดอกไม้", fruit: "ผลไม้", vegetable: "ผัก" };
+
+export interface ProduceEntry extends FlowerEntry { productCategory: ProductCategory }
+
+/** ${produce.length} fruit + vegetable varieties across ${new Set(produce.map((f) => f.Type_TH)).size} types — produce_master.xlsx */
+export const PRODUCE: ProduceEntry[] = [
+${produce
+  .map(
+    (f) =>
+      `  { productCategory: ${q(f.cat)}, category: ${q(f.Category_TH)}, categoryEn: ${q(f.Category_EN)}, type: ${q(f.Type_TH)}, typeEn: ${q(
+        f.Type_EN,
+      )}, variant: ${q(f.Variant_TH)}, variantEn: ${q(f.Variant_EN)} },`,
+  )
+  .join("\n")}
+];
+
+/** Every product (flowers + produce) with its top-level category — the 3-level master:
+ *  ประเภทสินค้า (ดอกไม้/ผลไม้/ผัก) → ชนิด → พันธุ์ */
+export const PRODUCTS: ProduceEntry[] = [
+  ...FLOWERS.map((f) => ({ ...f, productCategory: "flower" as const })),
+  ...PRODUCE,
+];
+
+/** Distinct types (ชนิด) of one product category, in master-list order. */
+export function typesFor(category: ProductCategory): string[] {
+  return Array.from(new Set(PRODUCTS.filter((p) => p.productCategory === category).map((p) => p.type)));
+}
+
+/** Varieties (พันธุ์) of one type within a category. */
+export function variantsFor(category: ProductCategory, type: string): string[] {
+  const t = (type ?? "").trim();
+  return PRODUCTS.filter((p) => p.productCategory === category && (!t || p.type === t)).map((p) => p.variant);
+}
+
+/** Category of a known type name (ชนิด) — undefined for free-text "อื่นๆ". */
+export function categoryOfType(type: string): ProductCategory | undefined {
+  return PRODUCTS.find((p) => p.type === type)?.productCategory;
+}
+
+export interface ProduceProfile {
+  type: string; category: ProductCategory;
+  shelfLifeDays: number;            // อายุการเก็บรักษามาตรฐาน (วัน) ที่อุณหภูมิเหมาะสม
+  storageMinC: number; storageMaxC: number; // อุณหภูมิเก็บรักษาที่เหมาะสม
+  chillSensitive: boolean;          // ห้ามแช่เย็นต่ำกว่า storageMinC (ผลไม้เขตร้อนส่วนใหญ่)
+  ripens: boolean;                  // สุกต่อหลังเก็บเกี่ยว (climacteric)
+  note: string;
+}
+
+/** ${profiles.length} postharvest profiles by type — produce_profile.csv (KLORA defaults, editable) */
+export const PRODUCE_PROFILES: ProduceProfile[] = [
+${profiles
+  .map(
+    (r) =>
+      `  { type: ${q(r.type_th)}, category: ${q(r.category)}, shelfLifeDays: ${Number(r.shelf_life_days)}, storageMinC: ${Number(r.storage_min_c)}, storageMaxC: ${Number(r.storage_max_c)}, chillSensitive: ${r.chill_sensitive === "1"}, ripens: ${r.ripens === "1"}, note: ${q(r.note)} },`,
+  )
+  .join("\n")}
+];
+
+/** Postharvest profile for a type; flowers and unknown types get a conservative default. */
+export function profileFor(type: string | undefined, category: ProductCategory = "flower"): ProduceProfile {
+  const hit = type ? PRODUCE_PROFILES.find((p) => p.type === type) : undefined;
+  if (hit) return hit;
+  if (category === "flower") return { type: type ?? "", category, shelfLifeDays: 7, storageMinC: 2, storageMaxC: 5, chillSensitive: false, ripens: false, note: "ดอกไม้ตัด — ยิ่งเย็นยิ่งสดนาน" };
+  return { type: type ?? "", category, shelfLifeDays: 7, storageMinC: 5, storageMaxC: 10, chillSensitive: false, ripens: category === "fruit", note: "" };
+}
 
 export interface PackagingMaterial {
   category: string; material: string; materialEn: string;
@@ -98,5 +183,5 @@ ${vehicles
 
 writeFileSync(path.join(process.cwd(), "src", "lib", "master-data.ts"), out, "utf8");
 console.log(
-  `generated src/lib/master-data.ts — flowers ${flowers.length}, packaging ${packaging.length}, vehicles ${vehicles.length}`,
+  `generated src/lib/master-data.ts — flowers ${flowers.length}, produce ${produce.length}, profiles ${profiles.length}, packaging ${packaging.length}, vehicles ${vehicles.length}`,
 );

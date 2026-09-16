@@ -4,6 +4,7 @@ import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { provinceFromAddress } from "@/lib/geo";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { SupplierInput } from "@/lib/types";
+import { parseProduceGroups, categoriesOf, parseCertifications } from "@/lib/produce-parse";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -89,16 +90,9 @@ export async function POST(req: Request) {
     lineId: lineId || undefined,
     flowerType,
     varieties,
-    flowerTypes: Array.isArray(body.flowerTypes)
-      ? (body.flowerTypes as Record<string, unknown>[])
-          .map((g) => ({
-            type: String(g.type ?? "").trim(),
-            varieties: Array.isArray(g.varieties)
-              ? (g.varieties as unknown[]).map((v) => String(v).trim()).filter(Boolean)
-              : [],
-          }))
-          .filter((g) => g.type)
-      : undefined,
+    flowerTypes: parseProduceGroups(body.flowerTypes),
+    productCategories: categoriesOf(parseProduceGroups(body.flowerTypes)),
+    certifications: parseCertifications(body.certifications),
     highlights: highlights || "—",
     contact: contact || "—",
     fuelLitres: n("fuelLitres"),

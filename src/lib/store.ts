@@ -32,6 +32,7 @@ import {
   nextNotificationId,
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
+import { isWeightBased, unitsOf } from "./produce";
 import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
 
@@ -155,6 +156,16 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     vehicleKey: input.vehicleKey,
     fuelKey: input.fuelKey,
     isReeferUsed: input.isReeferUsed,
+    // Produce extension — a legacy flower entry lands as flower / stem / quantity = flowerCount.
+    productCategory: input.productCategory ?? "flower",
+    productType: input.productType,
+    quantity: input.quantity ?? input.flowerCount,
+    unit: input.unit ?? (input.productCategory && input.productCategory !== "flower" ? "kg" : "stem"),
+    plantingDate: input.plantingDate,
+    ripenessAtHarvest: input.ripenessAtHarvest,
+    grade: input.grade,
+    ethyleneUsed: input.ethyleneUsed,
+    ethyleneNote: input.ethyleneNote,
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
@@ -181,7 +192,11 @@ export async function computeBatch(id: string): Promise<Batch | null> {
   // SUP form doesn't collect a scale weight, derived from the farm's own stem weight
   // (monthly yield ÷ monthly count) with a sensible fallback. Batches with no packaging
   // at all (older / quick entries) still use the legacy engine.
-  const hasKynData = Array.isArray(b.packagingItems) && b.packagingItems.length > 0;
+  // Produce (ผัก/ผลไม้) is weight-based, so it always uses the KYN engine — with or without
+  // packaging lines — and its CO₂e is reported per kg; flowers keep per-stem.
+  const weightBased = isWeightBased(b);
+  const hasKynData = weightBased || (Array.isArray(b.packagingItems) && b.packagingItems.length > 0);
+  const units = unitsOf(b);
 
   let co2ePerFlower: number;
   let breakdown: CarbonBreakdownRecord;
@@ -210,7 +225,10 @@ export async function computeBatch(id: string): Promise<Batch | null> {
     //   parcel weight  = flower weight + packaging weight
     // so netFlowerWeight() recovers the flower weight after the engine subtracts packaging.
     let shippedWeightKg = b.shippedWeightKg ?? 0;
-    if (shippedWeightKg <= 0) {
+    if (shippedWeightKg <= 0 && weightBased) {
+      // Produce: the declared quantity IS the product weight; add packaging on top.
+      shippedWeightKg = units + packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg;
+    } else if (shippedWeightKg <= 0) {
       const stemKg =
         monthly?.totalFlowerYieldKg && supplier.flowersPerMonth
           ? monthly.totalFlowerYieldKg / supplier.flowersPerMonth
@@ -224,7 +242,7 @@ export async function computeBatch(id: string): Promise<Batch | null> {
       packagingItems: packItems,
       basketCount,
       shippedWeightKg,
-      flowerCount: b.flowerCount,
+      flowerCount: units, // denominator: stems for flowers, kg for produce
       farmMonthly: monthly ?? undefined,
       transport: derived
         ? {
@@ -246,7 +264,7 @@ export async function computeBatch(id: string): Promise<Batch | null> {
       farm: legacy.breakdown.plantingCarbon,
       packaging: legacy.breakdown.basketCarbonPerCycle,
       transport: legacy.breakdown.transportCarbon,
-      total: legacy.co2ePerFlower * (b.flowerCount || 1),
+      total: legacy.co2ePerFlower * units,
       perStem: legacy.co2ePerFlower,
       flowerEF: 0,
       netFlowerWeightKg: 0,

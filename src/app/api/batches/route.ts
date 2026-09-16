@@ -3,6 +3,7 @@ import { getBatches, getBatchesBySupplier, addBatch, getSupplier } from "@/lib/s
 import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
+import { asCategory, asUnit, asRipeness } from "@/lib/produce-parse";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -46,10 +47,19 @@ export async function POST(req: Request) {
   }
 
   if (!body.cutDate) {
-    return NextResponse.json({ error: "ต้องระบุวันที่ตัด" }, { status: 400 });
+    return NextResponse.json({ error: "ต้องระบุวันที่ตัด/เก็บเกี่ยว" }, { status: 400 });
   }
-  const flowerCount = Number(body.flowerCount) || 0;
-  if (flowerCount <= 0) {
+  // Product category + counting unit. Flowers count stems (flowerCount); produce is weighed
+  // (quantity in kg/ton) and keeps flowerCount = 0 so stem-based totals never mix units.
+  const productCategory = asCategory(body.productCategory) ?? "flower";
+  const unit = asUnit(body.unit) ?? (productCategory === "flower" ? "stem" : "kg");
+  const weightBased = unit === "kg" || unit === "ton";
+  const quantity = Number(body.quantity ?? body.flowerCount) || 0;
+  const flowerCount = weightBased ? 0 : Math.round(quantity);
+  if (weightBased && quantity <= 0) {
+    return NextResponse.json({ error: "น้ำหนักสินค้าต้องมากกว่า 0" }, { status: 400 });
+  }
+  if (!weightBased && flowerCount <= 0) {
     return NextResponse.json({ error: "จำนวนดอกไม้ต้องมากกว่า 0" }, { status: 400 });
   }
 
@@ -94,6 +104,15 @@ export async function POST(req: Request) {
       fuelKey: str("fuelKey"),
       isReeferUsed: body.isReeferUsed === true || body.isReeferUsed === "true",
       status,
+      productCategory,
+      productType: str("productType"),
+      quantity,
+      unit,
+      plantingDate: str("plantingDate"),
+      ripenessAtHarvest: asRipeness(body.ripenessAtHarvest),
+      grade: str("grade"),
+      ethyleneUsed: body.ethyleneUsed === true || body.ethyleneUsed === "true",
+      ethyleneNote: str("ethyleneNote"),
     });
     return NextResponse.json(batch, { status: 201 });
   } catch (err) {
