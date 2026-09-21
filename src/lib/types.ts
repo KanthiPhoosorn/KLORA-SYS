@@ -134,6 +134,13 @@ export interface Batch {
   destinationAddress?: string; // ที่อยู่ปลายทาง (ผู้รับ) — carrier-only, never on the public passport
   destLat?: number; // พิกัดปลายทาง
   destLng?: number;
+  // --- recorded by the carrier on /logistic/new ---
+  shipType?: "domestic" | "international"; // ส่งภายในประเทศ / ส่งต่างประเทศ
+  shipDate?: string; // วันที่จัดส่งจริง (YYYY-MM-DD)
+  airline?: string; // ส่งต่างประเทศ: สายการบิน
+  flightNo?: string; // ส่งต่างประเทศ: หมายเลขเที่ยวบิน
+  exportRecordedAt?: string; // ISO — เมื่อผู้ขนส่งบันทึกข้อมูลการจัดส่ง
+  exportRecordedBy?: string; // User.id ของผู้บันทึก
   carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ไทย / ขนส่งควบคุมอุณหภูมิ / ผู้ส่งออก
   provider?: string; // ผู้ให้บริการขนส่ง (เมื่อไม่ใช่ไปรษณีย์ไทย) เช่น Nim Express
   postalCode?: string; // รหัสไปรษณีย์ปลายทาง

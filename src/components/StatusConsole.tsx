@@ -14,10 +14,12 @@ export default function StatusConsole({
   suppliers,
   batches,
   prints,
+  highlightId,
 }: {
   suppliers: Supplier[];
   batches: Batch[];
   prints: PrintLog[];
+  highlightId?: string;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -66,10 +68,12 @@ export default function StatusConsole({
     .filter((p) => !q || p.supplierId.toLowerCase().includes(q.toLowerCase()) || (p.batchId ?? "").toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => b.printedAt.localeCompare(a.printedAt));
 
+  // Rounds the carrier just recorded float to the top (most recent activity first).
   const shipRows = [...batches]
-    .filter((b) => b.status === "computed")
-    .filter((b) => statusF === "all" || b.shipmentStatus === statusF)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    .filter((b) => b.status === "computed" || b.id === highlightId)
+    .filter((b) => statusF === "all" || b.shipmentStatus === statusF || b.id === highlightId)
+    .sort((a, b) => (b.exportRecordedAt ?? b.createdAt).localeCompare(a.exportRecordedAt ?? a.createdAt));
+  const saved = highlightId ? batches.find((b) => b.id === highlightId) : undefined;
 
   return (
     <div className="space-y-8">
@@ -77,6 +81,12 @@ export default function StatusConsole({
         <h1 className="text-2xl font-bold text-slate-900">สถานะพัสดุ</h1>
         <p className="mt-0.5 text-[13px] text-slate-400">ติดตามการพิมพ์ QR และสถานะการจัดส่ง</p>
       </div>
+      {saved ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-800">
+          <b>บันทึกข้อมูลการจัดส่งของ {saved.id} แล้ว</b>
+          <span>· {saved.shipType === "international" ? `ส่งต่างประเทศ${saved.airline ? ` (${saved.airline}${saved.flightNo ? ` ${saved.flightNo}` : ""})` : ""}` : "ส่งภายในประเทศ"} · อยู่แถวบนสุดของตาราง "สถานะการจัดส่ง" ด้านล่าง (ไฮไลต์สีเขียว)</span>
+        </div>
+      ) : null}
 
       {/* Print records */}
       <section className="space-y-3">
@@ -134,8 +144,9 @@ export default function StatusConsole({
             <thead>
               <tr className="bg-blue-600 text-left font-semibold text-white">
                 <th className="px-5 py-3">วันที่จัดส่ง</th>
-                <th className="px-5 py-3">วันที่ตัด</th>
+                <th className="px-5 py-3">Batch ID</th>
                 <th className="px-5 py-3">ฟาร์ม</th>
+                <th className="px-5 py-3">การจัดส่ง</th>
                 <th className="px-5 py-3 text-right">จำนวน</th>
                 <th className="px-5 py-3">ปลายทาง</th>
                 <th className="px-5 py-3">สถานะ</th>
@@ -145,12 +156,22 @@ export default function StatusConsole({
             </thead>
             <tbody>
               {shipRows.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>
+                <tr><td colSpan={9} className="px-5 py-8 text-center text-slate-400">ไม่พบรายการ</td></tr>
               ) : shipRows.map((b) => (
-                <tr key={b.id} className="border-b border-slate-50 last:border-0">
-                  <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.entryDate)}</td>
-                  <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.cutDate)}</td>
+                <tr key={b.id} id={`row-${b.id}`} className={`border-b border-slate-50 last:border-0 ${b.id === highlightId ? "bg-emerald-50 ring-2 ring-inset ring-emerald-300" : ""}`}>
+                  <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.shipDate ?? b.entryDate)}</td>
+                  <td className="px-5 py-3 font-mono text-[12px] text-slate-600">{b.id}</td>
                   <td className="px-5 py-3 text-slate-600">{supName(b.supplierId)}</td>
+                  <td className="px-5 py-3 text-[12px]">
+                    {b.shipType === "international" ? (
+                      <span className="inline-flex flex-col"><span className="w-fit rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">ต่างประเทศ</span>{b.airline ? <span className="mt-0.5 text-slate-500">{b.airline}{b.flightNo ? ` · ${b.flightNo}` : ""}</span> : null}</span>
+                    ) : b.shipType === "domestic" ? (
+                      <span className="w-fit rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">ในประเทศ</span>
+                    ) : (
+                      <span className="text-slate-400">{b.carrier ?? "—"}</span>
+                    )}
+                    {b.exportRecordedAt ? <div className="mt-0.5 text-[11px] text-emerald-600">✓ ขนส่งบันทึกแล้ว</div> : null}
+                  </td>
                   <td className="px-5 py-3 text-right tabular">{quantityLabel(b)}</td>
                   <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
                   <td className="px-5 py-3"><Badge tone={SHIP_STATUS[b.shipmentStatus].tone as Tone}>{SHIP_STATUS[b.shipmentStatus].label}</Badge></td>

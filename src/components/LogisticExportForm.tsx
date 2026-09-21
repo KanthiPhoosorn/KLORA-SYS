@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import SearchSelect from "@/components/SearchSelect";
 import { VEHICLE_FUELS } from "@/lib/master-data";
+import { DESTINATIONS, estimateDistanceKm, haversineKm, provinceFromAddress } from "@/lib/geo";
 import type { Supplier, Batch } from "@/lib/types";
 
 const inputCls =
@@ -102,9 +103,46 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
   const [isReefer, setIsReefer] = useState(false);
   const [airline, setAirline] = useState("");
   const [flightNo, setFlightNo] = useState("");
+  const [destCountry, setDestCountry] = useState(""); // ส่งต่างประเทศ: ประเทศ/เมืองปลายทาง
+  const [destAddress, setDestAddress] = useState(""); // ที่อยู่ปลายทาง (ผู้รับ)
+  const [destGps, setDestGps] = useState(""); // ส่งในประเทศ: "lat, lng"
+  const destGpsParsed = (() => {
+    const [a, b] = destGps.split(",").map((x) => Number(x.trim()));
+    return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 && destGps.includes(",") ? { lat: a, lng: b } : null;
+  })();
   const [shipDataMode, setShipDataMode] = useState<"new" | "same">("new");
 
   const selectedBatch = batches.find((b) => b.id === batchId) ?? null;
+  const farmOf = (b: Batch | null) => (b ? suppliers.find((x) => x.id === b.supplierId) : undefined);
+  // ปลายทาง (province) → distance estimate from the farm, unless a destination GPS is given.
+  function onDestProvince(v: string) {
+    setDestination(v);
+    setErrs((x) => ({ ...x, destination: "" }));
+    const farm = farmOf(selectedBatch);
+    if (!destGpsParsed && farm) {
+      const est = estimateDistanceKm(v, { lat: farm.gpsLat, lng: farm.gpsLng });
+      if (est != null) setDistanceKm(String(est));
+    }
+  }
+  function onDestGps(v: string) {
+    setDestGps(v);
+    const [a, b] = v.split(",").map((x) => Number(x.trim()));
+    const farm = farmOf(selectedBatch);
+    if (v.includes(",") && Number.isFinite(a) && Number.isFinite(b) && farm?.gpsLat && farm?.gpsLng) {
+      setDistanceKm(String(Math.round(haversineKm(farm.gpsLat, farm.gpsLng, a, b) * 1.3)));
+    }
+  }
+  function onDestAddress(v: string) {
+    setDestAddress(v);
+    if (destination || shipType !== "domestic") return;
+    const prov = provinceFromAddress(v);
+    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name.includes(prov)) : undefined;
+    if (hit) onDestProvince(hit.name);
+  }
+  function useDestLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => onDestGps(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`));
+  }
   const vehicleKey = VEHICLES.find((v) => v.vehicle === vehicle)?.vehicleKey ?? "";
 
   function onPickBatch(id: string) {
@@ -147,7 +185,13 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
     }
     if (b.fuelKey) setFuelKey(b.fuelKey);
     if (typeof b.isReeferUsed === "boolean") setIsReefer(b.isReeferUsed);
-    if (b.destination) setDestination(b.destination);
+    if (b.destination) {
+      const known = DESTINATIONS.find((d) => d.name === b.destination);
+      if (known) setDestination(known.name);
+      else { setDestAddress(b.destination); const prov = provinceFromAddress(b.destination); const hit = prov ? DESTINATIONS.find((d) => d.province === prov) : undefined; if (hit) setDestination(hit.name); }
+    }
+    if (b.destinationAddress) setDestAddress(b.destinationAddress);
+    if (b.destLat != null && b.destLng != null) setDestGps(`${b.destLat}, ${b.destLng}`);
     if (b.distanceKm != null) setDistanceKm(String(b.distanceKm));
   }
 
@@ -182,13 +226,18 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
       });
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shippedWeightKg: weightKg, vehicleKey, fuelKey, isReeferUsed: isReefer, destination, distanceKm, packagingItems }),
+        body: JSON.stringify({
+          shippedWeightKg: weightKg, packagingItems, shipType, shipDate, destinationAddress: destAddress.trim() || undefined,
+          ...(shipType === "domestic"
+            ? { vehicleKey, fuelKey, isReeferUsed: isReefer, destination, distanceKm, ...(destGpsParsed ? { destLat: destGpsParsed.lat, destLng: destGpsParsed.lng } : {}) }
+            : { airline, flightNo, destination: destCountry || selectedBatch.destination || "ต่างประเทศ", isReeferUsed: false }),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
       setConfirmOpen(false);
       setToast(true);
-      setTimeout(() => { router.push("/logistic/status"); router.refresh(); }, 1400);
+      setTimeout(() => { router.push(`/logistic/status?saved=${encodeURIComponent(batchId)}`); router.refresh(); }, 1400);
     } catch (err) { setServerError((err as Error).message); setBusy(false); }
   }
 
@@ -343,23 +392,34 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
-          <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
-        </div>
-
         {shipType === "domestic" ? (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
               <div>
                 <label className={labelCls}>ปลายทาง{req}</label>
-                <div className="flex gap-2">
-                  <input value={destination} onChange={(e) => { setDestination(e.target.value); setErrs((x) => ({ ...x, destination: "" })); }} placeholder="12.2222, 13.3333" className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`} />
-                  <button type="button" className="inline-flex shrink-0 items-center gap-1 rounded-[8px] border border-gray-300 px-3 text-[12px] text-slate-600 hover:bg-gray-100"><MapPin size={14} /> เลือกจากแผนที่</button>
-                </div>
+                <select value={destination} onChange={(e) => onDestProvince(e.target.value)} className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`}>
+                  <option value="">เลือกจังหวัดปลายทาง</option>
+                  {DESTINATIONS.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+                </select>
                 <Err msg={errs.destination} />
               </div>
               <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="ระบบจะประมาณการอัตโนมัติ" className={`${inputCls} bg-slate-50`} /></div>
+              <div className="sm:col-span-2">
+                <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
+                <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="เช่น 99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>พิกัดปลายทาง</label>
+                <div className="flex gap-2">
+                  <input value={destGps} onChange={(e) => onDestGps(e.target.value)} placeholder="13.7367, 100.5602" className={`${inputCls} min-w-0 flex-1`} />
+                  <button type="button" onClick={useDestLocation} title="ใช้ตำแหน่งปัจจุบัน" className="grid size-[42px] shrink-0 place-items-center rounded-[8px] border border-gray-300 text-slate-500 hover:bg-gray-50"><MapPin size={16} /></button>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">ใส่พิกัดแล้วระบบคำนวณระยะทางจากฟาร์มให้ · คัดลอกจาก Google Maps ได้</p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
               <div>
                 <label className={labelCls}>ประเภทรถที่ใช้{req}</label>
                 <SearchSelect value={vehicle} onChange={(v) => { setVehicle(v); setFuelKey(""); setErrs((x) => ({ ...x, vehicle: "" })); }} options={VEHICLE_OPTIONS} placeholder="เลือกประเภทรถที่ใช้ขนส่ง" allowCustom invalid={!!errs.vehicle} />
@@ -379,7 +439,15 @@ export default function LogisticExportForm({ suppliers, batches }: { suppliers: 
             </label>
           </>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
+            <div><label className={labelCls}>ประเทศ / เมืองปลายทาง</label><input value={destCountry} onChange={(e) => setDestCountry(e.target.value)} placeholder="เช่น ญี่ปุ่น (โตเกียว)" className={inputCls} /></div>
+            <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
+            <div className="sm:col-span-2">
+                <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
+                <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="ที่อยู่ผู้รับปลายทางในต่างประเทศ" className={inputCls} />
+              </div>
+            <div />
             <div>
               <label className={labelCls}>สายการบิน{req}</label>
               <SearchSelect value={airline} onChange={(v) => { setAirline(v); setErrs((x) => ({ ...x, airline: "" })); }} options={AIRLINE_OPTIONS} placeholder="เลือกสายการบิน" allowCustom invalid={!!errs.airline} />

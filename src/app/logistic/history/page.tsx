@@ -33,7 +33,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
   // ประวัติการจัดส่ง — every shipment batch, newest first
   const shipRows: ShipRow[] = batches
     .filter((b) => b.status === "computed" || b.status === "submitted")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .sort((a, b) => (b.exportRecordedAt ?? b.createdAt).localeCompare(a.exportRecordedAt ?? a.createdAt))
     .map((b) => {
       let state: ShipState;
       if (activeByBatch.has(b.id)) state = "printed";
@@ -43,7 +43,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
       return {
         batchId: b.id,
         supplierId: b.supplierId,
-        shipDateIso: b.entryDate,
+        shipDateIso: b.shipDate ?? b.entryDate,
         cutDateIso: b.cutDate,
         flowerCount: b.flowerCount,
         quantity: quantityLabel(b),

@@ -37,7 +37,7 @@ export async function PATCH(
   if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
 
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
-  const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems"];
+  const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType"];
   if (TRANSPORT.some((k) => k in body)) {
     const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
     const patch: Record<string, unknown> = {};
@@ -48,6 +48,19 @@ export async function PATCH(
     if (body.destination) patch.destination = String(body.destination);
     if ("distanceKm" in body) patch.distanceKm = num(body.distanceKm) ?? 0;
     if (Array.isArray(body.packagingItems)) patch.packagingItems = body.packagingItems;
+    if ("destinationAddress" in body) patch.destinationAddress = body.destinationAddress ? String(body.destinationAddress) : undefined;
+    if ("destLat" in body) patch.destLat = num(body.destLat);
+    if ("destLng" in body) patch.destLng = num(body.destLng);
+    // What the carrier recorded on /logistic/new — marks the round as "บันทึกการจัดส่งแล้ว".
+    if (body.shipType === "domestic" || body.shipType === "international") {
+      patch.shipType = body.shipType;
+      patch.shipDate = body.shipDate ? String(body.shipDate) : undefined;
+      patch.airline = body.shipType === "international" && body.airline ? String(body.airline) : undefined;
+      patch.flightNo = body.shipType === "international" && body.flightNo ? String(body.flightNo) : undefined;
+      if (body.shipType === "international") patch.carrier = `ส่งออกต่างประเทศ${body.airline ? ` · ${String(body.airline)}` : ""}`;
+      patch.exportRecordedAt = new Date().toISOString();
+      patch.exportRecordedBy = g.user.id;
+    }
     await updateBatch(id, patch);
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
