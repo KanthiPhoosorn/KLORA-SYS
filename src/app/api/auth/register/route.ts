@@ -4,7 +4,7 @@ import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { provinceFromAddress } from "@/lib/geo";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { SupplierInput } from "@/lib/types";
-import { parseProduceGroups, categoriesOf, parseCertifications } from "@/lib/produce-parse";
+import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -101,7 +101,11 @@ export async function POST(req: Request) {
     agriChemicalsKg: n("agriChemicalsKg"),
     waterM3: n("waterM3"),
     wasteKg: n("wasteKg"),
-    flowersPerMonth: n("flowersPerMonth"),
+    flowersPerMonth: legacyYieldTotal(parseYieldLines(body.yieldLines)) ?? n("flowersPerMonth"),
+    fuelKind: asFuelKind(body.fuelKind),
+    fertilizerKind: asFertilizerKind(body.fertilizerKind),
+    chemicalKind: asChemicalKind(body.chemicalKind),
+    yieldLines: parseYieldLines(body.yieldLines),
   };
 
   const supplier = await addSupplier(input);

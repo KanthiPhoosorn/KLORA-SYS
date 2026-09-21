@@ -36,6 +36,10 @@ export interface FarmMonthlyInputs {
   organicWasteKg?: number;
   /** [required for a dynamic EF] total weight of flowers actually cut & sold that month. */
   totalFlowerYieldKg?: number;
+  /** Per-type emission factors (KYN resource sheet) — override the generic FARM_EF when known. */
+  fuelEf?: number;
+  fertilizerEf?: number;
+  agrochemicalEf?: number;
 }
 
 const n = (v?: number) => (Number.isFinite(v) ? (v as number) : 0);
@@ -43,10 +47,10 @@ const n = (v?: number) => (Number.isFinite(v) ? (v as number) : 0);
 /** Total_Farm_Carbon (kg CO2e) for one reporting month. */
 export function farmMonthlyCarbon(i: FarmMonthlyInputs): number {
   return (
-    n(i.dieselLitres) * FARM_EF.DIESEL +
+    n(i.dieselLitres) * (i.fuelEf ?? FARM_EF.DIESEL) +
     n(i.electricityKwh) * FARM_EF.ELECTRICITY +
-    n(i.fertilizerKg) * FARM_EF.FERTILIZER +
-    n(i.agrochemicalKg) * FARM_EF.AGROCHEMICAL +
+    n(i.fertilizerKg) * (i.fertilizerEf ?? FARM_EF.FERTILIZER) +
+    n(i.agrochemicalKg) * (i.agrochemicalEf ?? FARM_EF.AGROCHEMICAL) +
     n(i.waterM3) * FARM_EF.WATER +
     n(i.organicWasteKg) * FARM_EF.ORGANIC_WASTE
   );

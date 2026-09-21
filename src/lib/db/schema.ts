@@ -19,6 +19,10 @@ import type {
   QuantityUnit,
   Ripeness,
   Certification,
+  FuelKind,
+  FertilizerKind,
+  ChemicalKind,
+  YieldLine,
 } from "../types";
 
 export const suppliers = pgTable("suppliers", {
@@ -53,6 +57,11 @@ export const suppliers = pgTable("suppliers", {
   // Produce extension (16 Sep 2026): which product categories the farm grows + agri certifications.
   productCategories: text("product_categories").array().$type<ProductCategory[]>(),
   certifications: jsonb("certifications").$type<Certification[]>(),
+  // Resource types (21 Sep 2026) + per-product monthly yield lines.
+  fuelKind: text("fuel_kind").$type<FuelKind>(),
+  fertilizerKind: text("fertilizer_kind").$type<FertilizerKind>(),
+  chemicalKind: text("chemical_kind").$type<ChemicalKind>(),
+  yieldLines: jsonb("yield_lines").$type<YieldLine[]>(),
 });
 
 export const batches = pgTable("batches", {

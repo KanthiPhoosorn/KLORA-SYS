@@ -10,9 +10,13 @@ const api = async (path: string, method: string, body?: unknown, cookie?: string
   const reg = await api("/api/auth/register", "POST", { farmName: "QA Produce Farm " + TS, address: "อ.ฝาง จ.เชียงใหม่", contactName: "QA", flowerType: "มะม่วง",
     flowerTypes: [{ category: "fruit", type: "มะม่วง", varieties: ["น้ำดอกไม้สีทอง"] }, { type: "กุหลาบ", varieties: ["Avalanche"] }],
     certifications: [{ kind: "GAP", appliesTo: ["fruit"], certNo: "GAP-1234" }],
-    email: EMAIL, username: "qa_prod_" + TS, password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!", fuelLitres: 20, electricityKwh: 200, fertilizerKg: 10, flowersPerMonth: 5000 });
+    email: EMAIL, username: "qa_prod_" + TS, password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!", fuelKind: "gasoline", fuelLitres: 20, electricityKwh: 200, fertilizerKind: "organic", fertilizerKg: 10, chemicalKind: "none", agriChemicalsKg: 0,
+    yieldLines: [{ category: "fruit", type: "มะม่วง", variety: "น้ำดอกไม้สีทอง", amount: 3000 }, { category: "flower", type: "กุหลาบ", variety: "Avalanche", amount: 2000 }] });
   const supId = reg.json.supplier?.id; const cookie = reg.cookie!;
   console.log("register", reg.status, supId, "categories:", JSON.stringify(reg.json.supplier?.productCategories), "certs:", JSON.stringify(reg.json.supplier?.certifications));
+  console.log("resource kinds:", reg.json.supplier?.fuelKind, reg.json.supplier?.fertilizerKind, reg.json.supplier?.chemicalKind, "yieldLines:", JSON.stringify(reg.json.supplier?.yieldLines), "flowersPerMonth:", reg.json.supplier?.flowersPerMonth);
+  const pat = await api("/api/suppliers/" + supId, "PATCH", { fuelKind: "lpg", fertilizerKind: "urea", yieldLines: [{ category: "fruit", type: "มะม่วง", variety: "น้ำดอกไม้สีทอง", amount: 3500 }] }, cookie);
+  console.log("patch kinds:", pat.status, pat.json.fuelKind, pat.json.fertilizerKind, "yield:", JSON.stringify(pat.json.yieldLines), "flowersPerMonth:", pat.json.flowersPerMonth);
   const fruit = await api("/api/batches", "POST", { productCategory: "fruit", productType: "มะม่วง", variety: "น้ำดอกไม้สีทอง", unit: "kg", quantity: 120, cutDate: "2026-09-14", plantingDate: "2026-03-01", ripenessAtHarvest: "turning", grade: "A", distanceKm: 700, destination: "กรุงเทพฯ", isReeferUsed: true,
     packagingItems: [{ kind: "corrugated_box", width: 40, length: 60, height: 30, quantity: 12 }], vehicleKey: "truck_6w", fuelKey: "diesel" }, cookie);
   console.log("fruit batch", fruit.status, fruit.json.id, "unit", fruit.json.unit, "qty", fruit.json.quantity, "flowerCount", fruit.json.flowerCount, "ripeness", fruit.json.ripenessAtHarvest, fruit.json.error || "");

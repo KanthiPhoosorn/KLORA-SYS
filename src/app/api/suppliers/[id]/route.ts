@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
-import { parseProduceGroups, categoriesOf, parseCertifications } from "@/lib/produce-parse";
+import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 import type { Supplier } from "@/lib/types";
 
 // GET /api/suppliers/[id] — signed-in only; a farm may only read itself.
@@ -84,6 +84,11 @@ export async function PATCH(
   }
   const certs = parseCertifications(body.certifications);
   if (certs) patch.certifications = certs;
+  if ("fuelKind" in body) patch.fuelKind = asFuelKind(body.fuelKind);
+  if ("fertilizerKind" in body) patch.fertilizerKind = asFertilizerKind(body.fertilizerKind);
+  if ("chemicalKind" in body) patch.chemicalKind = asChemicalKind(body.chemicalKind);
+  const yl = parseYieldLines(body.yieldLines);
+  if (yl) { patch.yieldLines = yl; const total = legacyYieldTotal(yl); if (total != null) patch.flowersPerMonth = total; }
   const fts = parseProduceGroups(body.flowerTypes);
   if (fts) {
     patch.flowerTypes = fts;

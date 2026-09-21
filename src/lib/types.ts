@@ -55,6 +55,26 @@ export interface Supplier {
   // --- produce extension (ดอกไม้ → ผลไม้/ผัก) ---
   productCategories?: ProductCategory[]; // ประเภทสินค้าที่ปลูก (derived from flowerTypes[].category)
   certifications?: Certification[]; // ใบรับรองมาตรฐานสินค้าเกษตร
+
+  // --- resource types (KYN sheet 21 Sep 2026): the "primary" type of each input, amounts stay in
+  // fuelLitres / fertilizerKg / agriChemicalsKg; per-product monthly yield replaces flowersPerMonth ---
+  fuelKind?: FuelKind;
+  fertilizerKind?: FertilizerKind;
+  chemicalKind?: ChemicalKind;
+  yieldLines?: YieldLine[]; // ผลผลิตต่อเดือน แยกตามรายการสินค้าที่ลงไว้
+}
+
+export type FuelKind = "diesel" | "gasoline" | "lpg";
+export type FertilizerKind = "urea" | "npk" | "organic";
+export type ChemicalKind = "insecticide" | "herbicide" | "fungicide" | "none";
+
+// ผลผลิตทั้งหมดต่อเดือนของ 1 รายการ (ชนิด — พันธุ์): ดอกไม้นับดอก, ผัก/ผลไม้นับกก.
+export interface YieldLine {
+  category: ProductCategory;
+  type: string;
+  variety?: string;
+  amount: number; // per month, in `unit`
+  unit: "stem" | "kg";
 }
 
 // ประเภทสินค้า 3 ชั้น: ประเภท → ชนิด → พันธุ์
@@ -165,6 +185,10 @@ export interface FarmMonthlyInput {
   organicWasteKg?: number; // ของเสียอินทรีย์ kg/เดือน
   totalFlowerYieldKg?: number; // น้ำหนักดอกไม้ที่ตัดขายได้ทั้งเดือน (kg) — ตัวหารของ Dynamic EF
   createdAt: string;
+  // in-memory only: per-type EFs from the farm's resource kinds (never stored)
+  fuelEf?: number;
+  fertilizerEf?: number;
+  agrochemicalEf?: number;
 }
 
 // Portal roles. Each account belongs to exactly one.

@@ -7,6 +7,7 @@ import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "
 import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
 import { type SelectOption } from "@/components/SearchSelect";
 import { CertificationsEditor } from "@/components/ProduceGroupsEditor";
+import ResourceUsageFields, { resourcePayload, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
 
 const OTHER = "__other__";
 const CAT_ICON: Record<ProductCategory, string> = { flower: "🌸", fruit: "🍊", vegetable: "🥬" };
@@ -251,17 +252,19 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
   const [adding, setAdding] = useState(false);
 
-  const [c, setC] = useState({
+  const [c, setC] = useState<ResourceState>({
+    fuelKind: supplier.fuelKind ?? "diesel",
     fuelLitres: supplier.fuelLitres?.toString() ?? "",
     electricityKwh: supplier.electricityKwh?.toString() ?? "",
+    fertilizerKind: supplier.fertilizerKind ?? "npk",
     fertilizerKg: supplier.fertilizerKg?.toString() ?? "",
+    chemicalKind: supplier.chemicalKind ?? (supplier.agriChemicalsKg ? "insecticide" : "none"),
     agriChemicalsKg: supplier.agriChemicalsKg?.toString() ?? "",
     waterM3: supplier.waterM3?.toString() ?? "",
     wasteKg: supplier.wasteKg?.toString() ?? "",
-    flowersPerMonth: supplier.flowersPerMonth?.toString() ?? "",
+    yields: Object.fromEntries((supplier.yieldLines ?? []).map((l) => [yieldKey(l), String(l.amount)])),
   });
   const sp = (k: keyof typeof p) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setP({ ...p, [k]: e.target.value });
-  const sc = (k: keyof typeof c) => (e: React.ChangeEvent<HTMLInputElement>) => setC({ ...c, [k]: e.target.value });
 
   // ── ตัวช่วยแก้ไข fts ──
   const addType = (type: string, category?: ProductCategory) => {
@@ -281,15 +284,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
   const typeOptionsLeft = [...TYPE_OPTIONS.filter((o) => !fts.some((f) => f.type === o.value)), { value: OTHER, label: "อื่นๆ (ระบุเอง)", group: "อื่นๆ" }];
 
-  const RESOURCE_FIELDS: { k: keyof typeof c; label: string }[] = [
-    { k: "fuelLitres", label: "ปริมาณเชื้อเพลิง (ลิตร/เดือน)" },
-    { k: "electricityKwh", label: "ปริมาณไฟฟ้า (กิโลวัตต์/เดือน)" },
-    { k: "fertilizerKg", label: "ปริมาณปุ๋ย (กิโลกรัม/เดือน)" },
-    { k: "agriChemicalsKg", label: "ปริมาณสารเคมีทางการเกษตร (กิโลกรัม/เดือน)" },
-    { k: "waterM3", label: "ปริมาณน้ำ (ลูกบาศก์เมตร/เดือน)" },
-    { k: "wasteKg", label: "ปริมาณของเสีย (กิโลกรัม/เดือน)" },
-    { k: "flowersPerMonth", label: fts.some((f) => f.category && f.category !== "flower") ? "ผลผลิตรวมทุกชนิด (กก./เดือน)" : "จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)" },
-  ];
+  const targets = yieldTargets(fts);
 
   function saveProducer(e: React.FormEvent) {
     e.preventDefault();
@@ -474,21 +469,14 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
       ) : (
         /* Resource usage */
         <form
-          onSubmit={(e) => { e.preventDefault(); calc.save(c); }}
+          onSubmit={(e) => { e.preventDefault(); calc.save(resourcePayload(c, targets)); }}
           className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
           <h3 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
             <span className="flex size-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-500"><User size={15} /></span>
             ข้อมูลการใช้ทรัพยากร
           </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {RESOURCE_FIELDS.map((f) => (
-              <div key={f.k}>
-                <label className={labelCls}>{f.label}</label>
-                <input type="number" min="0" step="any" value={c[f.k]} onChange={sc(f.k)} className={inputCls} />
-              </div>
-            ))}
-          </div>
+          <ResourceUsageFields value={c} onChange={setC} targets={targets} inputCls={inputCls} labelCls={labelCls} />
           <p className="text-[12px] text-slate-400">ตะกร้า (Basket) กรอกในแต่ละรอบส่งออก — ระบบนับการใช้ซ้ำให้เอง · ข้อมูลนี้ใช้คำนวณค่าคาร์บอนเฉพาะของฟาร์มคุณ</p>
           {calc.error ? <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{calc.error}</p> : null}
           <SaveBtn busy={calc.busy} />

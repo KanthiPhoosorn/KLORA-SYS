@@ -33,6 +33,7 @@ import {
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { isWeightBased, unitsOf } from "./produce";
+import { fuelEf, fertilizerEf, chemicalEf } from "./resource-types";
 import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
 
@@ -58,13 +59,20 @@ function supplierToMonthly(s: Supplier): FarmMonthlyInput | null {
     agrochemicalKg: s.agriChemicalsKg,
     waterM3: s.waterM3,
     organicWasteKg: s.wasteKg,
-    // Flower farms enter a monthly stem COUNT (→ kg via avg stem weight); farms that grow
-    // produce enter their monthly yield in kg directly ("ผลผลิตรวม (กก./เดือน)").
-    totalFlowerYieldKg: s.flowersPerMonth
-      ? growsProduce(s) ? s.flowersPerMonth : s.flowersPerMonth * AVG_STEM_KG
-      : undefined,
+    // Yield: per-product lines when the farm entered them (stems → kg via avg stem weight),
+    // else the legacy single number (a stem count for flower farms, kg for produce farms).
+    totalFlowerYieldKg: yieldKgOf(s),
+    fuelEf: fuelEf(s.fuelKind),
+    fertilizerEf: fertilizerEf(s.fertilizerKind),
+    agrochemicalEf: chemicalEf(s.chemicalKind),
     createdAt: s.createdAt,
   };
+}
+export function yieldKgOf(s: Pick<Supplier, "yieldLines" | "flowersPerMonth" | "productCategories">): number | undefined {
+  const lines = (s.yieldLines ?? []).filter((l) => l.amount > 0);
+  if (lines.length) return lines.reduce((sum, l) => sum + (l.unit === "kg" ? l.amount : l.amount * AVG_STEM_KG), 0);
+  if (!s.flowersPerMonth) return undefined;
+  return growsProduce(s) ? s.flowersPerMonth : s.flowersPerMonth * AVG_STEM_KG;
 }
 export function growsProduce(s: Pick<Supplier, "productCategories">): boolean {
   return (s.productCategories ?? []).some((c) => c !== "flower");
@@ -210,7 +218,11 @@ export async function computeBatch(id: string): Promise<Batch | null> {
 
   if (hasKynData) {
     // Prefer a dedicated monthly record; otherwise use the farm's profile resource fields.
-    const monthly = (await getLatestFarmMonthly(b.supplierId)) ?? supplierToMonthly(supplier);
+    const stored = await getLatestFarmMonthly(b.supplierId);
+    // A stored monthly record still uses the farm's declared fuel/fertilizer/chemical types.
+    const monthly = stored
+      ? { ...stored, fuelEf: fuelEf(supplier.fuelKind), fertilizerEf: fertilizerEf(supplier.fertilizerKind), agrochemicalEf: chemicalEf(supplier.chemicalKind) }
+      : supplierToMonthly(supplier);
     const derived = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
     const dimensioned = (b.packagingItems ?? []).filter(
       (p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket",

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, Loader2, MapPin, Check } from "lucide-react";
 import ProduceGroupsEditor, { CertificationsEditor, emptyGroup, type ProduceGroup } from "@/components/ProduceGroupsEditor";
 import type { Certification } from "@/lib/types";
+import ResourceUsageFields, { emptyResourceState, resourcePayload, yieldTargets, type ResourceState } from "@/components/ResourceUsageFields";
 
 const inputCls =
   "w-full rounded-[5px] border border-gray-300 bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
@@ -59,6 +60,7 @@ export default function RegisterForm() {
   // ผลผลิตและพันธุ์ที่ปลูก — one group per ชนิด (ดอกไม้ / ผลไม้ / ผัก), each holding many varieties.
   const [groups, setGroups] = useState<ProduceGroup[]>([emptyGroup()]);
   const [certs, setCerts] = useState<Certification[]>([]);
+  const [resUse, setResUse] = useState<ResourceState>(emptyResourceState());
   // flattened for the API (Supplier keeps a primary flowerType + a flat variety list)
   const cleanGroups = groups.map((g) => ({ ...g, type: g.type.trim(), varieties: g.varieties.map((v) => v.trim()).filter(Boolean) })).filter((g) => g.type);
   const varieties = Array.from(new Set(cleanGroups.flatMap((g) => g.varieties)));
@@ -109,7 +111,7 @@ export default function RegisterForm() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: certs }),
+        body: JSON.stringify({ ...f, ...resourcePayload(resUse, yieldTargets(cleanGroups)), flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: certs }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "สมัครไม่สำเร็จ");
@@ -198,19 +200,7 @@ export default function RegisterForm() {
               <h1 className="text-[32px] font-semibold leading-[38px] text-black">ข้อมูลการใช้ทรัพยากร</h1>
               <p className="text-[12px] text-black">กรอกข้อมูลการใช้ทรัพยากรภายในพื้นที่ผลิตของคุณ</p>
             </div>
-            <div className="space-y-[10px]">
-              <p className="text-[14px] font-semibold text-black">ข้อมูลการใช้ทรัพยากร</p>
-              <hr className="border-gray-200" />
-            </div>
-            <div className="grid grid-cols-2 gap-[22px]">
-              <Field label="ปริมาณเชื้อเพลิง (ลิตร/เดือน)"><input value={f.fuelLitres} onChange={set("fuelLitres")} type="number" placeholder="18" className={inputCls} /></Field>
-              <Field label="ปริมาณไฟฟ้า (กิโลวัตต์/เดือน)"><input value={f.electricityKwh} onChange={set("electricityKwh")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label="ปริมาณปุ๋ย (กิโลกรัม/เดือน)"><input value={f.fertilizerKg} onChange={set("fertilizerKg")} type="number" placeholder="18" className={inputCls} /></Field>
-              <Field label="ปริมาณสารเคมีทางการเกษตร (กิโลกรัม/เดือน)"><input value={f.agriChemicalsKg} onChange={set("agriChemicalsKg")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label="ปริมาณน้ำ (ลูกบาศก์เมตร/เดือน)"><input value={f.waterM3} onChange={set("waterM3")} type="number" placeholder="18" className={inputCls} /></Field>
-              <Field label="ปริมาณของเสีย (กิโลกรัม/เดือน)"><input value={f.wasteKg} onChange={set("wasteKg")} type="number" placeholder="120" className={inputCls} /></Field>
-              <Field label={cleanGroups.some((g) => g.category !== "flower") ? "ผลผลิตรวมทุกชนิด (กก./เดือน)" : "จำนวนดอกไม้ที่ปลูกทั้งหมด (ดอก/เดือน)"}><input value={f.flowersPerMonth} onChange={set("flowersPerMonth")} type="number" placeholder={cleanGroups.some((g) => g.category !== "flower") ? "4000" : "200"} className={inputCls} /></Field>
-            </div>
+            <ResourceUsageFields value={resUse} onChange={setResUse} targets={yieldTargets(cleanGroups)} inputCls={inputCls} labelCls="mb-[5px] block text-[14px] text-black" />
             <p className="text-[10px] text-black">
               By continuing, you agree to our <span className="text-brand-pink underline">Terms</span> and <span className="text-brand-pink underline">Privacy Policy.</span>
             </p>
