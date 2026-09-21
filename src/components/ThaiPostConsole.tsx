@@ -21,6 +21,9 @@ export default function ThaiPostConsole({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Batch[] | null>(null); // null = not searched
   const [notFound, setNotFound] = useState(false);
+  // Matches that exist but cannot be printed here: already printed (offer reprint) / not computed.
+  const [alreadyPrinted, setAlreadyPrinted] = useState<Batch[]>([]);
+  const [notReady, setNotReady] = useState<Batch[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(false);
@@ -42,12 +45,16 @@ export default function ThaiPostConsole({
   function runSearch() {
     const q = query.trim().toLowerCase();
     if (!q) { setResults(null); setNotFound(false); return; }
-    const hits = printable.filter((b) => {
+    const match = (b: Batch) => {
       const s = supById.get(b.supplierId);
       return b.supplierId.toLowerCase().includes(q) || b.id.toLowerCase().includes(q) || (s?.farmName.toLowerCase().includes(q) ?? false);
-    });
+    };
+    const hits = printable.filter(match);
     setResults(hits);
-    setNotFound(hits.length === 0);
+    const others = batches.filter((b) => match(b) && !hits.includes(b));
+    setAlreadyPrinted(others.filter((b) => b.status === "computed" && activePrinted.has(b.id)));
+    setNotReady(others.filter((b) => b.status !== "computed"));
+    setNotFound(hits.length === 0 && others.length === 0);
   }
 
   async function confirmPrint() {
@@ -97,13 +104,32 @@ export default function ThaiPostConsole({
                 <div className={`flex items-center rounded-[10px] border bg-white px-4 ${notFound ? "border-[#ee443f]" : "border-gray-200"}`}>
                   <input
                     value={query}
-                    onChange={(e) => { setQuery(e.target.value); setNotFound(false); }}
+                    onChange={(e) => { setQuery(e.target.value); setNotFound(false); setAlreadyPrinted([]); setNotReady([]); }}
                     onKeyDown={(e) => e.key === "Enter" && runSearch()}
                     placeholder="SUP - 2026 - 0004  หรือ ฟาร์มเบญจมาศแม่ริม"
                     className="w-full bg-transparent py-3 text-[13px] outline-none"
                   />
                 </div>
                 {notFound ? <p className="mt-1.5 text-[12px] text-[#ee443f]">กรุณาตรวจสอบความถูกต้องของหมายเลขสั่งของ</p> : null}
+                {alreadyPrinted.length ? (
+                  <div className="mt-2 space-y-1.5">
+                    {alreadyPrinted.map((b) => {
+                      const pl = prints.filter((p) => p.batchId === b.id && !p.cancelled).at(-1);
+                      return (
+                        <div key={b.id} className="flex flex-wrap items-center gap-2 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+                          <span><b>{b.id}</b> พิมพ์ฉลากไปแล้ว{pl ? ` เมื่อ ${new Date(pl.printedAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}` : ""}</span>
+                          <a href={`/print/labels?ids=${b.id}`} target="_blank" rel="noopener" className="rounded-[6px] bg-amber-600 px-2.5 py-1 font-medium text-white hover:bg-amber-700">พิมพ์ซ้ำ</a>
+                          <a href="/logistic/status" className="underline">ยกเลิกรายการพิมพ์เดิม</a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {notReady.length ? (
+                  <p className="mt-2 rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                    {notReady.map((b) => b.id).join(", ")} ยังไม่ได้คำนวณคาร์บอน (รอ KYN) — พิมพ์ฉลากได้หลังคำนวณแล้ว
+                  </p>
+                ) : null}
               </div>
               <button onClick={runSearch} className="h-[46px] shrink-0 rounded-[10px] bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700">ค้นหา</button>
             </div>
