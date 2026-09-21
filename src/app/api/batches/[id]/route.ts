@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getBatch, computeBatch, updateBatch, addNotification } from "@/lib/store";
+import { getBatch, computeBatch, updateBatch, addNotification, getSupplier } from "@/lib/store";
+import { flightDistanceKm, roadToAirportKm } from "@/lib/airports";
 import { guard, forbidden } from "@/lib/api-guard";
 import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
@@ -37,7 +38,7 @@ export async function PATCH(
   if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
 
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
-  const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType"];
+  const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType", "innerMaterials"];
   if (TRANSPORT.some((k) => k in body)) {
     const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
     const patch: Record<string, unknown> = {};
@@ -49,6 +50,11 @@ export async function PATCH(
     if ("distanceKm" in body) patch.distanceKm = num(body.distanceKm) ?? 0;
     if (Array.isArray(body.packagingItems)) patch.packagingItems = body.packagingItems;
     if ("destinationAddress" in body) patch.destinationAddress = body.destinationAddress ? String(body.destinationAddress) : undefined;
+    if (Array.isArray(body.innerMaterials)) {
+      patch.innerMaterials = (body.innerMaterials as Record<string, unknown>[])
+        .map((m) => ({ material: String(m.material ?? "").trim(), qty: Number(m.qty) || 0 }))
+        .filter((m) => m.material && m.qty > 0);
+    }
     if ("destLat" in body) patch.destLat = num(body.destLat);
     if ("destLng" in body) patch.destLng = num(body.destLng);
     // What the carrier recorded on /logistic/new — marks the round as "บันทึกการจัดส่งแล้ว".
@@ -57,7 +63,25 @@ export async function PATCH(
       patch.shipDate = body.shipDate ? String(body.shipDate) : undefined;
       patch.airline = body.shipType === "international" && body.airline ? String(body.airline) : undefined;
       patch.flightNo = body.shipType === "international" && body.flightNo ? String(body.flightNo) : undefined;
-      if (body.shipType === "international") patch.carrier = `ส่งออกต่างประเทศ${body.airline ? ` · ${String(body.airline)}` : ""}`;
+      if (body.shipType === "international") {
+        patch.carrier = `ส่งออกต่างประเทศ${body.airline ? ` · ${String(body.airline)}` : ""}`;
+        // Air-freight leg: airports → great-circle distance unless the carrier typed one.
+        const origin = body.originAirport ? String(body.originAirport) : "BKK";
+        const dest = body.destAirport ? String(body.destAirport) : undefined;
+        patch.originAirport = origin;
+        patch.destAirport = dest;
+        const typed = num(body.flightDistanceKm);
+        patch.flightDistanceKm = typed && typed > 0 ? typed : flightDistanceKm(origin, dest) || undefined;
+        // Road leg = farm → origin airport (unless a distance was given explicitly).
+        if (!("distanceKm" in body) || !num(body.distanceKm)) {
+          const farm = await getSupplier(batch.supplierId);
+          const road = farm ? roadToAirportKm(farm, origin) : 0;
+          if (road > 0) patch.distanceKm = road;
+        }
+        if (!batch.vehicleKey && !body.vehicleKey) { patch.vehicleKey = "6_wheeler"; patch.fuelKey = "B7"; }
+      } else {
+        patch.originAirport = null; patch.destAirport = null; patch.flightDistanceKm = null;
+      }
       patch.exportRecordedAt = new Date().toISOString();
       patch.exportRecordedBy = g.user.id;
     }

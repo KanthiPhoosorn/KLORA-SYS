@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, Send, X } from "lucide-react";
+import { ChevronDown, Loader2, Send, X, Copy, Check, Link2 } from "lucide-react";
+import { CARRIERS } from "@/lib/carriers";
 import Modal from "@/components/Modal";
 import FarmSettingsForm from "@/components/FarmSettingsForm";
 import type { Invite, Supplier, User } from "@/lib/types";
@@ -83,6 +84,14 @@ export default function SupManager({
   const [logBranch, setLogBranch] = useState("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editSup, setEditSup] = useState<Supplier | null>(null);
+  // Carrier signup links (KYN spec §1.2): a farm registering through one only ships with that carrier.
+  const [origin, setOrigin] = useState("https://corta.tech");
+  const [copied, setCopied] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const viaLink = (k: string) => `${origin}/register?via=${k}`;
+  async function copyLink(k: string) {
+    try { await navigator.clipboard.writeText(viaLink(k)); setCopied(k); setTimeout(() => setCopied(""), 1500); } catch {}
+  }
 
   const farmNames = [...new Set(suppliers.map((s) => s.farmName))];
 
@@ -102,7 +111,7 @@ export default function SupManager({
       (farm === "all" || s.farmName === farm),
   );
 
-  async function patchSupplier(s: Supplier, body: { status?: SupStatus; plan?: Plan }) {
+  async function patchSupplier(s: Supplier, body: { status?: SupStatus; plan?: Plan; signupVia?: string | null }) {
     setBusyId(s.id);
     await fetch(`/api/suppliers/${s.id}`, {
       method: "PATCH",
@@ -230,6 +239,24 @@ export default function SupManager({
         </>
       ) : tab === "producer" ? (
         <>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900"><Link2 size={16} className="text-brand-purple" /> ลิงก์สมัครสมาชิกแยกตามขนส่ง</h2>
+            <p className="mt-0.5 text-[12px] text-slate-400">ส่งลิงก์ให้ฟาร์ม — ฟาร์มที่สมัครผ่านลิงก์จะเลือกได้เฉพาะขนส่งนั้นในแบบฟอร์มรอบส่งออก (เปลี่ยนได้ที่คอลัมน์ “ขนส่ง” ด้านล่าง)</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {CARRIERS.map((c) => (
+                <div key={c.key} className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-slate-800">{c.label}</p>
+                    <p className="truncate font-mono text-[11px] text-slate-400">{viaLink(c.key)}</p>
+                  </div>
+                  <button type="button" onClick={() => copyLink(c.key)} className="inline-flex shrink-0 items-center gap-1 rounded-[6px] border border-brand-purple px-2.5 py-1 text-[12px] font-medium text-brand-purple hover:bg-brand-purple-light">
+                    {copied === c.key ? <Check size={12} /> : <Copy size={12} />} {copied === c.key ? "คัดลอกแล้ว" : "คัดลอก"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
             <div>
@@ -260,18 +287,25 @@ export default function SupManager({
                     <th className={th}>SUP ID</th>
                     <th className={th}>แหล่งผลิต</th>
                     <th className={th}>จังหวัด</th>
+                    <th className={th}>ขนส่ง</th>
                     <th className={th}>แพ็กเกจ</th>
                     <th className={th}>สถานะ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {supRows.length === 0 ? (
-                    <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400">ไม่พบผู้ผลิต</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">ไม่พบผู้ผลิต</td></tr>
                   ) : supRows.map((s) => (
                     <tr key={s.id} onClick={() => setEditSup(s)} className="cursor-pointer border-b border-slate-50 text-center last:border-0 hover:bg-slate-50">
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.id}</td>
                       <td className="px-5 py-3.5 text-slate-800">{s.farmName}</td>
                       <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
+                      <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <select value={s.signupVia ?? ""} disabled={busyId === s.id} onChange={(e) => patchSupplier(s, { signupVia: e.target.value || null })} className="rounded-[6px] border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-600 outline-none focus:border-brand-purple">
+                          <option value="">ทุกขนส่ง</option>
+                          {CARRIERS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                        </select>
+                      </td>
                       <td className="px-5 py-3.5">
                         <PillDropdown value={(s.plan ?? "free") as Plan} options={PLAN_OPTS} busy={busyId === s.id} onChange={(v) => setPlan(s, v)} />
                       </td>

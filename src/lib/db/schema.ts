@@ -23,6 +23,8 @@ import type {
   FertilizerKind,
   ChemicalKind,
   YieldLine,
+  InnerMaterialLine,
+  CarrierKey,
 } from "../types";
 
 export const suppliers = pgTable("suppliers", {
@@ -62,6 +64,15 @@ export const suppliers = pgTable("suppliers", {
   fertilizerKind: text("fertilizer_kind").$type<FertilizerKind>(),
   chemicalKind: text("chemical_kind").$type<ChemicalKind>(),
   yieldLines: jsonb("yield_lines").$type<YieldLine[]>(),
+  signupVia: text("signup_via").$type<CarrierKey>(),
+});
+
+// KYN-editable reference data (key "factors" → src/lib/factors.ts).
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by"),
 });
 
 export const batches = pgTable("batches", {
@@ -81,6 +92,10 @@ export const batches = pgTable("batches", {
   flightNo: text("flight_no"),
   exportRecordedAt: text("export_recorded_at"),
   exportRecordedBy: text("export_recorded_by"),
+  innerMaterials: jsonb("inner_materials").$type<InnerMaterialLine[]>(),
+  originAirport: text("origin_airport"),
+  destAirport: text("dest_airport"),
+  flightDistanceKm: doublePrecision("flight_distance_km"),
   carrier: text("carrier"),
   provider: text("provider"),
   postalCode: text("postal_code"),

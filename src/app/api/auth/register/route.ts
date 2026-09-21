@@ -6,6 +6,7 @@ import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { SupplierInput } from "@/lib/types";
 import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 import { DEFAULT_PLAN } from "@/lib/plans";
+import { asCarrierKey } from "@/lib/carriers";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -108,6 +109,7 @@ export async function POST(req: Request) {
     chemicalKind: asChemicalKind(body.chemicalKind),
     yieldLines: parseYieldLines(body.yieldLines),
     plan: DEFAULT_PLAN,
+    signupVia: asCarrierKey(body.via),
   };
 
   const supplier = await addSupplier(input);

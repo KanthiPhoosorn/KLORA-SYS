@@ -10,6 +10,7 @@ const ITEMS: PortalNavItem[] = [
   { href: "/kyn/incoming", label: "รายการรับเข้าจากผู้ผลิต", icon: "inbox" },
   { href: "/kyn/report", label: "รายงานสรุป", icon: "report" },
   { href: "/kyn/suppliers", label: "จัดการผู้ใช้งาน", icon: "users" },
+  { href: "/kyn/factors", label: "ค่าสัมประสิทธิ์ (EF)", icon: "sliders" },
   { href: "/kyn/log", label: "Action Log", icon: "history" },
   { href: "/kyn/qrlog", label: "Shipment / QR Log", icon: "qr" },
 ];

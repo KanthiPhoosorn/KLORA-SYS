@@ -62,7 +62,13 @@ export interface Supplier {
   fertilizerKind?: FertilizerKind;
   chemicalKind?: ChemicalKind;
   yieldLines?: YieldLine[]; // ผลผลิตต่อเดือน แยกตามรายการสินค้าที่ลงไว้
+  signupVia?: CarrierKey; // สมัครผ่านลิงก์ของผู้ขนส่งรายนี้ → รูปแบบจัดส่งถูกจำกัดตามลิงก์
 }
+
+// รูปแบบการจัดส่ง (KYN spec §1.2) — also the "?via=" value of carrier-specific signup links
+export type CarrierKey = "thaipost" | "cold_chain" | "private" | "sorting_center" | "exporter";
+
+export interface InnerMaterialLine { material: string; qty: number }
 
 export type FuelKind = "diesel" | "gasoline" | "lpg";
 export type FertilizerKind = "urea" | "npk" | "organic";
@@ -114,6 +120,8 @@ export interface CarbonBreakdownRecord {
   flowerEF: number;
   netFlowerWeightKg: number;
   packagingWeightKg: number;
+  air?: number; // air-freight leg (included in transport)
+  innerPackaging?: number; // secondary materials (included in packaging)
 }
 
 // สถานะคำนวณ: draft (บันทึกร่าง) → submitted (ส่งแล้ว รอ KYN คำนวณ) → computed (คำนวณแล้ว)
@@ -141,6 +149,10 @@ export interface Batch {
   flightNo?: string; // ส่งต่างประเทศ: หมายเลขเที่ยวบิน
   exportRecordedAt?: string; // ISO — เมื่อผู้ขนส่งบันทึกข้อมูลการจัดส่ง
   exportRecordedBy?: string; // User.id ของผู้บันทึก
+  innerMaterials?: InnerMaterialLine[]; // วัสดุภายในกล่อง/ห่อหุ้ม/ผูกยึด (KYN packaging master)
+  originAirport?: string; // ส่งต่างประเทศ: สนามบินต้นทาง (IATA)
+  destAirport?: string; // ส่งต่างประเทศ: สนามบินปลายทาง (IATA)
+  flightDistanceKm?: number; // ระยะบิน (great-circle, km) — ใช้คิดคาร์บอนเที่ยวบิน
   carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ไทย / ขนส่งควบคุมอุณหภูมิ / ผู้ส่งออก
   provider?: string; // ผู้ให้บริการขนส่ง (เมื่อไม่ใช่ไปรษณีย์ไทย) เช่น Nim Express
   postalCode?: string; // รหัสไปรษณีย์ปลายทาง
@@ -277,6 +289,7 @@ export type BatchInput = Pick<
   destinationAddress?: string;
   destLat?: number;
   destLng?: number;
+  innerMaterials?: InnerMaterialLine[];
   carrier?: string;
   provider?: string;
   postalCode?: string;

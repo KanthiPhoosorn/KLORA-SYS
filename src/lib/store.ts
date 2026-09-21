@@ -7,7 +7,9 @@
 import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings } from "./db/schema";
+import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
+import { innerMaterialsTotals } from "./inner-materials";
 import type {
   Supplier,
   Batch,
@@ -34,6 +36,23 @@ import {
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { isWeightBased, unitsOf } from "./produce";
 import { fuelEf, fertilizerEf, chemicalEf } from "./resource-types";
+
+// --- KYN-editable reference factors (app_settings "factors") ------------------
+export async function getFactors(): Promise<Factors> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "factors")).limit(1);
+  return mergeFactors(row?.value);
+}
+export async function saveFactors(value: unknown, userId: string): Promise<Factors> {
+  const merged = mergeFactors(value);
+  const now = new Date().toISOString();
+  await db.insert(appSettings).values({ key: "factors", value: merged, updatedAt: now, updatedBy: userId })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: merged, updatedAt: now, updatedBy: userId } });
+  return merged;
+}
+export async function getFactorsMeta(): Promise<{ updatedAt?: string; updatedBy?: string }> {
+  const [row] = await db.select({ updatedAt: appSettings.updatedAt, updatedBy: appSettings.updatedBy }).from(appSettings).where(eq(appSettings.key, "factors")).limit(1);
+  return { updatedAt: row?.updatedAt, updatedBy: row?.updatedBy ?? undefined };
+}
 import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
 
@@ -162,6 +181,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     destinationAddress: input.destinationAddress,
     destLat: input.destLat,
     destLng: input.destLng,
+    innerMaterials: input.innerMaterials?.length ? input.innerMaterials : null,
     carrier: input.carrier,
     provider: input.provider,
     postalCode: input.postalCode,
@@ -224,12 +244,18 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
 
   if (hasKynData) {
     // Prefer a dedicated monthly record; otherwise use the farm's profile resource fields.
+    const factors = await getFactors();
     const stored = await getLatestFarmMonthly(b.supplierId);
-    // A stored monthly record still uses the farm's declared fuel/fertilizer/chemical types.
-    const monthly = stored
+    // A stored monthly record still uses the farm's declared fuel/fertilizer/chemical types;
+    // everything else falls back to the KYN-edited generic factors.
+    const base = stored
       ? { ...stored, fuelEf: fuelEf(supplier.fuelKind), fertilizerEf: fertilizerEf(supplier.fertilizerKind), agrochemicalEf: chemicalEf(supplier.chemicalKind) }
       : supplierToMonthly(supplier);
-    const derived = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
+    const monthly = base ? { ...base, base: factors.farm } : null;
+    const derivedRaw = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
+    const tkmOverride = b.vehicleKey && b.fuelKey ? factors.vehicleTkm[`${b.vehicleKey}|${b.fuelKey}`] : undefined;
+    const derived = tkmOverride ? { ...(derivedRaw ?? { efVkm: 0, sourced: false, basis: "" }), efTkm: tkmOverride } : derivedRaw;
+    const inner = innerMaterialsTotals(b.innerMaterials);
     const dimensioned = (b.packagingItems ?? []).filter(
       (p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket",
     );
@@ -252,16 +278,18 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
     let shippedWeightKg = b.shippedWeightKg ?? 0;
     if (shippedWeightKg <= 0 && weightBased) {
       // Produce: the declared quantity IS the product weight; add packaging on top.
-      shippedWeightKg = units + packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg;
+      shippedWeightKg = units + packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg + inner.weightKg;
     } else if (shippedWeightKg <= 0) {
       const stemKg =
         monthly?.totalFlowerYieldKg && supplier.flowersPerMonth
           ? monthly.totalFlowerYieldKg / supplier.flowersPerMonth
           : AVG_STEM_KG;
       const packWeight =
-        packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg;
+        packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg + inner.weightKg;
       shippedWeightKg = b.flowerCount * stemKg + packWeight;
     }
+    // International: the road leg (farm → origin airport, distanceKm) plus the air-freight leg.
+    const air = b.shipType === "international" ? airFreightCarbon(shippedWeightKg, b.flightDistanceKm ?? 0, factors) : 0;
 
     const r = computeOrderCarbon({
       packagingItems: packItems,
@@ -269,6 +297,8 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
       shippedWeightKg,
       flowerCount: units, // denominator: stems for flowers, kg for produce
       farmMonthly: monthly ?? undefined,
+      extraPackaging: inner,
+      extraTransportCarbon: air,
       transport: derived
         ? {
             method: "tkm",
@@ -280,7 +310,7 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
         : { method: "vkm", distanceKm: b.distanceKm, efVkm: FACTORS.TRANSPORT, isReeferUsed: b.isReeferUsed },
     });
     co2ePerFlower = r.perStem;
-    breakdown = { engine: "kyn", farm: r.farm, packaging: r.packaging, transport: r.transport, total: r.total, perStem: r.perStem, flowerEF: r.flowerEF, netFlowerWeightKg: r.netFlowerWeightKg, packagingWeightKg: r.packagingWeightKg };
+    breakdown = { engine: "kyn", farm: r.farm, packaging: r.packaging, transport: r.transport, total: r.total, perStem: r.perStem, flowerEF: r.flowerEF, netFlowerWeightKg: r.netFlowerWeightKg, packagingWeightKg: r.packagingWeightKg, air, innerPackaging: inner.carbon };
   } else {
     const legacy = enrichBatch(b, supplier, (bid) => reuse.get(bid) ?? 0);
     co2ePerFlower = legacy.co2ePerFlower;

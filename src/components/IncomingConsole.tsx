@@ -64,7 +64,11 @@ export default function IncomingConsole({
       ? open.co2ePerFlower
       : computeCarbon(openSup, open.flowerCount, open.distanceKm, basketRound).co2ePerFlower;
     const total = perFlower * unitsOf(open);
-    const bd = sourceBreakdown([open], (id) => supById.get(id), (id) => reuse.get(id) ?? 0);
+    // Prefer the stored engine breakdown (incl. air freight + inner packaging); fall back to the legacy estimate.
+    const cb = open.carbonBreakdown;
+    const bd = cb && cb.total > 0
+      ? (() => { const p = (n: number) => Math.round((n / cb.total) * 100); return { transport: cb.transport, planting: cb.farm, basket: cb.packaging, total: cb.total, air: cb.air ?? 0, inner: cb.innerPackaging ?? 0, pct: { transport: p(cb.transport), planting: p(cb.farm), basket: p(cb.packaging) } }; })()
+      : { ...sourceBreakdown([open], (id) => supById.get(id), (id) => reuse.get(id) ?? 0), air: 0, inner: 0 };
     const print = prints.find((p) => p.batchId === open.id && !p.cancelled);
     return { perFlower, total, bd, print };
   }, [open, openSup, reuseBySup, supById, prints]);
@@ -226,12 +230,13 @@ export default function IncomingConsole({
                 <div className="mb-3 text-[13px] font-semibold text-slate-800">กิจกรรมที่นำมาคำนวณ</div>
                 <div className="space-y-3">
                   {[
-                    { label: "การผลิต", pct: detail.bd.pct.planting, color: "bg-brand-purple" },
-                    { label: "การขนส่ง", pct: detail.bd.pct.transport, color: "bg-brand-blue" },
-                    { label: "บรรจุภัณฑ์", pct: detail.bd.pct.basket, color: "bg-emerald-500" },
+                    { label: "การผลิต", pct: detail.bd.pct.planting, color: "bg-brand-purple", note: "" },
+                    { label: "การขนส่ง", pct: detail.bd.pct.transport, color: "bg-brand-blue", note: detail.bd.air > 0 ? `รวมขนส่งทางอากาศ ${detail.bd.air.toFixed(2)} kg CO₂e (DEFRA)` : "" },
+                    { label: "บรรจุภัณฑ์", pct: detail.bd.pct.basket, color: "bg-emerald-500", note: detail.bd.inner > 0 ? `รวมวัสดุภายในกล่อง ${detail.bd.inner.toFixed(2)} kg CO₂e` : "" },
                   ].map((a) => (
                     <div key={a.label}>
                       <div className="flex items-center justify-between text-[13px]"><span className="font-medium text-slate-700">{a.label}</span><span className="tabular text-slate-500">{a.pct}%</span></div>
+                      {a.note ? <p className="text-[11px] text-slate-400">{a.note}</p> : null}
                       <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${a.color}`} style={{ width: `${Math.max(a.pct, 2)}%` }} /></div>
                     </div>
                   ))}

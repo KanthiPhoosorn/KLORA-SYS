@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
+import { asCarrierKey } from "@/lib/carriers";
 import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 import type { Supplier } from "@/lib/types";
 
@@ -109,6 +110,9 @@ export async function PATCH(
   // Subscription plan is a KYN decision (no self-serve billing yet).
   if (isKyn && (body.plan === "free" || body.plan === "pro")) {
     patch.plan = body.plan;
+  }
+  if (isKyn && "signupVia" in body) {
+    (patch as Record<string, unknown>).signupVia = asCarrierKey(body.signupVia) ?? null;
   }
 
   if (Object.keys(patch).length === 0) {

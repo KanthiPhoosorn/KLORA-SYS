@@ -79,6 +79,11 @@ export async function POST(req: Request) {
       distanceKm: Number(body.distanceKm) || 0,
       destination: str("destination"),
       destinationAddress: str("destinationAddress"),
+      innerMaterials: Array.isArray(body.innerMaterials)
+        ? (body.innerMaterials as Record<string, unknown>[])
+            .map((m) => ({ material: String(m.material ?? "").trim(), qty: Number(m.qty) || 0 }))
+            .filter((m) => m.material && m.qty > 0)
+        : undefined,
       destLat: body.destLat != null && body.destLat !== "" && Number.isFinite(Number(body.destLat)) ? Number(body.destLat) : undefined,
       destLng: body.destLng != null && body.destLng !== "" && Number.isFinite(Number(body.destLng)) ? Number(body.destLng) : undefined,
       carrier: str("carrier"),

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, PlusCircle, Trash2, Lock, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import { DESTINATIONS, estimateDistanceKm, haversineKm, provinceFromAddress } from "@/lib/geo";
@@ -19,14 +19,10 @@ const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
 const req = <span className="text-[#ee443f]"> *</span>;
 
 // รูปแบบการขนส่ง (design: 5 options). `key` is stable; `label` is what we store on the batch.
-const CARRIERS = [
-  { key: "thaipost", label: "ไปรษณีย์ไทย" },
-  { key: "cold_chain", label: "ขนส่งควบคุมอุณหภูมิ" },
-  { key: "private", label: "ขนส่งเอกชน" },
-  { key: "sorting_center", label: "ศูนย์คัดแยกสินค้า" },
-  { key: "exporter", label: "ผู้ส่งออก" },
-] as const;
-type CarrierKey = (typeof CARRIERS)[number]["key"];
+import { CARRIERS } from "@/lib/carriers";
+import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packKindLabel, packSizeText, packInnerText, type PackLine } from "@/components/PackagingLines";
+import { DEFAULT_FACTORS, type PackageSize } from "@/lib/factors";
+import type { CarrierKey } from "@/lib/types";
 
 // A carrier implies the transport profile the carbon engine needs (vehicle + fuel + reefer).
 const CARRIER_DEFAULTS: Record<CarrierKey, { vehicleKey: string; fuelKey: string; reefer: boolean }> = {
@@ -40,36 +36,7 @@ const CARRIER_DEFAULTS: Record<CarrierKey, { vehicleKey: string; fuelKey: string
 // ผู้ให้บริการขนส่ง (แสดงเมื่อเลือก "ไม่ใช่ไปรษณีย์ไทย") — placeholder จนกว่า KYN ส่งรายชื่อจริง
 const PROVIDERS = ["Nim Express", "Kerry Express", "Flash Express", "J&T Express", "SCG Express", "DHL Express"];
 
-const PACK_KINDS = [
-  { key: "basket", label: "ตะกร้า" },
-  { key: "corrugated_box", label: "กล่องลูกฟูก" },
-  { key: "plastic_film", label: "แผ่นพลาสติก / ซองห่อช่อ" },
-] as const;
-
-const BOX_MATERIALS = ["กระดาษฝอย", "โฟมกันกระแทก", "พลาสติกกันกระแทก", "ฟองน้ำชุบน้ำ", "เจลรักษาความชื้น"];
-
-// ขนาดบรรจุภัณฑ์มาตรฐาน — ค่ามิติ ก×ย×ส (ซม.) ใช้คำนวณพื้นที่ผิวของกล่อง/แผ่นพลาสติก
-// ⚠ placeholder จนกว่า KYN จะส่งรายการขนาดจริง
-const SIZE_PRESETS = [
-  { label: "20 × 30 × 15 ซม.", w: 20, l: 30, h: 15 },
-  { label: "30 × 40 × 20 ซม.", w: 30, l: 40, h: 20 },
-  { label: "40 × 60 × 30 ซม.", w: 40, l: 60, h: 30 },
-  { label: "50 × 70 × 40 ซม.", w: 50, l: 70, h: 40 },
-  { label: "60 × 80 × 50 ซม.", w: 60, l: 80, h: 50 },
-];
-const presetFor = (label: string) => SIZE_PRESETS.find((s) => s.label === label);
-
 const AGE_OPTIONS = Array.from({ length: 30 }, (_, i) => i + 1);
-const QTY_OPTIONS = Array.from({ length: 50 }, (_, i) => i + 1);
-
-interface Pack {
-  kind: string; // one of PACK_KINDS[].key
-  size: string; // one of SIZE_PRESETS[].label
-  qty: string;
-  basketNo: string;
-  boxMaterial: string;
-}
-const emptyPack = (): Pack => ({ kind: "", size: "", qty: "", basketNo: "", boxMaterial: "" });
 
 type Errors = Record<string, string>;
 
@@ -93,10 +60,13 @@ export default function RoundForm({
   basketOptions = [],
   postSupplierId,
   accent = "pink",
+  sizePresets = DEFAULT_FACTORS.packageSizes,
 }: {
   supplier: Supplier;
   varietyOptions?: string[];
   basketOptions?: string[];
+  /** KYN-managed standard package sizes (quick-fill for the W×L×H fields) */
+  sizePresets?: PackageSize[];
   /** set when a non-supplier (logistic/Exporter) logs on behalf of a farm */
   postSupplierId?: string;
   /** brand accent — "pink" for the SUP portal, "blue" for the Logistic portal */
@@ -162,14 +132,16 @@ export default function RoundForm({
     setErrs((x) => ({ ...x, flowerType: "", variety: "", flowerCount: "", ageDays: "" }));
   }
   // Packaging
-  const [packs, setPacks] = useState<Pack[]>([emptyPack()]);
+  const [packs, setPacks] = useState<PackLine[]>([emptyPackLine()]);
   // Shipping
   const [shipDate, setShipDate] = useState("");
   const [destination, setDestination] = useState("");
   const [destAddress, setDestAddress] = useState("");
   const [destGps, setDestGps] = useState(""); // "lat, lng"
   const [distanceKm, setDistanceKm] = useState("");
-  const [carrier, setCarrier] = useState<CarrierKey>("thaipost");
+  // A farm that signed up through a carrier's link ships only with that carrier (KYN spec §1.2).
+  const lockedCarrier = supplier.signupVia;
+  const [carrier, setCarrier] = useState<CarrierKey>(lockedCarrier ?? "thaipost");
   const [postalCode, setPostalCode] = useState("");
   const [provider, setProvider] = useState("");
   const [branch, setBranch] = useState("");
@@ -227,8 +199,6 @@ export default function RoundForm({
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((p) => onDestGps(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`));
   }
-  const setPack = (i: number, k: keyof Pack, v: string) =>
-    setPacks((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
 
   const carrierLabel = CARRIERS.find((c) => c.key === carrier)!.label;
   const branchName = (id: string) => BRANCHES.find((b) => b.id === id)?.name ?? id;
@@ -243,13 +213,7 @@ export default function RoundForm({
     if (destGps.trim() && !parseGps(destGps)) e.destGps = "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
     if (isFlower && !ageDays) e.ageDays = "กรุณาระบุอายุดอกไม้";
     if (category === "fruit" && !ripeness) e.ripeness = "กรุณาระบุระยะการสุก";
-    packs.forEach((p, i) => {
-      if (!p.kind) e[`pack.${i}.kind`] = "กรุณาเลือกบรรจุภัณฑ์";
-      if (p.kind === "basket" && !p.basketNo.trim()) e[`pack.${i}.basketNo`] = "กรุณาระบุหมายเลขตะกร้า";
-      if (p.kind === "corrugated_box" && !p.boxMaterial) e[`pack.${i}.boxMaterial`] = "กรุณาระบุวัสดุภายในกล่อง";
-      if (!p.size) e[`pack.${i}.size`] = "กรุณาระบุขนาด";
-      if (!p.qty || Number(p.qty) <= 0) e[`pack.${i}.qty`] = "กรุณาระบุจำนวน";
-    });
+    Object.assign(e, validatePackLines(packs));
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (!destination) e.destination = "กรุณาเลือกจังหวัดปลายทาง";
     if (isThaipost) {
@@ -276,20 +240,7 @@ export default function RoundForm({
     setBusy(true);
     try {
       const cd = CARRIER_DEFAULTS[carrier];
-      const packagingItems = packs
-        .filter((p) => p.kind)
-        .map((p) => {
-          const dim = p.kind === "basket" ? undefined : presetFor(p.size);
-          return {
-            kind: p.kind,
-            width: dim?.w,
-            length: dim?.l,
-            height: dim?.h,
-            quantity: Number(p.qty) || (p.basketNo.trim() ? 1 : 0),
-            basketNo: p.basketNo.trim() || undefined,
-            boxMaterial: p.boxMaterial || undefined,
-          };
-        });
+      const pk = packLinesToPayload(packs);
       const res = await fetch("/api/batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -316,9 +267,10 @@ export default function RoundForm({
           provider: isThaipost ? undefined : provider,
           postalCode: isThaipost ? postalCode.trim() : undefined,
           branch: branchName(branch),
-          boxMaterial: packs.find((p) => p.kind === "corrugated_box")?.boxMaterial,
-          basketIds: packs.filter((p) => p.kind === "basket" && p.basketNo.trim()).map((p) => p.basketNo.trim()),
-          packagingItems,
+          boxMaterial: pk.boxMaterial,
+          basketIds: pk.basketIds,
+          packagingItems: pk.packagingItems,
+          innerMaterials: pk.innerMaterials,
           vehicleKey: cd.vehicleKey,
           fuelKey: cd.fuelKey,
           isReeferUsed: cd.reefer,
@@ -342,7 +294,6 @@ export default function RoundForm({
   // ============================ REVIEW STEP ============================
   if (step === "review") {
     const packRows = packs.filter((p) => p.kind);
-    const kindLabel = (k: string) => PACK_KINDS.find((x) => x.key === k)?.label ?? k;
     const F = ({ label, value }: { label: string; value: string }) => (
       <div>
         <p className="text-[13px] font-semibold text-slate-800">{label}</p>
@@ -377,10 +328,10 @@ export default function RoundForm({
               {packRows.map((p, i) => (
                 <div key={i} className="space-y-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                   <p className="text-[12px] font-semibold text-slate-400">รายการที่ {i + 1}</p>
-                  <F label="บรรจุภัณฑ์" value={kindLabel(p.kind)} />
+                  <F label="บรรจุภัณฑ์" value={packKindLabel(p.kind)} />
                   {p.kind === "basket" ? <F label="หมายเลขตะกร้า" value={p.basketNo} /> : null}
-                  {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={p.boxMaterial} /> : null}
-                  <F label="ขนาด" value={p.size} />
+                  {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={packInnerText(p)} /> : null}
+                  <F label="ขนาด" value={packSizeText(p)} />
                   <F label="จำนวน" value={p.qty ? `${p.qty} ${p.kind === "basket" ? "ใบ" : "กล่อง"}` : ""} />
                 </div>
               ))}
@@ -522,67 +473,17 @@ export default function RoundForm({
 
       {/* Packaging */}
       <Section title="บรรจุภัณฑ์ที่ใช้ในการจัดส่ง" sub="เลือกวัสดุที่ใช้จริง พร้อมระบุขนาดและจำนวน">
-        {packs.map((p, i) => {
-          const cols = p.kind === "basket" || p.kind === "corrugated_box" ? "sm:grid-cols-4" : "sm:grid-cols-3";
-          return (
-            <div key={i} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className={`grid gap-3 ${cols}`}>
-                <div>
-                  <label className={labelCls}>บรรจุภัณฑ์{req}</label>
-                  <select value={p.kind} onChange={(e) => { setPack(i, "kind", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.kind`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.kind`] ? "border-[#ee443f]" : ""}`}>
-                    <option value="">เลือกบรรจุภัณฑ์</option>
-                    {PACK_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-                  </select>
-                  <Err msg={errs[`pack.${i}.kind`]} />
-                </div>
-                {p.kind === "basket" ? (
-                  <div>
-                    <label className={labelCls}>หมายเลขตะกร้า{req}</label>
-                    <input list="baskets" value={p.basketNo} onChange={(e) => { setPack(i, "basketNo", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.basketNo`]: "" })); }} placeholder="ระบุหมายเลขตะกร้า เช่น BSK-014" className={`${inputCls} ${errs[`pack.${i}.basketNo`] ? "border-[#ee443f]" : ""}`} />
-                    <datalist id="baskets">{basketOptions.map((b) => <option key={b} value={b} />)}</datalist>
-                    <Err msg={errs[`pack.${i}.basketNo`]} />
-                  </div>
-                ) : null}
-                {p.kind === "corrugated_box" ? (
-                  <div>
-                    <label className={labelCls}>วัสดุภายในกล่อง{req}</label>
-                    <select value={p.boxMaterial} onChange={(e) => { setPack(i, "boxMaterial", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.boxMaterial`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.boxMaterial`] ? "border-[#ee443f]" : ""}`}>
-                      <option value="">ระบุวัสดุภายในกล่อง</option>
-                      {BOX_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <Err msg={errs[`pack.${i}.boxMaterial`]} />
-                  </div>
-                ) : null}
-                <div>
-                  <label className={labelCls}>ขนาด{req}</label>
-                  <select value={p.size} onChange={(e) => { setPack(i, "size", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.size`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.size`] ? "border-[#ee443f]" : ""}`}>
-                    <option value="">ระบุขนาดบรรจุภัณฑ์</option>
-                    {SIZE_PRESETS.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
-                  </select>
-                  <Err msg={errs[`pack.${i}.size`]} />
-                </div>
-                <div>
-                  <label className={labelCls}>จำนวน{req}</label>
-                  <select value={p.qty} onChange={(e) => { setPack(i, "qty", e.target.value); setErrs((x) => ({ ...x, [`pack.${i}.qty`]: "" })); }} className={`${inputCls} ${errs[`pack.${i}.qty`] ? "border-[#ee443f]" : ""}`}>
-                    <option value="">ระบุจำนวนบรรจุภัณฑ์</option>
-                    {QTY_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
-                  </select>
-                  <Err msg={errs[`pack.${i}.qty`]} />
-                </div>
-              </div>
-              {packs.length > 1 ? (
-                <button type="button" onClick={() => setPacks(packs.filter((_, j) => j !== i))} className="mt-3 inline-flex items-center gap-1 text-[12px] text-red-500 hover:underline">
-                  <Trash2 size={13} /> ลบบรรจุภัณฑ์
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
-        <div className="flex justify-end">
-          <button type="button" onClick={() => setPacks([...packs, emptyPack()])} className={`inline-flex items-center gap-1.5 text-[13px] font-medium ${T.link} hover:underline`}>
-            <PlusCircle size={16} /> เพิ่มรายการอื่น
-          </button>
-        </div>
+        <PackagingLines
+          lines={packs}
+          onChange={setPacks}
+          errs={errs}
+          clearErr={(k) => setErrs((x) => ({ ...x, [k]: "" }))}
+          inputCls={inputCls}
+          labelCls={labelCls}
+          basketOptions={basketOptions}
+          sizePresets={sizePresets}
+          linkCls={T.link}
+        />
       </Section>
 
       {/* Shipping */}
@@ -623,8 +524,8 @@ export default function RoundForm({
         <div>
           <label className={labelCls}>รูปแบบการขนส่ง</label>
           <div className="grid gap-2.5 sm:grid-cols-3">
-            {CARRIERS.map((c) => {
-              const locked = showUpsell && c.key !== "thaipost";
+            {CARRIERS.filter((c) => !lockedCarrier || c.key === lockedCarrier).map((c) => {
+              const locked = showUpsell && c.key !== "thaipost" && c.key !== lockedCarrier;
               return (
                 <label key={c.key} className={`flex items-center gap-2.5 rounded-[10px] border px-4 py-3 text-[13px] transition ${locked ? "cursor-not-allowed border-gray-200 text-slate-300" : carrier === c.key ? `cursor-pointer ${T.radioSel}` : "cursor-pointer border-gray-300 text-slate-600 hover:border-gray-400"}`}>
                   <input type="radio" name="carrier" checked={carrier === c.key} disabled={locked} onChange={() => setCarrier(c.key)} className={`size-4 ${T.ring} disabled:opacity-40`} />
@@ -681,7 +582,7 @@ export default function RoundForm({
         </div>
       </Section>
 
-      {Object.keys(errs).length > 0 ? (
+      {Object.values(errs).some(Boolean) ? (
         <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน</p>
       ) : null}
 

@@ -18,6 +18,7 @@ import {
   Users2,
   QrCode,
   Lock,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ const ICONS: Record<string, LucideIcon> = {
   report: FileBarChart,
   users: Users2,
   qr: QrCode,
+  sliders: SlidersHorizontal,
 };
 
 export type Accent = "pink" | "blue" | "slate" | "purple";

@@ -40,6 +40,8 @@ export interface FarmMonthlyInputs {
   fuelEf?: number;
   fertilizerEf?: number;
   agrochemicalEf?: number;
+  /** KYN-edited generic factors (หน้า ค่าสัมประสิทธิ์) — used when no per-type factor applies. */
+  base?: Partial<Record<keyof typeof FARM_EF, number>>;
 }
 
 const n = (v?: number) => (Number.isFinite(v) ? (v as number) : 0);
@@ -47,12 +49,12 @@ const n = (v?: number) => (Number.isFinite(v) ? (v as number) : 0);
 /** Total_Farm_Carbon (kg CO2e) for one reporting month. */
 export function farmMonthlyCarbon(i: FarmMonthlyInputs): number {
   return (
-    n(i.dieselLitres) * (i.fuelEf ?? FARM_EF.DIESEL) +
-    n(i.electricityKwh) * FARM_EF.ELECTRICITY +
-    n(i.fertilizerKg) * (i.fertilizerEf ?? FARM_EF.FERTILIZER) +
-    n(i.agrochemicalKg) * (i.agrochemicalEf ?? FARM_EF.AGROCHEMICAL) +
-    n(i.waterM3) * FARM_EF.WATER +
-    n(i.organicWasteKg) * FARM_EF.ORGANIC_WASTE
+    n(i.dieselLitres) * (i.fuelEf ?? i.base?.DIESEL ?? FARM_EF.DIESEL) +
+    n(i.electricityKwh) * (i.base?.ELECTRICITY ?? FARM_EF.ELECTRICITY) +
+    n(i.fertilizerKg) * (i.fertilizerEf ?? i.base?.FERTILIZER ?? FARM_EF.FERTILIZER) +
+    n(i.agrochemicalKg) * (i.agrochemicalEf ?? i.base?.AGROCHEMICAL ?? FARM_EF.AGROCHEMICAL) +
+    n(i.waterM3) * (i.base?.WATER ?? FARM_EF.WATER) +
+    n(i.organicWasteKg) * (i.base?.ORGANIC_WASTE ?? FARM_EF.ORGANIC_WASTE)
   );
 }
 
@@ -230,6 +232,10 @@ export interface OrderCarbonInput {
   /** the farm's latest monthly record — omit to use the 0.65 fallback */
   farmMonthly?: FarmMonthlyInputs | null;
   transport?: TransportInput;
+  /** secondary packaging (inner materials) already reduced to weight + carbon */
+  extraPackaging?: { weightKg: number; carbon: number };
+  /** extra transport carbon added after the road leg (e.g. the air-freight leg) */
+  extraTransportCarbon?: number;
 }
 
 export function computeOrderCarbon(input: OrderCarbonInput): OrderCarbonBreakdown {
@@ -239,13 +245,13 @@ export function computeOrderCarbon(input: OrderCarbonInput): OrderCarbonBreakdow
   const baskets = Math.max(0, n(input.basketCount));
   const basketWeight = baskets * BASKET_SPEC.weightKg;
   const basketCarbon = baskets * basketCarbonPerUse(input.basketCycles ?? BASKET_SPEC.defaultCycles);
-  const packagingWeightKg = pack.weightKg + basketWeight;
-  const packagingCarbon = pack.carbon + basketCarbon;
+  const packagingWeightKg = pack.weightKg + basketWeight + n(input.extraPackaging?.weightKg);
+  const packagingCarbon = pack.carbon + basketCarbon + n(input.extraPackaging?.carbon);
 
   const netWeight = netFlowerWeight(input.shippedWeightKg, packagingWeightKg);
   const ef = dynamicFlowerEF(input.farmMonthly);
   const farm = flowerCarbon(netWeight, ef);
-  const transport = input.transport ? transportCarbon(input.transport) : 0;
+  const transport = (input.transport ? transportCarbon(input.transport) : 0) + n(input.extraTransportCarbon);
   const total = farm + packagingCarbon + transport;
   const stems = n(input.flowerCount) > 0 ? n(input.flowerCount) : 1;
   return {
