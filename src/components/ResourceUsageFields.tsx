@@ -110,6 +110,7 @@ export default function ResourceUsageFields({
           <div className="sm:col-span-2">
             <label className={labelCls}>ปริมาณน้ำ (ลบ.ม./เดือน)</label>
             <input type="number" min="0" step="any" value={value.waterM3} onChange={(e) => set("waterM3", e.target.value)} placeholder="ระบุปริมาณน้ำ" className={inputCls} />
+            <p className="mt-1 text-[11px] text-amber-600">หากฟาร์มใช้ปั๊มน้ำไฟฟ้าสูบน้ำเอง และค่าน้ำถูกคิดรวมในบิลค่าไฟไปแล้ว ให้กรอกช่องนี้เป็น 0 (กันการนับคาร์บอนซ้ำ)</p>
           </div>
         </div>
         <p className="text-[11px] text-slate-400">* หากใช้เชื้อเพลิง/ปุ๋ย/สารเคมีมากกว่า 1 ประเภท เลือก “ประเภทหลัก” ที่ใช้มากที่สุดไปก่อน · ค่าสัมประสิทธิ์: {fuel.label} {fuel.ef} · {fert.label} {fert.ef} · {chem.label} {chem.ef} kg CO₂e/หน่วย</p>
