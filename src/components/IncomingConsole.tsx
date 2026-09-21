@@ -191,6 +191,8 @@ export default function IncomingConsole({
                     ["อายุหลังตัด", `${open.ageDays} วัน`],
                     [open.productCategory && open.productCategory !== "flower" ? "น้ำหนักสินค้า" : "จำนวนดอก", quantityLabel(open)],
                     ["ปลายทาง", open.destination || "—"],
+                    ...(open.destinationAddress ? [["ที่อยู่ปลายทาง", open.destinationAddress]] : []),
+                    ...(open.destLat != null && open.destLng != null ? [["พิกัดปลายทาง", `${open.destLat.toFixed(4)}, ${open.destLng.toFixed(4)}`]] : []),
                     ["Batch ID", open.id],
                     ["QR Code", detail.print ? detail.print.id : "ยังไม่พิมพ์"],
                   ].map(([k, v]) => (

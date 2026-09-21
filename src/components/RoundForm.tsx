@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2, PlusCircle, Trash2, Lock, CheckCircle2 } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
-import { DESTINATIONS, estimateDistanceKm } from "@/lib/geo";
+import { DESTINATIONS, estimateDistanceKm, haversineKm, provinceFromAddress } from "@/lib/geo";
 import { PRODUCT_CATEGORIES, typesFor, variantsFor, categoryOfType } from "@/lib/master-data";
 import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_OPTIONS, UNIT_LABEL } from "@/lib/produce";
 import type { ProductCategory, QuantityUnit, Ripeness } from "@/lib/types";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, MapPin } from "lucide-react";
 import { BRANCHES } from "@/lib/branches";
 import type { Supplier } from "@/lib/types";
 
@@ -166,6 +166,8 @@ export default function RoundForm({
   // Shipping
   const [shipDate, setShipDate] = useState("");
   const [destination, setDestination] = useState("");
+  const [destAddress, setDestAddress] = useState("");
+  const [destGps, setDestGps] = useState(""); // "lat, lng"
   const [distanceKm, setDistanceKm] = useState("");
   const [carrier, setCarrier] = useState<CarrierKey>("thaipost");
   const [postalCode, setPostalCode] = useState("");
@@ -195,10 +197,35 @@ export default function RoundForm({
   function onDest(v: string) {
     setDestination(v);
     setErrs((e) => ({ ...e, destination: "" }));
-    if (!distEdited) {
+    if (!distEdited && !parseGps(destGps)) {
       const est = estimateDistanceKm(v, { lat: supplier.gpsLat, lng: supplier.gpsLng });
       if (est != null) setDistanceKm(String(est));
     }
+  }
+  // Destination GPS ("lat, lng") beats the province estimate: farm → recipient great-circle × 1.3 road factor.
+  function parseGps(v: string): { lat: number; lng: number } | null {
+    const [a, b] = v.split(",").map((x) => Number(x.trim()));
+    return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 ? { lat: a, lng: b } : null;
+  }
+  function onDestGps(v: string) {
+    setDestGps(v);
+    setErrs((e) => ({ ...e, destGps: "" }));
+    const g = parseGps(v);
+    if (g && !distEdited && supplier.gpsLat && supplier.gpsLng) {
+      setDistanceKm(String(Math.round(haversineKm(supplier.gpsLat, supplier.gpsLng, g.lat, g.lng) * 1.3)));
+    }
+  }
+  // Typing an address that names a province picks the destination automatically.
+  function onDestAddress(v: string) {
+    setDestAddress(v);
+    if (destination) return;
+    const prov = provinceFromAddress(v);
+    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name.includes(prov)) : undefined;
+    if (hit) onDest(hit.name);
+  }
+  function useDestLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((p) => onDestGps(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`));
   }
   const setPack = (i: number, k: keyof Pack, v: string) =>
     setPacks((p) => p.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
@@ -213,6 +240,7 @@ export default function RoundForm({
     if (!variety) e.variety = "กรุณาเลือกพันธุ์";
     if (!flowerCount || Number(flowerCount) <= 0) e.flowerCount = isFlower ? "กรุณาระบุจำนวนดอกไม้" : "กรุณาระบุน้ำหนักสินค้า";
     if (!cutDate) e.cutDate = isFlower ? "กรุณาเลือกวันที่ตัดดอกไม้" : "กรุณาเลือกวันที่เก็บเกี่ยว";
+    if (destGps.trim() && !parseGps(destGps)) e.destGps = "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
     if (isFlower && !ageDays) e.ageDays = "กรุณาระบุอายุดอกไม้";
     if (category === "fruit" && !ripeness) e.ripeness = "กรุณาระบุระยะการสุก";
     packs.forEach((p, i) => {
@@ -280,6 +308,9 @@ export default function RoundForm({
           ethyleneUsed: category === "fruit" ? ethylene : undefined,
           ethyleneNote: category === "fruit" && ethylene ? ethyleneNote : undefined,
           destination,
+          destinationAddress: destAddress.trim() || undefined,
+          destLat: parseGps(destGps)?.lat,
+          destLng: parseGps(destGps)?.lng,
           distanceKm: Number(distanceKm) || 0,
           carrier: carrierLabel,
           provider: isThaipost ? undefined : provider,
@@ -359,6 +390,8 @@ export default function RoundForm({
               <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลการขนส่ง</div>
               <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
               <F label="ปลายทาง" value={destination} />
+              {destAddress ? <F label="ที่อยู่ปลายทาง" value={destAddress} /> : null}
+              {destGps ? <F label="พิกัดปลายทาง" value={destGps} /> : null}
               <F label="รูปแบบการขนส่ง" value={carrierLabel} />
               {isThaipost ? (
                 <>
@@ -571,6 +604,19 @@ export default function RoundForm({
           <div>
             <label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label>
             <input type="number" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); }} placeholder="ระบบจะประมาณการอัตโนมัติ" className={`${inputCls} bg-slate-50`} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
+            <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="เช่น 99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110" className={inputCls} />
+          </div>
+          <div>
+            <label className={labelCls}>พิกัดปลายทาง</label>
+            <div className="flex gap-2">
+              <input value={destGps} onChange={(e) => onDestGps(e.target.value)} placeholder="13.7367, 100.5602" className={`${inputCls} min-w-0 flex-1 ${errs.destGps ? "border-[#ee443f]" : ""}`} />
+              <button type="button" onClick={useDestLocation} title="ใช้ตำแหน่งปัจจุบัน" className="grid size-[42px] shrink-0 place-items-center rounded-[8px] border border-gray-300 text-slate-500 hover:bg-gray-50"><MapPin size={16} /></button>
+            </div>
+            <p className="mt-1 text-[11px] text-slate-400">ใส่พิกัดแล้วระบบคำนวณระยะทางจากฟาร์มให้ · คัดลอกจาก Google Maps ได้</p>
+            <Err msg={errs.destGps} />
           </div>
         </div>
 

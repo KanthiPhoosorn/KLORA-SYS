@@ -63,6 +63,7 @@ export default async function PrintLabelsPage({ searchParams }: { searchParams: 
                 <div className="row"><b>จำนวน</b> {quantityLabel(b)}</div>
                 <div className="row"><b>{harvestLabel(categoryOf(b))}</b> {thaiDateShort(b.cutDate)}</div>
                 <div className="row"><b>ปลายทาง</b> {b.destination ?? "—"}{b.branch ? ` · ${b.branch}` : ""}</div>
+                {b.destinationAddress ? <div className="row" style={{ fontSize: "10.5px" }}><b>ที่อยู่</b> {b.destinationAddress}</div> : null}
                 <div className="row"><b>แหล่งผลิต</b> {s.province ?? "—"}</div>
                 <div className="ids">{b.supplierId} · {b.id}</div>
               </div>

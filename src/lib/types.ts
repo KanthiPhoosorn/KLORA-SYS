@@ -131,6 +131,9 @@ export interface Batch {
   cutDate: string; // วันที่ตัด (YYYY-MM-DD)
   distanceKm: number; // ระยะทาง (ปลายทาง)
   destination?: string; // ปลายทาง เช่น กรุงเทพฯ
+  destinationAddress?: string; // ที่อยู่ปลายทาง (ผู้รับ) — carrier-only, never on the public passport
+  destLat?: number; // พิกัดปลายทาง
+  destLng?: number;
   carrier?: string; // รูปแบบการขนส่ง เช่น ไปรษณีย์ไทย / ขนส่งควบคุมอุณหภูมิ / ผู้ส่งออก
   provider?: string; // ผู้ให้บริการขนส่ง (เมื่อไม่ใช่ไปรษณีย์ไทย) เช่น Nim Express
   postalCode?: string; // รหัสไปรษณีย์ปลายทาง
@@ -264,6 +267,9 @@ export type BatchInput = Pick<
 > & {
   variety?: string;
   destination?: string;
+  destinationAddress?: string;
+  destLat?: number;
+  destLng?: number;
   carrier?: string;
   provider?: string;
   postalCode?: string;

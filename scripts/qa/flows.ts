@@ -61,12 +61,13 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   r = await api("/api/batches", { method: "POST", cookie: supCookie, body: { cutDate: "2026-09-10", flowerCount: 0 } });
   log("create batch flowerCount=0 → 400", r.status === 400, String(r.status));
   r = await api("/api/batches", { method: "POST", cookie: supCookie, body: {
-    cutDate: "2026-09-10", flowerCount: 1200, variety: "Red Naomi", distanceKm: 780, destination: "กรุงเทพฯ", carrier: "ไปรษณีย์ไทย",
+    cutDate: "2026-09-10", flowerCount: 1200, variety: "Red Naomi", distanceKm: 780, destination: "กรุงเทพฯ", destinationAddress: "99/1 ถ.สุขุมวิท กรุงเทพฯ 10110", destLat: 13.7367, destLng: 100.5602, carrier: "ไปรษณีย์ไทย",
     provider: "ไปรษณีย์ไทย", branch: "สาขาเชียงราย", boxMaterial: "corrugated", weightKg: 30, basketIds: ["BK-QA-1", "BK-QA-2"],
     packagingItems: [{ kind: "basket", quantity: 2, basketNo: "BK-QA-1" }, { kind: "corrugated_box", width: 40, length: 60, height: 30, quantity: 10 }],
     vehicleKey: "truck_6w", fuelKey: "diesel", shippedWeightKg: 32,
   } });
   log("create batch (submitted)", r.status === 201, `${r.status} ${r.json?.id || r.json?.error}`);
+  log("batch keeps destination address + GPS", r.json?.destinationAddress?.includes("สุขุมวิท") && r.json?.destLat === 13.7367, `${r.json?.destinationAddress} ${r.json?.destLat}`);
   const batchId: string = r.json?.id;
   r = await api("/api/batches", { method: "POST", cookie: supCookie, body: { cutDate: "2026-09-11", flowerCount: 300, status: "draft" } });
   log("create batch (draft)", r.status === 201 && r.json?.status === "draft", `${r.status} ${r.json?.status}`);

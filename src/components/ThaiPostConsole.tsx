@@ -165,7 +165,7 @@ export default function ThaiPostConsole({
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 p-4 text-sm">
                       <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-blue-500" /><div><div className="text-slate-400">ต้นทาง</div><div className="text-slate-700">{s?.farmName}</div><div className="text-xs text-slate-400">{s?.address}</div></div></div>
                       <ArrowRight size={18} className="shrink-0 text-slate-300" />
-                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}</div></div></div>
+                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}{b.destinationAddress ? <div className="text-[12px] text-slate-500">{b.destinationAddress}</div> : null}{b.destLat != null && b.destLng != null ? <a href={`https://www.google.com/maps/search/?api=1&query=${b.destLat},${b.destLng}`} target="_blank" rel="noopener" className="text-[12px] text-blue-600 underline">{b.destLat.toFixed(4)}, {b.destLng.toFixed(4)}</a> : null}</div></div></div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
