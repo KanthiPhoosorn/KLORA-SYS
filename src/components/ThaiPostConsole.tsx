@@ -53,7 +53,9 @@ export default function ThaiPostConsole({
   async function confirmPrint() {
     if (!results || results.length === 0) return;
     setBusy(true);
-    window.print();
+    // Print from a stand-alone label sheet (new tab) — printing the console page itself only
+    // captured the modal/shell, never the labels.
+    window.open(`/print/labels?ids=${encodeURIComponent(results.map((b) => b.id).join(","))}`, "_blank", "noopener");
     for (const b of results) {
       const s = supById.get(b.supplierId);
       await fetch("/api/prints", {
@@ -202,20 +204,6 @@ export default function ThaiPostConsole({
         </div>
       </Modal>
 
-      {/* Print-only labels */}
-      <div className="print-only space-y-8 p-6">
-        {(results ?? []).map((b) => {
-          const s = supById.get(b.supplierId);
-          return (
-            <div key={b.id} className="text-center">
-              <div className="text-lg font-bold">{s?.farmName}</div>
-              <div className="text-sm">{b.supplierId} · {b.id} → {b.destination}</div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrSrc(b)} alt="" className="mx-auto mt-2 size-48" />
-            </div>
-          );
-        })}
-      </div>
     </>
   );
 }
