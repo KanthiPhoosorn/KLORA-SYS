@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/api-guard";
 import { getBatches, computeBatch } from "@/lib/store";
 
+export const maxDuration = 60; // one DB round-trip per round
+
 // POST /api/factors/recompute — KYN only: re-run the engine on every computed round so new
 // factors apply to history. Shipment status is left untouched.
 export async function POST() {

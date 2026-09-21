@@ -81,8 +81,10 @@ export function packLinesToPayload(lines: PackLine[]) {
 
 /** Rebuild lines from a stored batch (logistic form "same as before"). */
 export function packLinesFromBatch(items: { kind: string; width?: number; length?: number; height?: number; quantity: number; basketNo?: string; boxMaterial?: string }[] | undefined, inner?: InnerMaterialLine[]): PackLine[] {
+  const pool = [...(inner ?? [])]; // each saved inner line belongs to one box line, in order
   return (items ?? []).map((p) => {
-    const inn = inner?.find((m) => m.material === p.boxMaterial);
+    const at = p.kind === "corrugated_box" ? pool.findIndex((m) => m.material === p.boxMaterial) : -1;
+    const inn = at >= 0 ? pool.splice(at, 1)[0] : undefined;
     const perBox = inn && p.quantity ? inn.qty / p.quantity : undefined;
     return {
       kind: p.kind, w: p.width ? String(p.width) : "", l: p.length ? String(p.length) : "", h: p.height ? String(p.height) : "",
