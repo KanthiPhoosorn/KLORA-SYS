@@ -192,7 +192,10 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
   return clean<Batch>(inserted);
 }
 
-export async function computeBatch(id: string): Promise<Batch | null> {
+// opts.advanceShipment: a KYN/carrier compute moves a "cutting" round to "in_transit"; the
+// automatic compute-on-submit leaves the shipment status alone (the parcel hasn't left the farm).
+export async function computeBatch(id: string, opts: { advanceShipment?: boolean } = {}): Promise<Batch | null> {
+  const advanceShipment = opts.advanceShipment ?? true;
   const b = await getBatch(id);
   if (!b) return null;
   const supplier = await getSupplier(b.supplierId);
@@ -298,7 +301,7 @@ export async function computeBatch(id: string): Promise<Batch | null> {
       ageDays,
       carbonBreakdown: breakdown,
       status: "computed",
-      shipmentStatus: b.shipmentStatus === "cutting" ? "in_transit" : b.shipmentStatus,
+      shipmentStatus: advanceShipment && b.shipmentStatus === "cutting" ? "in_transit" : b.shipmentStatus,
     })
     .where(eq(batches.id, id))
     .returning();

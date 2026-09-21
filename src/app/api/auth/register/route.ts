@@ -5,6 +5,7 @@ import { provinceFromAddress } from "@/lib/geo";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { SupplierInput } from "@/lib/types";
 import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
+import { DEFAULT_PLAN } from "@/lib/plans";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
     fertilizerKind: asFertilizerKind(body.fertilizerKind),
     chemicalKind: asChemicalKind(body.chemicalKind),
     yieldLines: parseYieldLines(body.yieldLines),
+    plan: DEFAULT_PLAN,
   };
 
   const supplier = await addSupplier(input);

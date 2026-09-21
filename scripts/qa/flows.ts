@@ -212,6 +212,8 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   log("prints list without session → 401 (SECURITY)", r.status === 401, String(r.status));
 
   // ---------- Plan toggle (KYN) + event notifications + mark-read ----------
+  r = await api("/api/suppliers/" + supId, { method: "PATCH", cookie: kynCookie, body: { plan: "free" } });
+  log("kyn sets plan=free (pilot default is pro)", r.status === 200 && r.json?.plan === "free", String(r.status));
   r = await api("/api/suppliers/" + supId, { method: "PATCH", cookie: kynCookie, body: { plan: "pro" } });
   log("kyn sets plan=pro", r.status === 200 && r.json?.plan === "pro", `${r.status} ${r.json?.plan || r.json?.error}`);
   r = await api("/api/suppliers/" + supId, { method: "PATCH", cookie: supCookie, body: { plan: "free" } });

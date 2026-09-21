@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getBatches, getBatchesBySupplier, addBatch, getSupplier } from "@/lib/store";
+import { getBatches, getBatchesBySupplier, addBatch, getSupplier, computeBatch, addNotification } from "@/lib/store";
+import { unitsOf, perUnitLabel } from "@/lib/produce";
 import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
@@ -114,7 +115,20 @@ export async function POST(req: Request) {
       ethyleneUsed: body.ethyleneUsed === true || body.ethyleneUsed === "true",
       ethyleneNote: str("ethyleneNote"),
     });
-    return NextResponse.json(batch, { status: 201 });
+    // Auto-compute on submit so the round is printable by the carrier right away (a flower
+    // round still needs at least one basket; anything incomplete stays "submitted" for KYN).
+    let result = batch;
+    if (status === "submitted" && (basketIds.length > 0 || productCategory !== "flower")) {
+      const computed = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
+      if (computed?.status === "computed") {
+        result = computed;
+        await addNotification({
+          supplierId, kind: "success", title: `คำนวณคาร์บอน ${batch.id} เสร็จแล้ว`,
+          body: `CO₂e รวม ${(computed.co2ePerFlower * unitsOf(computed)).toFixed(2)} kg (${computed.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(computed)}) — พร้อมให้ผู้ขนส่งพิมพ์ QR`,
+        });
+      }
+    }
+    return NextResponse.json(result, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
