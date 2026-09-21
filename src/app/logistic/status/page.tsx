@@ -4,8 +4,19 @@ import StatusConsole from "@/components/StatusConsole";
 
 export const dynamic = "force-dynamic";
 
-export default async function LogisticStatusPage() {
+import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
+import { categoryOf } from "@/lib/produce";
+
+export default async function LogisticStatusPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+  const cat = parseCat((await searchParams).cat);
   await requireRole("logistic");
-  const [suppliers, batches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
-  return <StatusConsole suppliers={suppliers} batches={batches} prints={prints} />;
+  const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
+  const mixed = new Set(allBatches.map(categoryOf)).size > 1;
+  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
+  return (
+    <div className="space-y-4">
+      {mixed ? <CategoryFilter value={cat} basePath="/logistic/status" accent="blue" /> : null}
+      <StatusConsole suppliers={suppliers} batches={batches} prints={prints} />
+    </div>
+  );
 }

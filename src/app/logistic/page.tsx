@@ -9,6 +9,9 @@ import { VEHICLE_PROFILE, FUEL_EF } from "@/lib/transport-ef";
 import { DESTINATIONS } from "@/lib/geo";
 import { Printer, Search, MapPin, Truck, Package, Cloud, Boxes, Snowflake, Globe, Users } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
+import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
+import { categoryOf } from "@/lib/produce";
+import { batchCo2e, unitsOf, perUnitLabel } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +21,16 @@ const vehLabel = (k?: string) => (k && VEHICLE_PROFILE[k]?.label) || "—";
 const fuelLabel = (k?: string) => (k && FUEL_EF[k]?.label) || "—";
 const transportOf = (b: Batch) => b.carbonBreakdown?.transport ?? 0;
 
-export default async function LogisticDashboard() {
+export default async function LogisticDashboard({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   await requireRole("logistic");
-  const [suppliers, batches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
+  const cat = parseCat((await searchParams).cat);
+  const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
+  // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every figure; units never mix — a single
+  // category reports per-stem or per-kg, "ทั้งหมด" counts shipments and reports CO₂e per shipment.
+  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
+  const mixed = new Set(allBatches.map(categoryOf)).size > 1;
+  const perShipment = cat === "all" && mixed;
+  const unitLabel = cat === "flower" || (!mixed && cat === "all" && allBatches.every((b) => categoryOf(b) === "flower")) ? "ดอก" : perShipment ? "รอบ" : "กก.";
   const byId = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
   const computed = batches.filter((b) => b.status === "computed");
 
@@ -31,9 +41,12 @@ export default async function LogisticDashboard() {
   const sortingPoints = new Set(prints.filter((p) => p.sortingPoint).map((p) => p.sortingPoint)).size;
   const latestDate = prints.length ? prints[prints.length - 1].printedAt.slice(0, 10) : nowIso.slice(0, 10);
 
-  const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
-  const totalCo2e = computed.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
-  const avgCo2e = computed.length ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length : 0;
+  const totalFlowers = perShipment ? computed.length : computed.reduce((n, b) => n + unitsOf(b), 0);
+  const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
+  const avgCo2e = computed.length
+    ? perShipment ? totalCo2e / computed.length : computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
+    : 0;
+  const avgLabel = perShipment ? "CO₂e เฉลี่ย/รอบ" : `CO₂e ขนส่งเฉลี่ย${computed[0] ? perUnitLabel(computed[0]).replace("ต่อ", "/") : "/ดอก"}`;
   const reeferPct = computed.length ? Math.round((computed.filter((b) => b.isReeferUsed).length / computed.length) * 100) : 0;
   // ต่างประเทศ = ส่งผ่าน "ผู้ส่งออก"; ที่เหลือคือในประเทศ
   const intlCount = computed.filter((b) => (b.carrier ?? "").includes("ส่งออก")).length;
@@ -48,7 +61,7 @@ export default async function LogisticDashboard() {
 
   // Donut — สัดส่วนปริมาณดอกไม้รับเข้าตามฟาร์ม (นับจำนวนดอก)
   const perFarm = suppliers
-    .map((s) => ({ s, flowers: computed.filter((b) => b.supplierId === s.id).reduce((n, b) => n + b.flowerCount, 0) }))
+    .map((s) => ({ s, flowers: computed.filter((b) => b.supplierId === s.id).reduce((n, b) => n + (perShipment ? 1 : unitsOf(b)), 0) }))
     .filter((r) => r.flowers > 0)
     .sort((a, b) => b.flowers - a.flowers);
   const farmFlowerTotal = perFarm.reduce((n, r) => n + r.flowers, 0) || 1;
@@ -110,6 +123,7 @@ export default async function LogisticDashboard() {
         <div className="relative grid gap-4 lg:grid-cols-[1.1fr_2fr] lg:items-center">
           <div>
             <h1 className="text-xl font-bold text-slate-800">ภาพรวมการขนส่ง</h1>
+            {mixed ? <div className="mt-3"><CategoryFilter value={cat} basePath="/logistic" accent="blue" /></div> : null}
             <p className="mt-1 text-sm text-slate-500">ติดตามการส่งพัสดุและการปล่อยคาร์บอนจากการขนส่งของคุณ</p>
             <Link href="/logistic/search" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
               <Search size={16} /> ค้นหา / พิมพ์ QR
@@ -126,9 +140,9 @@ export default async function LogisticDashboard() {
       {/* 6 metric cards */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard label="จำนวนรอบการจัดส่ง" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
-        <MetricCard label="จำนวนดอกทั้งหมด" value={nfmt(totalFlowers)} unit="ดอก" tone="green" icon={<Package size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
+        <MetricCard label={perShipment ? "จำนวนรอบที่รับเข้า" : unitLabel === "ดอก" ? "จำนวนดอกทั้งหมด" : "น้ำหนักสินค้าทั้งหมด"} value={nfmt(Math.round(totalFlowers))} unit={unitLabel} tone="green" icon={<Package size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
-        <MetricCard label="CO₂e ขนส่งเฉลี่ย/ดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="blue" icon={<Boxes size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
+        <MetricCard label={avgLabel} value={avgCo2e.toFixed(perShipment ? 2 : 4)} unit="กิโลกรัม" tone="blue" icon={<Boxes size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard label="การใช้ตู้เย็นหรือห้องเย็น" value={`${reeferPct}`} unit="%" tone="green" icon={<Snowflake size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard
           label="สัดส่วนการปล่อย CO₂e ในประเทศ vs ต่างประเทศ"
@@ -165,8 +179,8 @@ export default async function LogisticDashboard() {
         </Card>
 
         <Card className="p-5">
-          <h3 className="mb-4 text-base font-semibold text-slate-800">สัดส่วนปริมาณดอกไม้รับเข้าตามฟาร์ม</h3>
-          <Donut segments={donutSegments} centerValue={nfmt(farmFlowerTotal)} centerUnit="ดอก" />
+          <h3 className="mb-4 text-base font-semibold text-slate-800">{perShipment ? "สัดส่วนรอบรับเข้าตามฟาร์ม" : unitLabel === "ดอก" ? "สัดส่วนปริมาณดอกไม้รับเข้าตามฟาร์ม" : "สัดส่วนน้ำหนักสินค้ารับเข้าตามฟาร์ม"}</h3>
+          <Donut segments={donutSegments} centerValue={nfmt(Math.round(farmFlowerTotal))} centerUnit={unitLabel} />
         </Card>
 
         <Card className="p-5">

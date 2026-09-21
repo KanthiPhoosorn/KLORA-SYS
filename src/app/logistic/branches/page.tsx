@@ -11,9 +11,15 @@ const provinceOf = (branch?: string) =>
   DESTINATIONS.find((d) => branch?.includes(d.province) || branch?.includes(d.name))?.province ?? "—";
 const transportOf = (b: Batch) => b.carbonBreakdown?.transport ?? 0;
 
-export default async function LogisticBranchesPage() {
+import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
+import { categoryOf } from "@/lib/produce";
+
+export default async function LogisticBranchesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+  const cat = parseCat((await searchParams).cat);
   await requireRole("logistic");
-  const batches = await getBatches();
+  const allBatches = await getBatches();
+  const mixed = new Set(allBatches.map(categoryOf)).size > 1;
+  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
   const computed = batches.filter((b) => b.status === "computed");
 
   // Group computed batches by branch → per-branch comparison rows
@@ -43,8 +49,9 @@ export default async function LogisticBranchesPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">ข้อมูลรายสาขา</h1>
         <p className="mt-1 text-sm text-slate-500">
-          เปรียบเทียบจำนวนรอบ ปริมาณดอกไม้ และการปล่อยคาร์บอนจากการขนส่งของแต่ละสาขา
+          เปรียบเทียบจำนวนรอบ ปริมาณสินค้า และการปล่อยคาร์บอนจากการขนส่งของแต่ละสาขา
         </p>
+        {mixed ? <div className="mt-3"><CategoryFilter value={cat} basePath="/logistic/branches" accent="blue" /></div> : null}
       </div>
       <BranchTable rows={branchRows} />
     </div>

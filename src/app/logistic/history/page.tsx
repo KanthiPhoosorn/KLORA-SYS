@@ -5,9 +5,15 @@ import { quantityLabel } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
 
-export default async function LogisticHistoryPage() {
+import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
+import { categoryOf } from "@/lib/produce";
+
+export default async function LogisticHistoryPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+  const cat = parseCat((await searchParams).cat);
   await requireRole("logistic");
-  const [batches, prints] = await Promise.all([getBatches(), getPrints()]);
+  const [allBatches, prints] = await Promise.all([getBatches(), getPrints()]);
+  const mixed = new Set(allBatches.map(categoryOf)).size > 1;
+  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
 
   const activeByBatch = new Set(prints.filter((p) => !p.cancelled && p.batchId).map((p) => p.batchId!));
   const anyByBatch = new Set(prints.filter((p) => p.batchId).map((p) => p.batchId!));
@@ -46,5 +52,10 @@ export default async function LogisticHistoryPage() {
       };
     });
 
-  return <LogisticHistory printRows={printRows} shipRows={shipRows} />;
+  return (
+    <div className="space-y-4">
+      {mixed ? <CategoryFilter value={cat} basePath="/logistic/history" accent="blue" /> : null}
+      <LogisticHistory printRows={printRows} shipRows={shipRows} />
+    </div>
+  );
 }
