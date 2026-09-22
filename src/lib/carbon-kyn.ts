@@ -119,6 +119,8 @@ export interface PackagingItem {
   /** centimetres — ignored for flat sheets (and for a box entered with height 0) */
   height?: number;
   quantity: number;
+  /** reusable item: its manufacturing carbon is spread over this many trips (default 1 = single-use) */
+  reuseCycles?: number;
 }
 
 export interface PackagingResult {
@@ -142,7 +144,8 @@ export function packagingItemCarbon(item: PackagingItem): PackagingResult {
   const spec = PACKAGING_SPEC[item.type];
   const qty = Math.max(0, n(item.quantity));
   const weightKg = packagingAreaSqm(item) * spec.safetyFactor * spec.weightPerSqm * qty;
-  return { weightKg, carbon: weightKg * spec.ef };
+  const cycles = Math.max(1, Math.floor(n(item.reuseCycles) || 1));
+  return { weightKg, carbon: (weightKg * spec.ef) / cycles };
 }
 
 /** Rolled-up packaging weight + carbon for a whole order. */

@@ -105,8 +105,29 @@ export interface PackagingLine {
   length?: number;
   height?: number;
   quantity: number;
+  /** ประเภทการใช้งาน — reusable (หมุนเวียน, tracked by assetId) or single-use. Unset on older rounds. */
+  usage?: "reusable" | "single";
+  /** registered reusable item (packaging_assets.id, e.g. BSK-2026-00001) */
+  assetId?: string;
   basketNo?: string;
   boxMaterial?: string;
+}
+
+// บรรจุภัณฑ์หมุนเวียน — one physical basket/box registered once, then picked by code on each round.
+export interface PackagingAsset {
+  id: string;
+  kind: PackagingLine["kind"];
+  width?: number;
+  length?: number;
+  height?: number;
+  designLife: number; // รอบที่ออกแบบให้ใช้ได้ (manufacturing carbon is spread over this)
+  priorUses: number; // รอบที่เคยใช้ก่อนลงทะเบียน
+  ownerSupplierId?: string;
+  ownerLabel?: string;
+  createdAt: string;
+  createdBy?: string;
+  /** rounds in KLORA that used it (computed on read) */
+  uses?: number;
 }
 
 // ผลการคำนวณแยกส่วน เก็บไว้กับ batch เพื่อแสดงที่มาของตัวเลข

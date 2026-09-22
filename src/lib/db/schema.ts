@@ -67,6 +67,21 @@ export const suppliers = pgTable("suppliers", {
   signupVia: text("signup_via").$type<CarrierKey>(),
 });
 
+// Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน).
+export const packagingAssets = pgTable("packaging_assets", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  width: doublePrecision("width"),
+  length: doublePrecision("length"),
+  height: doublePrecision("height"),
+  designLife: integer("design_life").notNull(),
+  priorUses: integer("prior_uses").notNull().default(0),
+  ownerSupplierId: text("owner_supplier_id"),
+  ownerLabel: text("owner_label"),
+  createdAt: text("created_at").notNull(),
+  createdBy: text("created_by"),
+});
+
 // KYN-editable reference data (key "factors" → src/lib/factors.ts).
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),

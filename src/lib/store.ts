@@ -4,10 +4,10 @@
 // Convention: nullable columns come back from Drizzle as `null`; the domain types use
 // optional (`?`, i.e. `undefined`). `clean()` converts null -> undefined on every row read.
 
-import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
+import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { innerMaterialsTotals } from "./inner-materials";
 import type {
@@ -23,6 +23,7 @@ import type {
   Notification,
   FarmMonthlyInput,
   CarbonBreakdownRecord,
+  PackagingAsset,
 } from "./types";
 import {
   nextSupplierId,
@@ -49,11 +50,63 @@ export async function saveFactors(value: unknown, userId: string): Promise<Facto
     .onConflictDoUpdate({ target: appSettings.key, set: { value: merged, updatedAt: now, updatedBy: userId } });
   return merged;
 }
+// --- Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน) ---------------------------
+const ASSET_PREFIX: Record<PackagingAsset["kind"], string> = { basket: "BSK", corrugated_box: "BOX", plastic_film: "PLF" };
+
+/** How many rounds reference each asset code (packaging_items[].assetId). */
+async function assetUseCounts(): Promise<Map<string, number>> {
+  const res = await db.execute(sql`SELECT e->>'assetId' AS id, count(DISTINCT b.id)::int AS n FROM batches b, jsonb_array_elements(coalesce(b.packaging_items, '[]'::jsonb)) e WHERE e ? 'assetId' GROUP BY 1`);
+  const rows = ((res as unknown as { rows?: { id: string; n: number }[] }).rows ?? (res as unknown as { id: string; n: number }[]));
+  return new Map(rows.map((r) => [r.id, Number(r.n)]));
+}
+
+/** A farm sees its own items plus carrier/KYN-owned ones; logistic and KYN see everything. */
+export async function listPackagingAssets(viewer?: { role: string; supplierId?: string }): Promise<PackagingAsset[]> {
+  const rows = await db.select().from(packagingAssets).orderBy(desc(packagingAssets.createdAt));
+  const uses = await assetUseCounts();
+  return rows
+    .map((r) => ({ ...clean<PackagingAsset>(r as Record<string, unknown>), uses: uses.get(r.id) ?? 0 }))
+    .filter((a) => viewer?.role !== "supplier" || !a.ownerSupplierId || a.ownerSupplierId === viewer.supplierId);
+}
+
+export async function getPackagingAssetsByIds(ids: string[]): Promise<PackagingAsset[]> {
+  if (!ids.length) return [];
+  const rows = await db.select().from(packagingAssets).where(inArray(packagingAssets.id, ids));
+  return rows.map((r) => clean<PackagingAsset>(r as Record<string, unknown>));
+}
+
+export async function createPackagingAsset(input: {
+  kind: PackagingAsset["kind"]; width?: number; length?: number; height?: number; priorUses?: number;
+  ownerSupplierId?: string; ownerLabel?: string; createdBy?: string;
+}): Promise<PackagingAsset> {
+  const factors = await getFactors();
+  const year = new Date().getFullYear();
+  const prefix = `${ASSET_PREFIX[input.kind]}-${year}-`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const taken = await db.select({ id: packagingAssets.id }).from(packagingAssets).where(like(packagingAssets.id, `${prefix}%`));
+    const max = taken.reduce((m, r) => Math.max(m, Number(r.id.slice(prefix.length)) || 0), 0);
+    const row = {
+      id: `${prefix}${String(max + 1 + attempt).padStart(5, "0")}`,
+      kind: input.kind,
+      width: input.width ?? null, length: input.length ?? null, height: input.height ?? null,
+      designLife: factors.reuseLife[input.kind],
+      priorUses: Math.max(0, Math.round(input.priorUses ?? 0)),
+      ownerSupplierId: input.ownerSupplierId ?? null,
+      ownerLabel: input.ownerLabel ?? null,
+      createdAt: new Date().toISOString(),
+      createdBy: input.createdBy ?? null,
+    };
+    const inserted = await db.insert(packagingAssets).values(row).onConflictDoNothing().returning();
+    if (inserted.length) return { ...clean<PackagingAsset>(inserted[0] as Record<string, unknown>), uses: 0 };
+  }
+  throw new Error("สร้างรหัสบรรจุภัณฑ์ไม่สำเร็จ ลองใหม่อีกครั้ง");
+}
+
 export async function getFactorsMeta(): Promise<{ updatedAt?: string; updatedBy?: string }> {
   const [row] = await db.select({ updatedAt: appSettings.updatedAt, updatedBy: appSettings.updatedBy }).from(appSettings).where(eq(appSettings.key, "factors")).limit(1);
   return { updatedAt: row?.updatedAt, updatedBy: row?.updatedBy ?? undefined };
 }
-import { computeOrderCarbon, packagingTotals, BASKET_SPEC } from "./carbon-kyn";
+import { computeOrderCarbon, packagingTotals, BASKET_SPEC, basketCarbonPerUse } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
 
 // Fallback average weight of one fresh cut-flower stem (kg). Used only to derive the
@@ -256,20 +309,22 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
     const tkmOverride = b.vehicleKey && b.fuelKey ? factors.vehicleTkm[`${b.vehicleKey}|${b.fuelKey}`] : undefined;
     const derived = tkmOverride ? { ...(derivedRaw ?? { efVkm: 0, sourced: false, basis: "" }), efTkm: tkmOverride } : derivedRaw;
     const inner = innerMaterialsTotals(b.innerMaterials);
-    const dimensioned = (b.packagingItems ?? []).filter(
-      (p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket",
-    );
-    const basketCount = (b.packagingItems ?? [])
-      .filter((p) => p.kind === "basket")
-      .reduce((sum, p) => sum + (p.quantity || 0), 0);
-
-    const packItems = dimensioned.map((p) => ({
-      type: p.kind,
-      width: p.width ?? 0,
-      length: p.length ?? 0,
-      height: p.height ?? 0,
-      quantity: p.quantity || 0,
-    }));
+    // ประเภทการใช้งาน: a reusable item carries 1/designLife of its manufacturing carbon per trip,
+    // a single-use one all of it. Older rounds (no usage) keep the old rule: baskets reusable
+    // (100 trips), boxes/film single-use. Weight always rides along in full.
+    const lines = b.packagingItems ?? [];
+    const assetLife = new Map((await getPackagingAssetsByIds([...new Set(lines.map((p) => p.assetId).filter((x): x is string => !!x))])).map((x) => [x.id, x.designLife]));
+    const cyclesOf = (p: (typeof lines)[number]) =>
+      p.usage === "single" ? 1
+        : p.usage === "reusable" ? (p.assetId && assetLife.get(p.assetId)) || factors.reuseLife[p.kind]
+          : p.kind === "basket" ? BASKET_SPEC.defaultCycles : 1;
+    const packItems = lines
+      .filter((p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket")
+      .map((p) => ({ type: p.kind, width: p.width ?? 0, length: p.length ?? 0, height: p.height ?? 0, quantity: p.quantity || 0, reuseCycles: cyclesOf(p) }));
+    const basketLines = lines.filter((p) => p.kind === "basket");
+    const basketWeight = basketLines.reduce((sum, p) => sum + (p.quantity || 0) * BASKET_SPEC.weightKg, 0);
+    const basketCarbon = basketLines.reduce((sum, p) => sum + (p.quantity || 0) * basketCarbonPerUse(cyclesOf(p)), 0);
+    const extraPack = { weightKg: inner.weightKg + basketWeight, carbon: inner.carbon + basketCarbon };
 
     // Derive the gross parcel weight when it wasn't weighed on a scale:
     //   flower weight  = flowerCount × stem weight (farm's own yield÷count, else AVG_STEM_KG)
@@ -278,14 +333,13 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
     let shippedWeightKg = b.shippedWeightKg ?? 0;
     if (shippedWeightKg <= 0 && weightBased) {
       // Produce: the declared quantity IS the product weight; add packaging on top.
-      shippedWeightKg = units + packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg + inner.weightKg;
+      shippedWeightKg = units + packagingTotals(packItems).weightKg + extraPack.weightKg;
     } else if (shippedWeightKg <= 0) {
       const stemKg =
         monthly?.totalFlowerYieldKg && supplier.flowersPerMonth
           ? monthly.totalFlowerYieldKg / supplier.flowersPerMonth
           : AVG_STEM_KG;
-      const packWeight =
-        packagingTotals(packItems).weightKg + basketCount * BASKET_SPEC.weightKg + inner.weightKg;
+      const packWeight = packagingTotals(packItems).weightKg + extraPack.weightKg;
       shippedWeightKg = b.flowerCount * stemKg + packWeight;
     }
     // International: the road leg (farm → origin airport, distanceKm) plus the air-freight leg.
@@ -293,11 +347,11 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
 
     const r = computeOrderCarbon({
       packagingItems: packItems,
-      basketCount,
+      basketCount: 0, // baskets are in extraPackaging (per-line design life)
       shippedWeightKg,
       flowerCount: units, // denominator: stems for flowers, kg for produce
       farmMonthly: monthly ?? undefined,
-      extraPackaging: inner,
+      extraPackaging: extraPack,
       extraTransportCarbon: air,
       transport: derived
         ? {

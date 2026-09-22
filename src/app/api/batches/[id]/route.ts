@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatch, computeBatch, updateBatch, addNotification, getSupplier } from "@/lib/store";
 import { flightDistanceKm, roadToAirportKm } from "@/lib/airports";
+import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
 import { guard, forbidden } from "@/lib/api-guard";
 import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
@@ -48,7 +49,11 @@ export async function PATCH(
     if (typeof body.isReeferUsed === "boolean") patch.isReeferUsed = body.isReeferUsed;
     if (body.destination) patch.destination = String(body.destination);
     if ("distanceKm" in body) patch.distanceKm = num(body.distanceKm) ?? 0;
-    if (Array.isArray(body.packagingItems)) patch.packagingItems = body.packagingItems;
+    const items = parsePackagingItems(body.packagingItems);
+    if (items) {
+      patch.packagingItems = items;
+      if (items.some((p) => p.usage)) patch.basketIds = basketIdsOf(items);
+    }
     if ("destinationAddress" in body) patch.destinationAddress = body.destinationAddress ? String(body.destinationAddress) : undefined;
     if (Array.isArray(body.innerMaterials)) {
       patch.innerMaterials = (body.innerMaterials as Record<string, unknown>[])
@@ -94,10 +99,10 @@ export async function PATCH(
   }
 
   if (body.action === "compute") {
-    // Flowers travel in reusable baskets (needed for the reuse amortisation); produce ships in boxes.
-    if (!isWeightBased(batch) && (!batch.basketIds || batch.basketIds.length === 0)) {
+    // A flower round needs its packaging (baskets or boxes) declared; produce is weighed.
+    if (!isWeightBased(batch) && !(batch.basketIds?.length) && !(batch.packagingItems?.length)) {
       return NextResponse.json(
-        { error: "ขาดตะกร้า (Basket) — คำนวณไม่ได้" },
+        { error: "ขาดข้อมูลบรรจุภัณฑ์ — คำนวณไม่ได้" },
         { status: 422 },
       );
     }

@@ -11,12 +11,11 @@ export default async function NewRoundPage() {
   if (!supplier) notFound();
   const [batches, factors] = await Promise.all([getBatchesBySupplier(supplier.id), getFactors()]);
   const varietyOptions = Array.from(new Set(batches.map((b) => b.variety).filter((v): v is string => !!v)));
-  const basketOptions = Array.from(new Set(batches.flatMap((b) => b.basketIds ?? [])));
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">กรอกข้อมูลรอบส่งออกใหม่</h1>
-      <RoundForm supplier={supplier} varietyOptions={varietyOptions} basketOptions={basketOptions} sizePresets={factors.packageSizes} />
+      <RoundForm supplier={supplier} varietyOptions={varietyOptions} sizePresets={factors.packageSizes} />
     </div>
   );
 }

@@ -15,6 +15,8 @@ export interface Factors {
   vehicleTkm: Record<string, number>;
   /** Standard package sizes offered as quick-fill on the packaging W×L×H fields. */
   packageSizes: PackageSize[];
+  /** Design life (trips) given to a newly registered reusable item, by packaging kind. */
+  reuseLife: { basket: number; corrugated_box: number; plastic_film: number };
 }
 
 // Air freight — UK Government GHG Conversion Factors (DEFRA/BEIS), freight flights incl. RF
@@ -26,6 +28,8 @@ export const DEFAULT_FACTORS: Factors = {
   farm: { ...FARM_EF },
   air: { shortHaul: 2.30229, longHaul: 0.89939 },
   vehicleTkm: {},
+  // basket = KYN packaging table "50 - 100 รอบ"; box/film have no KYN value yet (estimates)
+  reuseLife: { basket: 100, corrugated_box: 5, plastic_film: 3 },
   packageSizes: [
     { label: "กล่องเล็ก 20 × 30 × 15 ซม.", w: 20, l: 30, h: 15 },
     { label: "กล่องกลาง 30 × 40 × 20 ซม.", w: 30, l: 40, h: 20 },
@@ -45,6 +49,12 @@ export function mergeFactors(stored: unknown): Factors {
   const s = (stored && typeof stored === "object" ? stored : {}) as Partial<Record<keyof Factors, unknown>>;
   const farmIn = (s.farm ?? {}) as Record<string, unknown>;
   const airIn = (s.air ?? {}) as Record<string, unknown>;
+  const lifeIn = (s.reuseLife ?? {}) as Record<string, unknown>;
+  const reuseLife = { ...DEFAULT_FACTORS.reuseLife };
+  for (const k of Object.keys(reuseLife) as (keyof Factors["reuseLife"])[]) {
+    const x = pos(lifeIn[k]);
+    if (x != null && x >= 1) reuseLife[k] = Math.round(x);
+  }
   const farm = { ...DEFAULT_FACTORS.farm };
   for (const k of Object.keys(farm) as (keyof Factors["farm"])[]) farm[k] = pos(farmIn[k]) ?? farm[k];
   const vehicleTkm: Record<string, number> = {};
@@ -62,6 +72,7 @@ export function mergeFactors(stored: unknown): Factors {
     air: { shortHaul: pos(airIn.shortHaul) ?? DEFAULT_FACTORS.air.shortHaul, longHaul: pos(airIn.longHaul) ?? DEFAULT_FACTORS.air.longHaul },
     vehicleTkm,
     packageSizes: sizes.length ? sizes : DEFAULT_FACTORS.packageSizes,
+    reuseLife,
   };
 }
 

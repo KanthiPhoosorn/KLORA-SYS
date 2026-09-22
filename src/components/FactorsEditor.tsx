@@ -25,18 +25,21 @@ interface Draft {
   air: Str<Factors["air"]>;
   vehicleTkm: Record<string, string>;
   packageSizes: { label: string; w: string; l: string; h: string }[];
+  reuseLife: Str<Factors["reuseLife"]>;
 }
 const toDraft = (f: Factors): Draft => ({
   farm: Object.fromEntries(Object.entries(f.farm).map(([k, v]) => [k, String(v)])) as Draft["farm"],
   air: { shortHaul: String(f.air.shortHaul), longHaul: String(f.air.longHaul) },
   vehicleTkm: Object.fromEntries(Object.entries(f.vehicleTkm).map(([k, v]) => [k, String(v)])),
   packageSizes: f.packageSizes.map((p) => ({ label: p.label, w: String(p.w), l: String(p.l), h: p.h ? String(p.h) : "" })),
+  reuseLife: { basket: String(f.reuseLife.basket), corrugated_box: String(f.reuseLife.corrugated_box), plastic_film: String(f.reuseLife.plastic_film) },
 });
 const fromDraft = (d: Draft) => ({
   farm: Object.fromEntries(Object.entries(d.farm).map(([k, v]) => [k, Number(v)])),
   air: { shortHaul: Number(d.air.shortHaul), longHaul: Number(d.air.longHaul) },
   vehicleTkm: Object.fromEntries(Object.entries(d.vehicleTkm).filter(([, v]) => v.trim() !== "").map(([k, v]) => [k, Number(v)])),
   packageSizes: d.packageSizes.map((p) => ({ label: p.label.trim(), w: Number(p.w), l: Number(p.l), h: Number(p.h) || 0 })),
+  reuseLife: { basket: Number(d.reuseLife.basket), corrugated_box: Number(d.reuseLife.corrugated_box), plastic_film: Number(d.reuseLife.plastic_film) },
 });
 
 function Section({ title, sub, children }: { title: string; sub?: React.ReactNode; children: React.ReactNode }) {
@@ -157,6 +160,18 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
           <button type="button" onClick={() => setD((x) => ({ ...x, packageSizes: [...x.packageSizes, { label: "", w: "", l: "", h: "" }] }))} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-purple hover:underline">
             <PlusCircle size={16} /> เพิ่มขนาด
           </button>
+        </div>
+      </Section>
+
+      <Section title="อายุการใช้งานบรรจุภัณฑ์หมุนเวียน" sub="จำนวนรอบ (design life) ที่ให้กับบรรจุภัณฑ์ที่ลงทะเบียนใหม่ — คาร์บอนจากการผลิตถูกเฉลี่ยตามจำนวนรอบนี้ · บรรจุภัณฑ์ใช้ครั้งเดียวคิดเต็มจำนวน">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {([["basket", "ตะกร้า", "ตาราง KYN: 50–100 รอบ"], ["corrugated_box", "กล่องลูกฟูก", "ค่าประมาณ — รอ KYN ยืนยัน"], ["plastic_film", "แผ่นพลาสติก / ซองห่อช่อ", "ค่าประมาณ — รอ KYN ยืนยัน"]] as const).map(([k, label, note]) => (
+            <div key={k}>
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{label} <span className="font-normal text-slate-400">(รอบ)</span></label>
+              <input type="number" min="1" step="1" value={d.reuseLife[k]} onChange={(e) => setD((x) => ({ ...x, reuseLife: { ...x.reuseLife, [k]: e.target.value } }))} className={inputCls} />
+              <p className="mt-1 text-[11px] text-slate-400">ค่าเริ่มต้น {DEFAULT_FACTORS.reuseLife[k]} · {note}</p>
+            </div>
+          ))}
         </div>
       </Section>
 

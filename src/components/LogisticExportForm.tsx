@@ -9,7 +9,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { DESTINATIONS, estimateDistanceKm, haversineKm, provinceFromAddress } from "@/lib/geo";
 import type { Supplier, Batch } from "@/lib/types";
-import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packLinesFromBatch, packKindLabel, packSizeText, packInnerText, type PackLine } from "@/components/PackagingLines";
+import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packLinesFromBatch, packKindLabel, packSizeText, packInnerText, packUsageText, packQty, type PackLine } from "@/components/PackagingLines";
 import { DEFAULT_FACTORS, type PackageSize } from "@/lib/factors";
 import { ORIGIN_AIRPORTS, DEST_AIRPORTS, airportLabel, findAirport, flightDistanceKm } from "@/lib/airports";
 
@@ -42,7 +42,7 @@ const DEST_AIRPORT_OPTIONS = DEST_AIRPORTS.map((a) => ({ value: a.code, label: a
 // Figma default: two seeded cards — a basket (→ หมายเลขตะกร้า) + a corrugated box (→ วัสดุภายในกล่อง)
 const defaultPacks = (): PackLine[] => [{ ...emptyPackLine(), kind: "basket" }, { ...emptyPackLine(), kind: "corrugated_box" }];
 // A seeded card the carrier never filled in is ignored (the farm's own packaging is kept).
-const touched = (p: PackLine) => !!(p.kind && (p.basketNo.trim() || p.boxMaterial || p.w || p.l || p.h || p.qty));
+const touched = (p: PackLine) => !!(p.kind && (p.usage || p.assetId || p.boxMaterial || p.w || p.l || p.h || p.qty || p.priorUses));
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
@@ -249,10 +249,7 @@ export default function LogisticExportForm({
     const H = ({ children }: { children: React.ReactNode }) => (
       <div className="px-4 py-3 text-center text-[15px] font-semibold text-slate-700">{children}</div>
     );
-    const basketNos = packs.filter((p) => p.kind === "basket" && p.basketNo.trim()).map((p) => p.basketNo.trim());
-    const basketLabel = basketNos.length ? basketNos.join(", ") : (selectedBatch?.basketIds ?? []).join(", ");
-    const boxes = packs.filter((p) => touched(p) && p.kind !== "basket");
-    const unitFor = (k: string) => (k === "corrugated_box" ? "กล่อง" : k === "plastic_film" ? "ชิ้น" : "");
+    const boxes = packs.filter(touched);
     return (
       <div className="max-w-4xl space-y-5">
         <Toast />
@@ -271,14 +268,15 @@ export default function LogisticExportForm({
                 <F label="จำนวนช่อดอกไม้" value={exportBunches ? `${exportBunches} ช่อ` : ""} />
               </div>
               <div className="space-y-4 border-slate-100 p-5 md:border-r">
-                {basketLabel ? <F label="หมายเลขตะกร้า" value={basketLabel} /> : null}
+                {boxes.length === 0 ? <p className="text-[13px] text-slate-500">ใช้ข้อมูลบรรจุภัณฑ์เดิมของฟาร์ม</p> : null}
                 {boxes.map((p, i) => (
                   <div key={i} className="space-y-2 border-b border-slate-100 pb-3 last:border-0">
                     <p className="text-[13px] font-semibold text-slate-800">รายการที่ {i + 1}</p>
                     <F label="บรรจุภัณฑ์" value={packKindLabel(p.kind)} />
+                    <F label="ประเภทการใช้งาน" value={packUsageText(p)} />
                     {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={packInnerText(p)} /> : null}
                     <F label="ขนาด" value={packSizeText(p)} />
-                    <F label="จำนวน" value={p.qty ? `${p.qty} ${unitFor(p.kind)}` : ""} />
+                    <F label="จำนวน" value={packQty(p) ? `${packQty(p)} ${(p.kind === "basket" ? "ใบ" : p.kind === "corrugated_box" ? "กล่อง" : "ชิ้น")}` : ""} />
                   </div>
                 ))}
               </div>
@@ -354,9 +352,7 @@ export default function LogisticExportForm({
           clearErr={(k) => setErrs((x) => ({ ...x, [k]: "" }))}
           inputCls={inputCls}
           labelCls={labelCls}
-          basketOptions={selectedBatch?.basketIds ?? []}
           sizePresets={sizePresets}
-          linkCls="text-blue-600"
         />
       </Section>
 

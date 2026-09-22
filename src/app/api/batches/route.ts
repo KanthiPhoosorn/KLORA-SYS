@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
 import { asCategory, asUnit, asRipeness } from "@/lib/produce-parse";
+import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -67,9 +68,13 @@ export async function POST(req: Request) {
   const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 
   try {
-    const basketIds = Array.isArray(body.basketIds)
-      ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
-      : [];
+    const packagingItems = parsePackagingItems(body.packagingItems);
+    // New-style lines (with ประเภทการใช้งาน) define the baskets; older clients send basketIds.
+    const basketIds = packagingItems?.some((p) => p.usage)
+      ? basketIdsOf(packagingItems)
+      : Array.isArray(body.basketIds)
+        ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
+        : [];
     const str = (k: string) => (body[k] ? String(body[k]) : undefined);
     const batch = await addBatch({
       supplierId,
@@ -94,19 +99,7 @@ export async function POST(req: Request) {
       weightKg: body.weightKg != null && body.weightKg !== "" ? Number(body.weightKg) : undefined,
       basketIds,
       // KYN full-spec inputs (optional)
-      packagingItems: Array.isArray(body.packagingItems)
-        ? (body.packagingItems as Record<string, unknown>[])
-            .map((p) => ({
-              kind: String(p.kind) as "basket" | "corrugated_box" | "plastic_film",
-              width: p.width != null && p.width !== "" ? Number(p.width) : undefined,
-              length: p.length != null && p.length !== "" ? Number(p.length) : undefined,
-              height: p.height != null && p.height !== "" ? Number(p.height) : undefined,
-              quantity: Number(p.quantity) || 0,
-              basketNo: p.basketNo ? String(p.basketNo) : undefined,
-              boxMaterial: p.boxMaterial ? String(p.boxMaterial) : undefined,
-            }))
-            .filter((p) => ["basket", "corrugated_box", "plastic_film"].includes(p.kind))
-        : undefined,
+      packagingItems,
       shippedWeightKg:
         body.shippedWeightKg != null && body.shippedWeightKg !== "" ? Number(body.shippedWeightKg) : undefined,
       vehicleKey: str("vehicleKey"),
@@ -124,9 +117,9 @@ export async function POST(req: Request) {
       ethyleneNote: str("ethyleneNote"),
     });
     // Auto-compute on submit so the round is printable by the carrier right away (a flower
-    // round still needs at least one basket; anything incomplete stays "submitted" for KYN).
+    // round needs its packaging declared; anything incomplete stays "submitted" for KYN).
     let result = batch;
-    if (status === "submitted" && (basketIds.length > 0 || productCategory !== "flower")) {
+    if (status === "submitted" && (basketIds.length > 0 || (packagingItems?.length ?? 0) > 0 || productCategory !== "flower")) {
       const computed = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
       if (computed?.status === "computed") {
         result = computed;

@@ -20,7 +20,7 @@ const req = <span className="text-[#ee443f]"> *</span>;
 
 // รูปแบบการขนส่ง (design: 5 options). `key` is stable; `label` is what we store on the batch.
 import { CARRIERS } from "@/lib/carriers";
-import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packKindLabel, packSizeText, packInnerText, type PackLine } from "@/components/PackagingLines";
+import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packKindLabel, packSizeText, packInnerText, packUsageText, packQty, type PackLine } from "@/components/PackagingLines";
 import { DEFAULT_FACTORS, type PackageSize } from "@/lib/factors";
 import type { CarrierKey } from "@/lib/types";
 
@@ -57,14 +57,12 @@ function Err({ msg }: { msg?: string }) {
 export default function RoundForm({
   supplier,
   varietyOptions = [],
-  basketOptions = [],
   postSupplierId,
   accent = "pink",
   sizePresets = DEFAULT_FACTORS.packageSizes,
 }: {
   supplier: Supplier;
   varietyOptions?: string[];
-  basketOptions?: string[];
   /** KYN-managed standard package sizes (quick-fill for the W×L×H fields) */
   sizePresets?: PackageSize[];
   /** set when a non-supplier (logistic/Exporter) logs on behalf of a farm */
@@ -329,10 +327,10 @@ export default function RoundForm({
                 <div key={i} className="space-y-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                   <p className="text-[12px] font-semibold text-slate-400">รายการที่ {i + 1}</p>
                   <F label="บรรจุภัณฑ์" value={packKindLabel(p.kind)} />
-                  {p.kind === "basket" ? <F label="หมายเลขตะกร้า" value={p.basketNo} /> : null}
+                  <F label="ประเภทการใช้งาน" value={packUsageText(p)} />
                   {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={packInnerText(p)} /> : null}
                   <F label="ขนาด" value={packSizeText(p)} />
-                  <F label="จำนวน" value={p.qty ? `${p.qty} ${p.kind === "basket" ? "ใบ" : "กล่อง"}` : ""} />
+                  <F label="จำนวน" value={packQty(p) ? `${packQty(p)} ${(p.kind === "basket" ? "ใบ" : p.kind === "corrugated_box" ? "กล่อง" : "ชิ้น")}` : ""} />
                 </div>
               ))}
             </div>
@@ -480,9 +478,9 @@ export default function RoundForm({
           clearErr={(k) => setErrs((x) => ({ ...x, [k]: "" }))}
           inputCls={inputCls}
           labelCls={labelCls}
-          basketOptions={basketOptions}
           sizePresets={sizePresets}
-          linkCls={T.link}
+          ringCls={T.ring}
+          outlineBtnCls={T.outlineBtn}
         />
       </Section>
 
