@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api-guard";
 import { listPackagingAssets, createPackagingAsset, getSupplier } from "@/lib/store";
+import { rateLimit, tooMany } from "@/lib/rate-limit";
 import type { PackagingAsset } from "@/lib/types";
 
 const KINDS: PackagingAsset["kind"][] = ["basket", "corrugated_box", "plastic_film"];
@@ -17,6 +18,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const g = await guard();
   if (g.deny) return g.deny;
+  const lim = await rateLimit(`pkg-assets:user:${g.user.id}`, 60, 60 * 60 * 1000);
+  if (!lim.allowed) return tooMany(lim.retryAfter);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
   const kind = String(body.kind) as PackagingAsset["kind"];

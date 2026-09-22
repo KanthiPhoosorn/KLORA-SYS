@@ -3,6 +3,7 @@
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
 import { packagingItemCarbon, basketCarbonPerUse } from "../../src/lib/carbon-kyn";
+import { mergeFactors } from "../../src/lib/factors";
 import { validatePackLines, emptyPackLine, packLinesToPayload, packLinesFromBatch } from "../../src/components/PackagingLines";
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36); const EMAIL = `qa-reuse-${TS}@klora-qa.test`;
 const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return `${Buffer.from(p).toString("base64url")}.${createHmac("sha256", process.env.KLORA_SESSION_SECRET!).update(p).digest("base64url")}`; };
@@ -79,10 +80,13 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
     const back = packLinesFromBatch(pk.packagingItems, pk.innerMaterials);
     log("payload round-trip", pk.packagingItems[0].quantity === 1 && pk.packagingItems[1].height === undefined && back[0].usage === "reusable" && back[0].assetId === "BSK-1" && back[1].qty === "3", JSON.stringify(pk.packagingItems));
     const legacy = packLinesFromBatch([{ kind: "basket", quantity: 1, basketNo: "BSK-014" }, { kind: "corrugated_box", width: 1, length: 1, height: 1, quantity: 4 }]);
+    const mf = mergeFactors({ reuseLife: { basket: 80, corrugated_box: 0, plastic_film: "x" } });
+    log("reuseLife saved + junk falls back", mf.reuseLife.basket === 80 && mf.reuseLife.corrugated_box === 5 && mf.reuseLife.plastic_film === 3, JSON.stringify(mf.reuseLife));
     log("old rounds reload as reusable basket / single-use box", legacy[0].usage === "reusable" && legacy[0].assetId === "BSK-014" && legacy[1].usage === "single" && legacy[1].qty === "4");
   } finally {
     if (assetIds.length) await sql`DELETE FROM packaging_assets WHERE id = ANY(${assetIds})`;
     if (supId) { await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }
+    await sql`DELETE FROM rate_limits WHERE key = 'pkg-assets:user:USR-0002' OR key IN (SELECT 'pkg-assets:user:' || id FROM users WHERE email = ${EMAIL})`;
     await sql`DELETE FROM users WHERE email = ${EMAIL}`; await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
     void userId;
   }
