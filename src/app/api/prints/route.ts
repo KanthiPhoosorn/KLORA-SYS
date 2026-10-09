@@ -26,9 +26,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "ต้องระบุ supplierId" }, { status: 400 });
   }
 
-  const batchId = body.batchId ? String(body.batchId) : undefined;
+  const asked = body.batchId ? String(body.batchId) : undefined;
   let destination = body.destination ? String(body.destination) : undefined;
-  const lot = batchId ? await getBatch(batchId) : null;
+  const lot = asked ? await getBatch(asked) : null;
+  if (asked && !lot) return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
+  // store the current LOT code even when an old BAT id was sent — print lookups and the history key on it
+  const batchId = lot?.id;
   if (lot?.cancelledAt) return NextResponse.json({ error: `${lot.id} ถูกยกเลิกโดยฟาร์มแล้ว — พิมพ์ฉลากไม่ได้` }, { status: 409 });
   if (!destination && lot) destination = lot.destination;
 

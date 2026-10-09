@@ -210,7 +210,7 @@ export interface Batch {
   destLng?: number;
   // --- recorded by the carrier on /logistic/new ---
   shipType?: "domestic" | "international"; // ส่งภายในประเทศ / ส่งต่างประเทศ
-  shipDate?: string; // วันที่จัดส่งจริง (YYYY-MM-DD)
+  shipDate?: string; // วันที่จัดส่ง (YYYY-MM-DD): the farm's planned date from the round form; the carrier's real date replaces it here
   airline?: string; // ส่งต่างประเทศ: สายการบิน
   flightNo?: string; // ส่งต่างประเทศ: หมายเลขเที่ยวบิน
   exportRecordedAt?: string; // ISO — เมื่อผู้ขนส่งบันทึกข้อมูลการจัดส่ง

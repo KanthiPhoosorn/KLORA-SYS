@@ -62,6 +62,7 @@ let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fai
     const usesAfter = (await api("/api/packaging-assets", "GET", undefined, cookie)).json.find((a: { id: string }) => a.id === crate.json.id)?.uses;
     log("reusable crate gets its trip back", usesBefore === 1 && usesAfter === 0, `${usesBefore} → ${usesAfter}`);
     log("printing a cancelled lot refused", (await api("/api/prints", "POST", { supplierId: supId, batchId: id }, lg)).status === 409);
+    log("printing an unknown lot refused (no stray print / history row)", (await api("/api/prints", "POST", { supplierId: supId, batchId: "LOT-0000-0000" }, lg)).status === 404);
     const lots = await api("/api/batches", "GET", undefined, lg); // what logistic lists are built from
     log("cancelled lot left the logistic lists", lots.status === 200 && Array.isArray(lots.json) && lots.json.length > 0 && !lots.json.some((x: { id: string }) => x.id === id), String(lots.status));
     const hist = await page("/app/history", cookie);

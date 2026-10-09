@@ -64,6 +64,7 @@ export default function PortalShell({
   items,
   header,
   footer,
+  account,
   children,
 }: {
   accent: Accent;
@@ -71,6 +72,8 @@ export default function PortalShell({
   items: PortalNavItem[];
   header: ReactNode;
   footer?: ReactNode;
+  /** shown at the top of the phone drawer — the phone header has no room for the ID */
+  account?: { label: string; id: string };
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -149,6 +152,12 @@ export default function PortalShell({
                 <X size={18} />
               </button>
             </div>
+            {account ? (
+              <div className="mx-5 mb-3 rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{account.label}</div>
+                <div className="font-mono text-sm font-semibold text-slate-800">{account.id}</div>
+              </div>
+            ) : null}
             <div className="px-6 pb-1 text-xs font-medium text-slate-400">Menu</div>
             {nav}
           </aside>

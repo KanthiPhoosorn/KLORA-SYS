@@ -31,7 +31,7 @@ export default async function KynLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <PortalShell accent="purple" brand="KYN" items={ITEMS} header={header}>
+    <PortalShell accent="purple" brand="KYN" items={ITEMS} header={header} account={{ label: "KYN ID", id: user.username }}>
       {children}
     </PortalShell>
   );
