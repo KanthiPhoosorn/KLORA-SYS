@@ -17,8 +17,8 @@ let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fai
   const lg = mint("USR-0002");
   let r = await api("/api/batches/" + b1.json.id, "PATCH", { shippedWeightKg: 12, packagingItems: [{ kind: "basket", quantity: 1, basketNo: "B1" }], shipType: "domestic", shipDate: "2026-09-22", vehicleKey: "van", fuelKey: "B7", isReeferUsed: true, destination: "กรุงเทพฯ", distanceKm: 690, destinationAddress: "99/1 ถ.สุขุมวิท กรุงเทพฯ 10110", destLat: 13.7367, destLng: 100.5602 }, lg);
   log("domestic record saved", r.status === 200 && r.json.shipType === "domestic" && r.json.shipDate === "2026-09-22" && !!r.json.exportRecordedAt && r.json.destinationAddress?.includes("สุขุมวิท") && r.json.destLat === 13.7367, `${r.status} ${r.json.shipType} ${r.json.shipDate} ${r.json.destinationAddress}`);
-  r = await api("/api/batches/" + b2.json.id, "PATCH", { shippedWeightKg: 55, packagingItems: [], shipType: "international", shipDate: "2026-09-23", airline: "การบินไทย (Thai Airways)", flightNo: "TG640", awbNo: "23212345678", destination: "ญี่ปุ่น (โตเกียว)", destinationAddress: "1-2-3 Shibuya, Tokyo", isReeferUsed: false }, lg);
-  log("AWB normalised to XXX-XXXXXXXX", r.json.awbNo === "232-12345678", String(r.json.awbNo));
+  r = await api("/api/batches/" + b2.json.id, "PATCH", { shippedWeightKg: 55, packagingItems: [], shipType: "international", shipDate: "2026-09-23", airline: "การบินไทย (Thai Airways)", flightNo: "TG640", awbNo: "21712345678", destination: "ญี่ปุ่น (โตเกียว)", destinationAddress: "1-2-3 Shibuya, Tokyo", isReeferUsed: false }, lg);
+  log("AWB normalised to XXX-XXXXXXXX", r.json.awbNo === "217-12345678", String(r.json.awbNo));
   log("international record saved", r.status === 200 && r.json.shipType === "international" && r.json.airline?.includes("การบินไทย") && r.json.flightNo === "TG640" && r.json.carrier?.startsWith("ส่งออกต่างประเทศ") && r.json.destination === "ญี่ปุ่น (โตเกียว)", `${r.status} ${r.json.carrier} ${r.json.destination}`);
   const page = await fetch(`${BASE}/logistic/status?saved=${b2.json.id}`, { headers: { Cookie: `klora_session=${lg}` } });
   const html = (await page.text()).replace(/<!-- -->/g, "");

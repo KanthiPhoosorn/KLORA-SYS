@@ -1,10 +1,12 @@
 // Tracking links (Thai Post doc 9 Oct 2026 §9). Parcel carriers use their own tracking number;
 // air cargo is tracked by the Air Waybill (AWB, 11 digits "XXX-XXXXXXXX") — its first 3 digits
-// are the airline's cargo prefix, which picks the airline's tracking page.
+// are the airline's cargo prefix, which picks the airline's tracking page. Prefixes checked against
+// carrier listings (9 Oct 2026): the doc gave 232 for การบินไทย, but THAI is 217 — 232 is Malaysia
+// Airlines. An unknown prefix goes to a multi-airline tracker rather than a guessed airline.
 
 export interface AwbAirline { prefix: string; name: string; url: string }
 export const AWB_AIRLINES: AwbAirline[] = [
-  { prefix: "232", name: "การบินไทย (Thai Cargo)", url: "https://www.thaicargo.com/" },
+  { prefix: "217", name: "การบินไทย (Thai Cargo)", url: "https://www.thaicargo.com/" },
   { prefix: "176", name: "Emirates SkyCargo", url: "https://www.skycargo.com/" },
   { prefix: "157", name: "Qatar Airways Cargo", url: "https://www.qrcargo.com/" },
   { prefix: "160", name: "Cathay Cargo", url: "https://www.cathaycargo.com/" },
@@ -12,7 +14,7 @@ export const AWB_AIRLINES: AwbAirline[] = [
   { prefix: "618", name: "Singapore Airlines Cargo", url: "https://www.siacargo.com/" },
 ];
 
-/** "23212345678" / "232-12345678" → "232-12345678"; anything else → null. */
+/** "21712345678" / "217-12345678" → "217-12345678"; anything else → null. */
 export function normalizeAwb(v?: string | null): string | null {
   const d = (v ?? "").replace(/\D/g, "");
   return d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3)}` : null;
@@ -33,5 +35,7 @@ export function parcelTrackingUrl(carrier: string | undefined, trackingNo?: stri
   const c = (carrier ?? "").toLowerCase();
   if (/ไปรษณีย์|thai ?post|ปณ/.test(c) || /^[A-Z]{2}\d{9}TH$/i.test(t)) return `https://track.thailandpost.co.th/?trackNumber=${encodeURIComponent(t)}`;
   if (/dhl/.test(c)) return `https://www.dhl.com/th-th/home/tracking.html?tracking-id=${encodeURIComponent(t)}`;
+  if (/fedex/.test(c)) return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(t)}`;
+  if (/\bups\b/.test(c)) return `https://www.ups.com/track?tracknum=${encodeURIComponent(t)}`;
   return null;
 }
