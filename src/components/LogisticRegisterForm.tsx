@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { BRANCHES } from "@/lib/branches";
+import SelectOther from "@/components/SelectOther";
 
 const base =
   "w-full rounded-[5px] border bg-white px-[15px] py-[10px] text-[12px] text-black outline-none placeholder:text-gray-500";
@@ -109,17 +110,14 @@ export default function LogisticRegisterForm() {
 
           <label className="block space-y-[5px]">
             <span className="text-[12px] font-medium text-black">สาขา <span className="text-[#ee443f]">*</span></span>
-            <select
-              name="branch"
+            <SelectOther
               value={f.branch}
-              onChange={set("branch")}
+              onChange={(v) => { setF((s) => ({ ...s, branch: v })); setErrs((s) => ({ ...s, branch: undefined })); }}
+              options={BRANCHES.map((b) => ({ value: b.name, label: b.name }))}
+              placeholder="ระบุสาขา"
               className={`${errs.branch ? errCls : okCls} ${f.branch ? "text-black" : "text-gray-500"}`}
-            >
-              <option value="">ระบุสาขา</option>
-              {BRANCHES.map((b) => (
-                <option key={b.id} value={b.name}>{b.name}</option>
-              ))}
-            </select>
+              otherPlaceholder="ชื่อสาขา"
+            />
             <Err k="branch" />
           </label>
 

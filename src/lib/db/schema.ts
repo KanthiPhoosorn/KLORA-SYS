@@ -65,6 +65,7 @@ export const suppliers = pgTable("suppliers", {
   fertilizerKind: text("fertilizer_kind").$type<FertilizerKind>(),
   chemicalKind: text("chemical_kind").$type<ChemicalKind>(),
   yieldLines: jsonb("yield_lines").$type<YieldLine[]>(),
+  resourceLines: jsonb("resource_lines").$type<import("../resource-types").ResourceLines>(),
   signupVia: text("signup_via").$type<CarrierKey>(),
 });
 
@@ -83,6 +84,35 @@ export const packagingAssets = pgTable("packaging_assets", {
   createdBy: text("created_by"),
 });
 
+// Who changed what on a lot (ประวัติการแก้ไข) — create, edit (field diffs), cancel, print, tracking.
+export const batchEvents = pgTable("batch_events", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id").notNull(),
+  at: text("at").notNull(),
+  actorId: text("actor_id"),
+  actorName: text("actor_name"),
+  action: text("action").notNull(),
+  detail: jsonb("detail"),
+});
+
+// "อื่นๆ (ระบุ)" values typed by users, waiting for KYN to confirm (and price in CO₂e).
+export const customEntries = pgTable("custom_entries", {
+  id: text("id").primaryKey(),
+  field: text("field").notNull(),
+  value: text("value").notNull(),
+  detail: jsonb("detail"),
+  supplierId: text("supplier_id"),
+  userId: text("user_id"),
+  batchId: text("batch_id"),
+  uses: integer("uses").notNull().default(1),
+  status: text("status").$type<"pending" | "approved" | "rejected">().notNull().default("pending"),
+  ef: doublePrecision("ef"),
+  note: text("note"),
+  createdAt: text("created_at").notNull(),
+  reviewedAt: text("reviewed_at"),
+  reviewedBy: text("reviewed_by"),
+});
+
 // KYN-editable reference data (key "factors" → src/lib/factors.ts).
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
@@ -94,6 +124,12 @@ export const appSettings = pgTable("app_settings", {
 export const batches = pgTable("batches", {
   id: text("id").primaryKey(), // LOT-YYMM-NNNN
   legacyId: text("legacy_id"), // BAT-… before the 9 Oct 2026 rename — old QR stickers
+  expectedAgeDays: integer("expected_age_days"), // อายุหลังตัดที่คาดการณ์ (วัน) — farm's own estimate
+  trackingNo: text("tracking_no"), // เลขพัสดุ (after the QR is printed)
+  awbNo: text("awb_no"), // Air Waybill XXX-XXXXXXXX (international)
+  cancelledAt: text("cancelled_at"), // ยกเลิกรายการ — soft cancel, kept for history
+  cancelReason: text("cancel_reason"),
+  cancelledBy: text("cancelled_by"),
   supplierId: text("supplier_id").notNull(),
   flowerCount: integer("flower_count").notNull(),
   variety: text("variety"),
@@ -151,6 +187,8 @@ export const batches = pgTable("batches", {
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   orgCode: text("org_code"), // CID-NNNN for logistic organisations
+  avatar: text("avatar"), // profile picture (small data URL)
+  labelSize: text("label_size"), // preferred sticker size: 60x30 | 80x25 | 40x25 | a4
   role: text("role").$type<UserRole>().notNull(),
   supplierId: text("supplier_id"),
   company: text("company"),

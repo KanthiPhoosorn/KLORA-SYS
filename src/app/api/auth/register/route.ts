@@ -7,6 +7,8 @@ import type { SupplierInput } from "@/lib/types";
 import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 import { DEFAULT_PLAN } from "@/lib/plans";
 import { asCarrierKey } from "@/lib/carriers";
+import { parseResourceLines, linesToLegacy } from "@/lib/resource-types";
+import { queueResourceOthers, queueProductOthers } from "@/lib/custom-queue";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
     if (!Number.isNaN(ln)) gpsLng = ln;
   }
 
+  const resLines = parseResourceLines(body.resourceLines);
   const input: SupplierInput = {
     farmName,
     address,
@@ -107,12 +110,15 @@ export async function POST(req: Request) {
     fuelKind: asFuelKind(body.fuelKind),
     fertilizerKind: asFertilizerKind(body.fertilizerKind),
     chemicalKind: asChemicalKind(body.chemicalKind),
+    ...(resLines ? { resourceLines: resLines, ...linesToLegacy(resLines) } : {}),
     yieldLines: parseYieldLines(body.yieldLines),
     plan: DEFAULT_PLAN,
     signupVia: asCarrierKey(body.via),
   };
 
   const supplier = await addSupplier(input);
+  await queueResourceOthers(resLines, { supplierId: supplier.id });
+  await queueProductOthers(supplier.flowerTypes, { supplierId: supplier.id });
   const { hash, salt } = hashPassword(password);
   const user = await addUser({
     role: "supplier",

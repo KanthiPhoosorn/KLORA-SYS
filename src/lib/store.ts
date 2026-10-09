@@ -7,8 +7,9 @@
 import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
+import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
 import type {
   Supplier,
@@ -24,6 +25,8 @@ import type {
   FarmMonthlyInput,
   CarbonBreakdownRecord,
   PackagingAsset,
+  CustomEntry,
+  BatchEvent,
 } from "./types";
 import {
   codeNumber,
@@ -38,7 +41,7 @@ import {
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { isWeightBased, unitsOf } from "./produce";
-import { fuelEf, fertilizerEf, chemicalEf } from "./resource-types";
+import { fuelEf, fertilizerEf, chemicalEf, weightedEf } from "./resource-types";
 
 // --- KYN-editable reference factors (app_settings "factors") ------------------
 export async function getFactors(): Promise<Factors> {
@@ -52,11 +55,49 @@ export async function saveFactors(value: unknown, userId: string): Promise<Facto
     .onConflictDoUpdate({ target: appSettings.key, set: { value: merged, updatedAt: now, updatedBy: userId } });
   return merged;
 }
+// --- "อื่นๆ (ระบุ)" review queue ---------------------------------------------------
+/** Record a typed-in value; the same field+value (any case) only bumps the counter. */
+export async function queueCustomEntry(e: { field: string; value: string; detail?: Record<string, unknown>; supplierId?: string; userId?: string; batchId?: string }): Promise<void> {
+  const value = e.value.trim().slice(0, 120);
+  if (!value) return;
+  const [hit] = await db.select({ id: customEntries.id }).from(customEntries)
+    .where(and(eq(customEntries.field, e.field), sql`lower(${customEntries.value}) = ${value.toLowerCase()}`)).limit(1);
+  if (hit) {
+    await db.update(customEntries).set({ uses: sql`${customEntries.uses} + 1` }).where(eq(customEntries.id, hit.id));
+    return;
+  }
+  await db.insert(customEntries).values({
+    id: `CUS-${Date.now().toString(36)}${randomBytes(2).toString("hex")}`.toUpperCase(),
+    field: e.field, value, detail: e.detail ?? null, supplierId: e.supplierId ?? null, userId: e.userId ?? null, batchId: e.batchId ?? null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+export async function getCustomEntries(): Promise<CustomEntry[]> {
+  const rows = await db.select().from(customEntries).orderBy(desc(customEntries.createdAt));
+  return rows.map((r) => clean<CustomEntry>(r as Record<string, unknown>));
+}
+
+export async function reviewCustomEntry(id: string, patch: { status: "approved" | "rejected" | "pending"; ef?: number | null; note?: string | null }, userId: string): Promise<CustomEntry | null> {
+  const [r] = await db.update(customEntries).set({ status: patch.status, ef: patch.ef ?? null, note: patch.note ?? null, reviewedAt: new Date().toISOString(), reviewedBy: userId })
+    .where(eq(customEntries.id, id)).returning();
+  return r ? clean<CustomEntry>(r as Record<string, unknown>) : null;
+}
+
+/** KYN-confirmed factors for typed-in values: field → lower(value) → ef. */
+export async function approvedCustomEfs(fields: string[]): Promise<Map<string, Map<string, number>>> {
+  const rows = await db.select({ field: customEntries.field, value: customEntries.value, ef: customEntries.ef }).from(customEntries)
+    .where(and(eq(customEntries.status, "approved"), inArray(customEntries.field, fields)));
+  const out = new Map<string, Map<string, number>>();
+  for (const r of rows) if (r.ef != null) (out.get(r.field) ?? out.set(r.field, new Map()).get(r.field)!).set(r.value.toLowerCase(), r.ef);
+  return out;
+}
+
 // --- Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน) ---------------------------
 
 /** How many rounds reference each asset code (packaging_items[].assetId). */
 async function assetUseCounts(): Promise<Map<string, number>> {
-  const res = await db.execute(sql`SELECT e->>'assetId' AS id, count(DISTINCT b.id)::int AS n FROM batches b, jsonb_array_elements(coalesce(b.packaging_items, '[]'::jsonb)) e WHERE e ? 'assetId' GROUP BY 1`);
+  const res = await db.execute(sql`SELECT e->>'assetId' AS id, count(DISTINCT b.id)::int AS n FROM batches b, jsonb_array_elements(coalesce(b.packaging_items, '[]'::jsonb)) e WHERE e ? 'assetId' AND b.cancelled_at IS NULL GROUP BY 1`);
   const rows = ((res as unknown as { rows?: { id: string; n: number }[] }).rows ?? (res as unknown as { id: string; n: number }[]));
   return new Map(rows.map((r) => [r.id, Number(r.n)]));
 }
@@ -88,7 +129,7 @@ export async function createPackagingAsset(input: {
       id: formatPkg(max + 1 + attempt),
       kind: input.kind,
       width: input.width ?? null, length: input.length ?? null, height: input.height ?? null,
-      designLife: factors.reuseLife[input.kind],
+      designLife: (await getCatalog()).packs.find((p) => p.id === input.kind)?.lifetime ?? (factors.reuseLife as Record<string, number>)[input.kind] ?? 100,
       priorUses: Math.max(0, Math.round(input.priorUses ?? 0)),
       ownerSupplierId: input.ownerSupplierId ?? null,
       ownerLabel: input.ownerLabel ?? null,
@@ -101,11 +142,24 @@ export async function createPackagingAsset(input: {
   throw new Error("สร้างรหัสบรรจุภัณฑ์ไม่สำเร็จ ลองใหม่อีกครั้ง");
 }
 
+// --- KYN central packaging table (app_settings "packaging_catalog") -----------
+export async function getCatalog(): Promise<PackCatalog> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.key, "packaging_catalog")).limit(1);
+  return mergeCatalog(row?.value);
+}
+export async function saveCatalog(value: unknown, userId: string): Promise<PackCatalog> {
+  const merged = mergeCatalog(value);
+  const now = new Date().toISOString();
+  await db.insert(appSettings).values({ key: "packaging_catalog", value: merged, updatedAt: now, updatedBy: userId })
+    .onConflictDoUpdate({ target: appSettings.key, set: { value: merged, updatedAt: now, updatedBy: userId } });
+  return merged;
+}
+
 export async function getFactorsMeta(): Promise<{ updatedAt?: string; updatedBy?: string }> {
   const [row] = await db.select({ updatedAt: appSettings.updatedAt, updatedBy: appSettings.updatedBy }).from(appSettings).where(eq(appSettings.key, "factors")).limit(1);
   return { updatedAt: row?.updatedAt, updatedBy: row?.updatedBy ?? undefined };
 }
-import { computeOrderCarbon, packagingTotals, BASKET_SPEC, basketCarbonPerUse } from "./carbon-kyn";
+import { computeOrderCarbon, packagingTotals, BASKET_SPEC, basketCarbonPerUse, FARM_EF } from "./carbon-kyn";
 import { deriveTransportEF } from "./transport-ef";
 
 // Fallback average weight of one fresh cut-flower stem (kg). Used only to derive the
@@ -116,7 +170,17 @@ const AVG_STEM_KG = 0.05;
 // The SUP "ข้อมูลการใช้ทรัพยากร" form stores monthly resource use + a monthly flower COUNT
 // on the supplier profile. Map it onto the KYN monthly-inputs shape so the same
 // Dynamic_Flower_EF engine can run off it (count → kg via the avg stem weight).
-function supplierToMonthly(s: Supplier): FarmMonthlyInput | null {
+/** Per-farm input factors: amount-weighted over the farm's lines when it declared several types
+ *  (อื่นๆ lines priced with KYN's generic factor), else the single declared type. */
+type Generic = { DIESEL: number; FERTILIZER: number; AGROCHEMICAL: number };
+function farmEfs(s: Supplier, generic: Generic = FARM_EF, approved?: Map<string, Map<string, number>>) {
+  const l = s.resourceLines;
+  return l
+    ? { fuelEf: weightedEf("fuel", l.fuel, generic.DIESEL, approved?.get("fuel")), fertilizerEf: weightedEf("fertilizer", l.fertilizer, generic.FERTILIZER, approved?.get("fertilizer")), agrochemicalEf: weightedEf("chemical", l.chemical, generic.AGROCHEMICAL, approved?.get("chemical")) }
+    : { fuelEf: fuelEf(s.fuelKind), fertilizerEf: fertilizerEf(s.fertilizerKind), agrochemicalEf: chemicalEf(s.chemicalKind) };
+}
+
+function supplierToMonthly(s: Supplier, generic?: Generic, approved?: Map<string, Map<string, number>>): FarmMonthlyInput | null {
   const any =
     s.fuelLitres || s.electricityKwh || s.fertilizerKg || s.agriChemicalsKg || s.waterM3 || s.wasteKg;
   if (!any && !s.flowersPerMonth) return null;
@@ -133,9 +197,7 @@ function supplierToMonthly(s: Supplier): FarmMonthlyInput | null {
     // Yield: per-product lines when the farm entered them (stems → kg via avg stem weight),
     // else the legacy single number (a stem count for flower farms, kg for produce farms).
     totalFlowerYieldKg: yieldKgOf(s),
-    fuelEf: fuelEf(s.fuelKind),
-    fertilizerEf: fertilizerEf(s.fertilizerKind),
-    agrochemicalEf: chemicalEf(s.chemicalKind),
+    ...farmEfs(s, generic, approved),
     createdAt: s.createdAt,
   };
 }
@@ -201,9 +263,29 @@ export async function updateSupplier(
 
 // --- Batches --------------------------------------------------------------
 
-export async function getBatches(): Promise<Batch[]> {
-  const rows = await db.select().from(batches);
+/** Every active lot — cancelled ones (ยกเลิกรายการ) are kept for the farm's history but leave
+ *  logistic / KYN lists and every total. Pass { withCancelled: true } to include them. */
+export async function getBatches(opts: { withCancelled?: boolean } = {}): Promise<Batch[]> {
+  const rows = await db.select().from(batches).where(opts.withCancelled ? undefined : isNull(batches.cancelledAt));
   return rows.map((r) => clean<Batch>(r));
+}
+
+// --- lot history (ประวัติการแก้ไข) ---------------------------------------------------
+export async function addBatchEvent(e: Omit<BatchEvent, "id" | "at"> & { at?: string }): Promise<void> {
+  await db.insert(batchEvents).values({
+    id: `EVT-${Date.now().toString(36)}${randomBytes(3).toString("hex")}`.toUpperCase(),
+    batchId: e.batchId, at: e.at ?? new Date().toISOString(), actorId: e.actorId ?? null, actorName: e.actorName ?? null,
+    action: e.action, detail: e.detail ?? null,
+  });
+}
+export async function getBatchEvents(batchId: string): Promise<BatchEvent[]> {
+  const rows = await db.select().from(batchEvents).where(eq(batchEvents.batchId, batchId)).orderBy(batchEvents.at);
+  return rows.map((r) => clean<BatchEvent>(r as Record<string, unknown>));
+}
+/** Active (not cancelled) print of a lot, if any. */
+export async function activePrintOf(batchId: string): Promise<PrintLog | null> {
+  const r = await db.select().from(prints).where(and(eq(prints.batchId, batchId), or(isNull(prints.cancelled), eq(prints.cancelled, false)))).limit(1);
+  return r[0] ? clean<PrintLog>(r[0]) : null;
 }
 
 /** By LOT code, or by the pre-rename BAT id (old QR stickers, old links). */
@@ -264,6 +346,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
+    expectedAgeDays: input.expectedAgeDays,
     status: input.status ?? ("submitted" as const),
     shipmentStatus: "cutting" as const,
     createdAt: now.toISOString(),
@@ -305,9 +388,10 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
     const stored = await getLatestFarmMonthly(b.supplierId);
     // A stored monthly record still uses the farm's declared fuel/fertilizer/chemical types;
     // everything else falls back to the KYN-edited generic factors.
+    const approved = await approvedCustomEfs(["fuel", "fertilizer", "chemical"]);
     const base = stored
-      ? { ...stored, fuelEf: fuelEf(supplier.fuelKind), fertilizerEf: fertilizerEf(supplier.fertilizerKind), agrochemicalEf: chemicalEf(supplier.chemicalKind) }
-      : supplierToMonthly(supplier);
+      ? { ...stored, ...farmEfs(supplier, factors.farm, approved) }
+      : supplierToMonthly(supplier, factors.farm, approved);
     const monthly = base ? { ...base, base: factors.farm } : null;
     const derivedRaw = b.vehicleKey && b.fuelKey ? deriveTransportEF(b.vehicleKey, b.fuelKey) : null;
     const tkmOverride = b.vehicleKey && b.fuelKey ? factors.vehicleTkm[`${b.vehicleKey}|${b.fuelKey}`] : undefined;
@@ -316,19 +400,26 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
     // ประเภทการใช้งาน: a reusable item carries 1/designLife of its manufacturing carbon per trip,
     // a single-use one all of it. Older rounds (no usage) keep the old rule: baskets reusable
     // (100 trips), boxes/film single-use. Weight always rides along in full.
-    const lines = b.packagingItems ?? [];
-    const assetLife = new Map((await getPackagingAssetsByIds([...new Set(lines.map((p) => p.assetId).filter((x): x is string => !!x))])).map((x) => [x.id, x.designLife]));
+    const all = b.packagingItems ?? [];
+    const assetLife = new Map((await getPackagingAssetsByIds([...new Set(all.map((p) => p.assetId).filter((x): x is string => !!x))])).map((x) => [x.id, x.designLife]));
+    // New rounds: KYN catalog rows (standard weight × material EF, ÷ lifetime when reused) — §4.9
+    const v2 = all.filter((p) => p.v === 2) as unknown as PackRow[];
+    const packEfs = v2.length ? await approvedCustomEfs(["packaging", "inner"]) : null;
+    const v2Totals = v2.length
+      ? rowsCarbon(v2, await getCatalog(), (id) => (id ? assetLife.get(id) : undefined), (field, name) => packEfs?.get(field)?.get(name.toLowerCase()))
+      : { weightKg: 0, carbon: 0, estimate: false };
+    const lines = all.filter((p) => p.v !== 2);
     const cyclesOf = (p: (typeof lines)[number]) =>
       p.usage === "single" ? 1
-        : p.usage === "reusable" ? (p.assetId && assetLife.get(p.assetId)) || factors.reuseLife[p.kind]
+        : p.usage === "reusable" ? (p.assetId && assetLife.get(p.assetId)) || (factors.reuseLife as Record<string, number>)[p.kind] || 1
           : p.kind === "basket" ? BASKET_SPEC.defaultCycles : 1;
     const packItems = lines
-      .filter((p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind !== "basket")
+      .filter((p): p is typeof p & { kind: "corrugated_box" | "plastic_film" } => p.kind === "corrugated_box" || p.kind === "plastic_film")
       .map((p) => ({ type: p.kind, width: p.width ?? 0, length: p.length ?? 0, height: p.height ?? 0, quantity: p.quantity || 0, reuseCycles: cyclesOf(p) }));
     const basketLines = lines.filter((p) => p.kind === "basket");
     const basketWeight = basketLines.reduce((sum, p) => sum + (p.quantity || 0) * BASKET_SPEC.weightKg, 0);
     const basketCarbon = basketLines.reduce((sum, p) => sum + (p.quantity || 0) * basketCarbonPerUse(cyclesOf(p)), 0);
-    const extraPack = { weightKg: inner.weightKg + basketWeight, carbon: inner.carbon + basketCarbon };
+    const extraPack = { weightKg: inner.weightKg + basketWeight + v2Totals.weightKg, carbon: inner.carbon + basketCarbon + v2Totals.carbon };
 
     // Derive the gross parcel weight when it wasn't weighed on a scale:
     //   flower weight  = flowerCount × stem weight (farm's own yield÷count, else AVG_STEM_KG)
@@ -368,7 +459,7 @@ export async function computeBatch(id: string, opts: { advanceShipment?: boolean
         : { method: "vkm", distanceKm: b.distanceKm, efVkm: FACTORS.TRANSPORT, isReeferUsed: b.isReeferUsed },
     });
     co2ePerFlower = r.perStem;
-    breakdown = { engine: "kyn", farm: r.farm, packaging: r.packaging, transport: r.transport, total: r.total, perStem: r.perStem, flowerEF: r.flowerEF, netFlowerWeightKg: r.netFlowerWeightKg, packagingWeightKg: r.packagingWeightKg, air, innerPackaging: inner.carbon };
+    breakdown = { engine: "kyn", farm: r.farm, packaging: r.packaging, transport: r.transport, total: r.total, perStem: r.perStem, flowerEF: r.flowerEF, netFlowerWeightKg: r.netFlowerWeightKg, packagingWeightKg: r.packagingWeightKg, air, innerPackaging: inner.carbon, ...(v2Totals.estimate ? { packagingEstimate: true } : {}) };
   } else {
     const legacy = enrichBatch(b, supplier, (bid) => reuse.get(bid) ?? 0);
     co2ePerFlower = legacy.co2ePerFlower;

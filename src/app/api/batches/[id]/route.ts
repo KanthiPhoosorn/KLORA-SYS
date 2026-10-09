@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { getBatch, computeBatch, updateBatch, addNotification, getSupplier } from "@/lib/store";
+import { getBatch, computeBatch, updateBatch, addNotification, getSupplier, addBatchEvent, activePrintOf } from "@/lib/store";
+import { parseRound, type RoundFields } from "@/lib/round-parse";
+import { flowerAgeDays } from "@/lib/carbon";
+import { queueRoundOthers } from "@/lib/custom-queue";
+import type { Batch } from "@/lib/types";
 import { flightDistanceKm, roadToAirportKm } from "@/lib/airports";
 import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
+import { queueTransportOthers, queuePackagingOthers } from "@/lib/custom-queue";
 import { guard, forbidden } from "@/lib/api-guard";
 import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
@@ -24,7 +29,7 @@ export async function PATCH(
 ) {
   const g = await guard();
   if (g.deny) return g.deny;
-  const { id } = await params;
+  const { id: rawId } = await params;
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -32,11 +37,41 @@ export async function PATCH(
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
   }
 
-  const batch = await getBatch(id);
+  const batch = await getBatch(rawId);
   if (!batch) {
-    return NextResponse.json({ error: "ไม่พบ Batch นี้" }, { status: 404 });
+    return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
   }
+  const id = batch.id; // the current LOT code even when called with an old BAT id
   if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
+
+  // ยกเลิกรายการ (farm / KYN) — only while waiting to be printed; a soft cancel kept for history,
+  // out of every total, and its reusable packaging gives the trip back (Thai Post doc §5.6).
+  if (body.action === "cancel") {
+    if (g.user.role === "logistic") return forbidden();
+    if (batch.cancelledAt) return NextResponse.json({ error: "รายการนี้ถูกยกเลิกแล้ว" }, { status: 409 });
+    if (await activePrintOf(id)) return NextResponse.json({ error: "พิมพ์ QR แล้ว · ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน" }, { status: 409 });
+    const reason = String(body.reason ?? "").trim().slice(0, 200);
+    if (!reason) return NextResponse.json({ error: "กรุณาเลือกเหตุผลที่ยกเลิก" }, { status: 400 });
+    const updated = await updateBatch(id, { cancelledAt: new Date().toISOString(), cancelReason: reason, cancelledBy: g.user.username });
+    await addBatchEvent({ batchId: id, actorId: g.user.id, actorName: g.user.username, action: "cancel", detail: { reason } });
+    return NextResponse.json(updated);
+  }
+
+  // ใส่ / แก้เลขพัสดุ + น้ำหนักรวมจากใบเสร็จ — only after the QR is printed (§5.5).
+  if (body.action === "tracking") {
+    if (batch.cancelledAt) return NextResponse.json({ error: "รายการนี้ถูกยกเลิกแล้ว" }, { status: 409 });
+    if (!(await activePrintOf(id))) return NextResponse.json({ error: "ใส่เลขพัสดุได้หลังพิมพ์ QR แล้ว" }, { status: 409 });
+    const trackingNo = String(body.trackingNo ?? "").trim().toUpperCase().slice(0, 40);
+    if (!trackingNo) return NextResponse.json({ error: "กรุณาระบุเลขพัสดุ" }, { status: 400 });
+    const w = Number(body.weightKg);
+    const patch: Partial<Batch> = { trackingNo };
+    if (w > 0) patch.shippedWeightKg = w;
+    await updateBatch(id, patch);
+    await addBatchEvent({ batchId: id, actorId: g.user.id, actorName: g.user.username, action: "tracking", detail: { trackingNo, weightKg: w > 0 ? w : undefined, before: batch.trackingNo } });
+    // the receipt weight is the real parcel weight → transport CO₂e follows it
+    const updated = w > 0 ? await computeBatch(id, { advanceShipment: false }) : await getBatch(id);
+    return NextResponse.json(updated);
+  }
 
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
   const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType", "innerMaterials"];
@@ -51,6 +86,7 @@ export async function PATCH(
     if ("distanceKm" in body) patch.distanceKm = num(body.distanceKm) ?? 0;
     const items = parsePackagingItems(body.packagingItems);
     if (items) {
+      await queuePackagingOthers(items, { userId: g.user.id, batchId: id, supplierId: batch.supplierId }).catch(() => undefined);
       patch.packagingItems = items;
       if (items.some((p) => p.usage)) patch.basketIds = basketIdsOf(items);
     }
@@ -91,6 +127,7 @@ export async function PATCH(
       patch.exportRecordedBy = g.user.id;
     }
     await updateBatch(id, patch);
+    await queueTransportOthers({ vehicleOther: body.vehicleOther ? String(body.vehicleOther) : undefined, fuelKey: body.fuelKey ? String(body.fuelKey) : undefined, airline: body.airline ? String(body.airline) : undefined, destAirport: body.destAirport ? String(body.destAirport) : undefined }, { userId: g.user.id, batchId: id, supplierId: batch.supplierId }).catch(() => undefined);
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
       await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
@@ -145,4 +182,45 @@ export async function PATCH(
   }
 
   return NextResponse.json({ error: "ไม่มีการเปลี่ยนแปลง" }, { status: 400 });
+}
+
+// What the edit review and the history show as "ค่าเดิม → ค่าใหม่".
+const EDIT_LABELS: [keyof RoundFields, string][] = [
+  ["productType", "ชนิด"], ["variety", "พันธุ์"], ["quantity", "จำนวน"], ["unit", "หน่วย"], ["cutDate", "วันที่ตัด/เก็บเกี่ยว"],
+  ["expectedAgeDays", "อายุหลังตัดที่คาดการณ์ (วัน)"], ["plantingDate", "วันที่ปลูก"], ["ripenessAtHarvest", "ระยะการสุก"], ["grade", "เกรด"],
+  ["destination", "จังหวัดปลายทาง"], ["destinationAddress", "ที่อยู่ปลายทาง"], ["distanceKm", "ระยะทาง (กม.)"], ["carrier", "รูปแบบการขนส่ง"],
+  ["provider", "ผู้ให้บริการ"], ["postalCode", "รหัสไปรษณีย์"], ["branch", "สาขาต้นทาง"], ["shippedWeightKg", "น้ำหนักรวมหลังแพ็ก (กก.)"],
+  ["packagingItems", "บรรจุภัณฑ์"],
+];
+const shown = (v: unknown) => (v == null || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
+
+// PUT /api/batches/[id] — the farm edits its own round while it still waits to be printed
+// (Thai Post doc §5.4). Same LOT code; carbon is recomputed; the change list goes to the history.
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const g = await guard(["supplier", "kyn"]);
+  if (g.deny) return g.deny;
+  const { id: rawId } = await params;
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
+  const batch = await getBatch(rawId);
+  if (!batch) return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
+  if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
+  if (batch.cancelledAt) return NextResponse.json({ error: "รายการนี้ถูกยกเลิกแล้ว" }, { status: 409 });
+  if (await activePrintOf(batch.id)) return NextResponse.json({ error: "พิมพ์ QR แล้ว · แก้ไขไม่ได้" }, { status: 409 });
+  const parsed = parseRound(body);
+  if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const f = parsed.fields;
+
+  const changes = EDIT_LABELS
+    .filter(([k]) => shown(f[k]) !== shown((batch as unknown as Record<string, unknown>)[k]))
+    .map(([k, label]) => (k === "packagingItems"
+      ? { field: k, label, from: "รายการเดิม", to: "แก้ไขรายการ" }
+      : { field: k, label, from: shown((batch as unknown as Record<string, unknown>)[k]), to: shown(f[k]) }));
+  // undefined → null so an emptied optional field is really cleared
+  const patch = Object.fromEntries(Object.entries({ ...f, ageDays: flowerAgeDays(f.cutDate, batch.entryDate) }).map(([k, v]) => [k, v === undefined ? null : v]));
+  await updateBatch(batch.id, patch as Partial<Batch>);
+  await addBatchEvent({ batchId: batch.id, actorId: g.user.id, actorName: g.user.username, action: "edit", detail: { changes } });
+  await queueRoundOthers(f, { supplierId: batch.supplierId, userId: g.user.id, batchId: batch.id }).catch(() => undefined);
+  const updated = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
+  return NextResponse.json({ batch: updated ?? (await getBatch(batch.id)), changes });
 }

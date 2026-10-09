@@ -3,6 +3,8 @@ import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } fr
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
 import { asCarrierKey } from "@/lib/carriers";
+import { parseResourceLines, linesToLegacy } from "@/lib/resource-types";
+import { queueResourceOthers, queueProductOthers } from "@/lib/custom-queue";
 import { parseProduceGroups, categoriesOf, parseCertifications, parseYieldLines, legacyYieldTotal, asFuelKind, asFertilizerKind, asChemicalKind } from "@/lib/produce-parse";
 import type { Supplier } from "@/lib/types";
 
@@ -85,9 +87,12 @@ export async function PATCH(
   }
   const certs = parseCertifications(body.certifications);
   if (certs) patch.certifications = certs;
-  if ("fuelKind" in body) patch.fuelKind = asFuelKind(body.fuelKind);
-  if ("fertilizerKind" in body) patch.fertilizerKind = asFertilizerKind(body.fertilizerKind);
-  if ("chemicalKind" in body) patch.chemicalKind = asChemicalKind(body.chemicalKind);
+  // Several types per input ("เพิ่มรายการ"): the lines win over the single-type fields.
+  const resLines = parseResourceLines(body.resourceLines);
+  if (resLines) { patch.resourceLines = resLines; Object.assign(patch, linesToLegacy(resLines)); }
+  if ("fuelKind" in body && !resLines) patch.fuelKind = asFuelKind(body.fuelKind);
+  if ("fertilizerKind" in body && !resLines) patch.fertilizerKind = asFertilizerKind(body.fertilizerKind);
+  if ("chemicalKind" in body && !resLines) patch.chemicalKind = asChemicalKind(body.chemicalKind);
   const yl = parseYieldLines(body.yieldLines);
   if (yl) { patch.yieldLines = yl; const total = legacyYieldTotal(yl); if (total != null) patch.flowersPerMonth = total; }
   const fts = parseProduceGroups(body.flowerTypes);
@@ -120,6 +125,8 @@ export async function PATCH(
   }
 
   const updated = await updateSupplier(id, patch);
+  await queueResourceOthers(resLines, { supplierId: id, userId: g.user.id });
+  await queueProductOthers(patch.flowerTypes, { supplierId: id, userId: g.user.id });
   if (patch.plan && patch.plan !== supplier.plan) {
     await addNotification({
       supplierId: id, kind: patch.plan === "pro" ? "success" : "info",

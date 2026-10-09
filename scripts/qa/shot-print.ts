@@ -7,7 +7,7 @@ const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return 
   const errs: string[] = []; p.on("pageerror", (e) => errs.push(String(e)));
   await b.setCookie({ name: "klora_session", value: mint("USR-0002"), domain: "localhost", path: "/" });
   await p.evaluateOnNewDocument(() => { (window as any).print = () => { (window as any).__printed = true; }; });
-  await p.goto("http://localhost:3123/print/labels?ids=BAT-2026-0007,BAT-2026-0001,BAT-2026-0009", { waitUntil: "networkidle0" });
+  await p.goto("http://localhost:3123/print/labels?ids=LOT-2609-0007,LOT-2607-0001,LOT-2609-0009", { waitUntil: "networkidle0" });
   await new Promise((r) => setTimeout(r, 600));
   console.log("auto print called:", await p.evaluate(() => (window as any).__printed === true));
   await p.emulateMediaType("print");

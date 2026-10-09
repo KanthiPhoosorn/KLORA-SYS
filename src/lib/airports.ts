@@ -47,6 +47,13 @@ export const DEST_AIRPORTS: Airport[] = [
   { code: "JFK", name: "John F. Kennedy", city: "นิวยอร์ก", country: "สหรัฐอเมริกา", lat: 40.6413, lng: -73.7781 },
 ];
 
+export const AIRLINES = [
+  "การบินไทย (Thai Airways)", "ไทยสมายล์ (Thai Smile)", "บางกอกแอร์เวย์ส (Bangkok Airways)",
+  "ไทยแอร์เอเชีย (Thai AirAsia)", "ไทยไลอ้อนแอร์ (Thai Lion Air)", "นกแอร์ (Nok Air)",
+  "ไทยเวียตเจ็ท (Thai VietJet)", "เอมิเรตส์ (Emirates)", "สิงคโปร์แอร์ไลน์ (Singapore Airlines)",
+  "คาเธ่ย์แปซิฟิก (Cathay Pacific)", "ควอนตัสคาร์โก้ (Qantas Freight)", "ลุฟท์ฮันซาคาร์โก้ (Lufthansa Cargo)",
+];
+
 export const airportLabel = (a: Airport) => `${a.city}, ${a.country} (${a.code})`;
 export const findAirport = (code?: string | null) =>
   code ? [...ORIGIN_AIRPORTS, ...DEST_AIRPORTS].find((a) => a.code === code) : undefined;

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getBatches, getBatchesBySupplier, addBatch, getSupplier, computeBatch, addNotification } from "@/lib/store";
+import { getBatches, getBatchesBySupplier, addBatch, getSupplier, computeBatch, addNotification, addBatchEvent } from "@/lib/store";
 import { unitsOf, perUnitLabel } from "@/lib/produce";
 import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
-import { asCategory, asUnit, asRipeness } from "@/lib/produce-parse";
-import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
+import { parseRound } from "@/lib/round-parse";
+import { queueRoundOthers, queuePackagingOthers } from "@/lib/custom-queue";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -48,78 +48,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "เฉพาะบัญชีฟาร์มหรือผู้ส่งออกเท่านั้น" }, { status: 403 });
   }
 
-  if (!body.cutDate) {
-    return NextResponse.json({ error: "ต้องระบุวันที่ตัด/เก็บเกี่ยว" }, { status: 400 });
-  }
-  // Product category + counting unit. Flowers count stems (flowerCount); produce is weighed
-  // (quantity in kg/ton) and keeps flowerCount = 0 so stem-based totals never mix units.
-  const productCategory = asCategory(body.productCategory) ?? "flower";
-  const unit = asUnit(body.unit) ?? (productCategory === "flower" ? "stem" : "kg");
-  const weightBased = unit === "kg" || unit === "ton";
-  const quantity = Number(body.quantity ?? body.flowerCount) || 0;
-  const flowerCount = weightBased ? 0 : Math.round(quantity);
-  if (weightBased && quantity <= 0) {
-    return NextResponse.json({ error: "น้ำหนักสินค้าต้องมากกว่า 0" }, { status: 400 });
-  }
-  if (!weightBased && flowerCount <= 0) {
-    return NextResponse.json({ error: "จำนวนดอกไม้ต้องมากกว่า 0" }, { status: 400 });
-  }
-
+  const parsed = parseRound(body);
+  if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { fields } = parsed;
+  const { productCategory, packagingItems, basketIds } = fields;
   const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 
   try {
-    const packagingItems = parsePackagingItems(body.packagingItems);
-    // New-style lines (with ประเภทการใช้งาน) define the baskets; older clients send basketIds.
-    const basketIds = packagingItems?.some((p) => p.usage)
-      ? basketIdsOf(packagingItems)
-      : Array.isArray(body.basketIds)
-        ? (body.basketIds as unknown[]).map((x) => String(x).trim()).filter(Boolean)
-        : [];
-    const str = (k: string) => (body[k] ? String(body[k]) : undefined);
-    const batch = await addBatch({
-      supplierId,
-      flowerCount,
-      variety: str("variety"),
-      cutDate: String(body.cutDate),
-      distanceKm: Number(body.distanceKm) || 0,
-      destination: str("destination"),
-      destinationAddress: str("destinationAddress"),
-      innerMaterials: Array.isArray(body.innerMaterials)
-        ? (body.innerMaterials as Record<string, unknown>[])
-            .map((m) => ({ material: String(m.material ?? "").trim(), qty: Number(m.qty) || 0 }))
-            .filter((m) => m.material && m.qty > 0)
-        : undefined,
-      destLat: body.destLat != null && body.destLat !== "" && Number.isFinite(Number(body.destLat)) ? Number(body.destLat) : undefined,
-      destLng: body.destLng != null && body.destLng !== "" && Number.isFinite(Number(body.destLng)) ? Number(body.destLng) : undefined,
-      carrier: str("carrier"),
-      provider: str("provider"),
-      postalCode: str("postalCode"),
-      branch: str("branch"),
-      boxMaterial: str("boxMaterial"),
-      weightKg: body.weightKg != null && body.weightKg !== "" ? Number(body.weightKg) : undefined,
-      basketIds,
-      // KYN full-spec inputs (optional)
-      packagingItems,
-      shippedWeightKg:
-        body.shippedWeightKg != null && body.shippedWeightKg !== "" ? Number(body.shippedWeightKg) : undefined,
-      vehicleKey: str("vehicleKey"),
-      fuelKey: str("fuelKey"),
-      isReeferUsed: body.isReeferUsed === true || body.isReeferUsed === "true",
-      status,
-      productCategory,
-      productType: str("productType"),
-      quantity,
-      unit,
-      plantingDate: str("plantingDate"),
-      ripenessAtHarvest: asRipeness(body.ripenessAtHarvest),
-      grade: str("grade"),
-      ethyleneUsed: body.ethyleneUsed === true || body.ethyleneUsed === "true",
-      ethyleneNote: str("ethyleneNote"),
-    });
+    const batch = await addBatch({ ...fields, supplierId, status });
+    await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create" });
+    // "อื่นๆ (ระบุ)" values → KYN review queue
+    await queueRoundOthers(batch, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
+    await queuePackagingOthers(packagingItems, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
     // Auto-compute on submit so the round is printable by the carrier right away (a flower
     // round needs its packaging declared; anything incomplete stays "submitted" for KYN).
     let result = batch;
-    if (status === "submitted" && (basketIds.length > 0 || (packagingItems?.length ?? 0) > 0 || productCategory !== "flower")) {
+    if (status === "submitted" && ((basketIds?.length ?? 0) > 0 || (packagingItems?.length ?? 0) > 0 || productCategory !== "flower")) {
       const computed = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
       if (computed?.status === "computed") {
         result = computed;

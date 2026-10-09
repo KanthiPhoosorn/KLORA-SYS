@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, PlusCircle, Trash2, RotateCcw, RefreshCw, Save, CheckCircle2 } from "lucide-react";
+import { Loader2, RotateCcw, RefreshCw, Save, CheckCircle2 } from "lucide-react";
 import { DEFAULT_FACTORS, AIR_EF_SOURCE, SHORT_HAUL_MAX_KM, type Factors } from "@/lib/factors";
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { deriveTransportEF } from "@/lib/transport-ef";
@@ -64,8 +64,6 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
     [],
   );
   const setFarm = (k: keyof Factors["farm"], v: string) => setD((x) => ({ ...x, farm: { ...x.farm, [k]: v } }));
-  const setSize = (i: number, patch: Partial<Draft["packageSizes"][number]>) =>
-    setD((x) => ({ ...x, packageSizes: x.packageSizes.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
 
   async function save() {
     setBusy("save"); setMsg(null);
@@ -143,37 +141,7 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
         </div>
       </Section>
 
-      <Section title="ขนาดบรรจุภัณฑ์มาตรฐาน" sub="ตัวเลือกกรอกอัตโนมัติในแบบฟอร์มรอบส่งออก (ฟาร์มและผู้ขนส่ง) · ซองห่อช่อ/แผ่นพลาสติก ให้เว้นความสูง">
-        <div className="space-y-2">
-          <div className="hidden grid-cols-[1fr_90px_90px_90px_32px] gap-2 px-1 text-[12px] font-medium text-slate-500 sm:grid">
-            <span>ชื่อ</span><span>กว้าง (ซม.)</span><span>ยาว (ซม.)</span><span>สูง (ซม.)</span><span />
-          </div>
-          {d.packageSizes.map((p, i) => (
-            <div key={i} className="grid grid-cols-3 gap-2 sm:grid-cols-[1fr_90px_90px_90px_32px]">
-              <input value={p.label} onChange={(e) => setSize(i, { label: e.target.value })} placeholder="เช่น กล่องกลาง 30 × 40 × 20 ซม." className={`${inputCls} col-span-3 sm:col-span-1`} />
-              <input type="number" min="0" step="any" value={p.w} onChange={(e) => setSize(i, { w: e.target.value })} placeholder="กว้าง" className={inputCls} />
-              <input type="number" min="0" step="any" value={p.l} onChange={(e) => setSize(i, { l: e.target.value })} placeholder="ยาว" className={inputCls} />
-              <input type="number" min="0" step="any" value={p.h} onChange={(e) => setSize(i, { h: e.target.value })} placeholder="สูง" className={inputCls} />
-              <button type="button" onClick={() => setD((x) => ({ ...x, packageSizes: x.packageSizes.filter((_, j) => j !== i) }))} title="ลบ" className="grid h-[38px] place-items-center text-red-500 hover:text-red-600"><Trash2 size={15} /></button>
-            </div>
-          ))}
-          <button type="button" onClick={() => setD((x) => ({ ...x, packageSizes: [...x.packageSizes, { label: "", w: "", l: "", h: "" }] }))} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand-purple hover:underline">
-            <PlusCircle size={16} /> เพิ่มขนาด
-          </button>
-        </div>
-      </Section>
-
-      <Section title="อายุการใช้งานบรรจุภัณฑ์หมุนเวียน" sub="จำนวนรอบ (design life) ที่ให้กับบรรจุภัณฑ์ที่ลงทะเบียนใหม่ — คาร์บอนจากการผลิตถูกเฉลี่ยตามจำนวนรอบนี้ · บรรจุภัณฑ์ใช้ครั้งเดียวคิดเต็มจำนวน">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {([["basket", "ตะกร้า", "ตาราง KYN: 50–100 รอบ"], ["corrugated_box", "กล่องลูกฟูก", "ค่าประมาณ — รอ KYN ยืนยัน"], ["plastic_film", "แผ่นพลาสติก / ซองห่อช่อ", "ค่าประมาณ — รอ KYN ยืนยัน"]] as const).map(([k, label, note]) => (
-            <div key={k}>
-              <label className="mb-1.5 block text-[13px] font-medium text-slate-700">{label} <span className="font-normal text-slate-400">(รอบ)</span></label>
-              <input type="number" min="1" step="1" value={d.reuseLife[k]} onChange={(e) => setD((x) => ({ ...x, reuseLife: { ...x.reuseLife, [k]: e.target.value } }))} className={inputCls} />
-              <p className="mt-1 text-[11px] text-slate-400">ค่าเริ่มต้น {DEFAULT_FACTORS.reuseLife[k]} · {note}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
+      <p className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-[13px] text-slate-500">ขนาด น้ำหนักมาตรฐาน วัสดุ และจำนวนรอบของบรรจุภัณฑ์ ย้ายไปที่หน้า <a href="/kyn/packaging" className="font-medium text-brand-purple hover:underline">ตารางบรรจุภัณฑ์</a></p>
 
       {msg ? (
         <p className={`flex items-start gap-2 rounded-[8px] px-3 py-2 text-[13px] ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>

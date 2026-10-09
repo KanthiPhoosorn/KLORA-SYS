@@ -63,6 +63,7 @@ export interface Supplier {
   fertilizerKind?: FertilizerKind;
   chemicalKind?: ChemicalKind;
   yieldLines?: YieldLine[]; // ผลผลิตต่อเดือน แยกตามรายการสินค้าที่ลงไว้
+  resourceLines?: import("./resource-types").ResourceLines; // several fuel/fertilizer/chemical types ("เพิ่มรายการ")
   signupVia?: CarrierKey; // สมัครผ่านลิงก์ของผู้ขนส่งรายนี้ → รูปแบบจัดส่งถูกจำกัดตามลิงก์
 }
 
@@ -99,9 +100,16 @@ export interface Certification {
   expiresAt?: string; // YYYY-MM-DD
 }
 
-// บรรจุภัณฑ์ 1 รายการพร้อมมิติ (หน่วย ซม.) สำหรับสูตรพื้นที่ผิวของ KYN
+// บรรจุภัณฑ์ 1 รายการ. Rounds from 9 Oct 2026 store catalog rows (v: 2 — kind = KYN catalog id, size
+// S/M/L…, inner materials per package); older rounds keep the W×L×H fields of the surface-area formula.
 export interface PackagingLine {
-  kind: "basket" | "corrugated_box" | "plastic_film";
+  kind: string; // v2: catalog pack id | "other" | "nopack" · v1: "basket" | "corrugated_box" | "plastic_film"
+  v?: 2;
+  size?: string; // v2: size id | "custom" | "unknown" | "none"
+  dims?: { w: number; l: number; h: number; unit: "cm" | "in" };
+  unit?: string; // v2: ใบ กล่อง ลัง ตะกร้า ถุง ชิ้น
+  other?: { name: string; material: import("./packaging-catalog").MaterialId; weightClass: string; weighedKg?: number };
+  inners?: import("./packaging-catalog").InnerRow[];
   width?: number;
   length?: number;
   height?: number;
@@ -112,6 +120,34 @@ export interface PackagingLine {
   assetId?: string;
   basketNo?: string;
   boxMaterial?: string;
+}
+
+export interface BatchEvent {
+  id: string;
+  batchId: string;
+  at: string;
+  actorId?: string;
+  actorName?: string;
+  action: "create" | "edit" | "cancel" | "print" | "print_cancel" | "tracking" | "transport";
+  detail?: Record<string, unknown>; // edit: { changes: [{ field, label, from, to }] } · cancel: { reason }
+}
+
+// "อื่นๆ (ระบุ)" — a value a user typed outside the master lists, queued for KYN review.
+export interface CustomEntry {
+  id: string;
+  field: string; // which dropdown: fuel, fertilizer, chemical, packaging, inner, provider, branch, …
+  value: string;
+  detail?: Record<string, unknown>; // e.g. { material, weightClass } for packaging
+  supplierId?: string;
+  userId?: string;
+  batchId?: string;
+  uses: number;
+  status: "pending" | "approved" | "rejected";
+  ef?: number; // kg CO₂e per unit, set by KYN when the value feeds the carbon calculation
+  note?: string;
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
 }
 
 // บรรจุภัณฑ์หมุนเวียน — one physical basket/box registered once, then picked by code on each round.
@@ -144,6 +180,7 @@ export interface CarbonBreakdownRecord {
   packagingWeightKg: number;
   air?: number; // air-freight leg (included in transport)
   innerPackaging?: number; // secondary materials (included in packaging)
+  packagingEstimate?: boolean; // a size/item was estimated (ไม่ทราบขนาด / กำหนดเอง / อื่นๆ) — show "ค่าประมาณ"
 }
 
 // สถานะคำนวณ: draft (บันทึกร่าง) → submitted (ส่งแล้ว รอ KYN คำนวณ) → computed (คำนวณแล้ว)
@@ -154,6 +191,12 @@ export type ShipmentStatus = "cutting" | "in_transit" | "delivered";
 export interface Batch {
   id: string; // LOT-YYMM-NNNN — one code from the farm to the QR
   legacyId?: string; // BAT-YYYY-NNNN for lots created before the rename
+  expectedAgeDays?: number; // อายุหลังตัดที่คาดการณ์ (วัน)
+  trackingNo?: string; // เลขพัสดุ
+  awbNo?: string; // Air Waybill (international)
+  cancelledAt?: string; // ยกเลิกรายการ — excluded from totals, kept for history
+  cancelReason?: string;
+  cancelledBy?: string;
   supplierId: string; // → Supplier.id
 
   // --- ข้อมูลที่ใช้คำนวณ (ลงใหม่ทุกครั้ง / entered every round) ---
@@ -243,6 +286,8 @@ export type UserRole = "supplier" | "logistic" | "kyn";
 export interface User {
   id: string; // USR-NNNN
   orgCode?: string; // CID-NNNN — logistic organisations
+  avatar?: string; // data URL (≤ ~60 KB after client-side resize)
+  labelSize?: string; // 60x30 | 80x25 | 40x25 | a4
   role: UserRole; // which portal this account signs into
   supplierId?: string; // → Supplier.id (only for role "supplier")
   company?: string; // ชื่อบริษัท (logistic accounts)
@@ -338,6 +383,7 @@ export type BatchInput = Pick<
   grade?: string;
   ethyleneUsed?: boolean;
   ethyleneNote?: string;
+  expectedAgeDays?: number;
 };
 
 // A batch joined to its supplier — what the KYN table and trace page consume.

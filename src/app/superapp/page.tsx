@@ -11,9 +11,9 @@ export const dynamic = "force-dynamic";
 // "รายละเอียดสินค้า" screen shows live traceability data through the same JSON a partner app
 // would call (GET /api/trace/[batchId]). Missing batches are skipped so the page never breaks.
 const DEMO_ORDERS: { orderNo: string; date: string; status: string; items: { batchId: string; qty: string; price: number }[] }[] = [
-  { orderNo: "TH2609160001", date: "2026-09-16", status: "กำลังจัดส่ง", items: [{ batchId: "BAT-2026-0007", qty: "5 กก.", price: 650 }, { batchId: "BAT-2026-0008", qty: "1 กก.", price: 120 }] },
-  { orderNo: "TH2609150042", date: "2026-09-15", status: "จัดส่งสำเร็จ", items: [{ batchId: "BAT-2026-0009", qty: "2 หวี", price: 180 }] },
-  { orderNo: "TH2609120118", date: "2026-09-12", status: "จัดส่งสำเร็จ", items: [{ batchId: "BAT-2026-0001", qty: "20 ดอก", price: 890 }] },
+  { orderNo: "TH2609160001", date: "2026-09-16", status: "กำลังจัดส่ง", items: [{ batchId: "LOT-2609-0007", qty: "5 กก.", price: 650 }, { batchId: "LOT-2609-0008", qty: "1 กก.", price: 120 }] },
+  { orderNo: "TH2609150042", date: "2026-09-15", status: "จัดส่งสำเร็จ", items: [{ batchId: "LOT-2609-0009", qty: "2 หวี", price: 180 }] },
+  { orderNo: "TH2609120118", date: "2026-09-12", status: "จัดส่งสำเร็จ", items: [{ batchId: "LOT-2607-0001", qty: "20 ดอก", price: 890 }] },
 ];
 
 export default async function SuperAppPage() {

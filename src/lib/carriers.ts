@@ -9,6 +9,9 @@ export const CARRIERS: { key: CarrierKey; label: string }[] = [
   { key: "sorting_center", label: "ศูนย์คัดแยกสินค้า" },
   { key: "exporter", label: "ผู้ส่งออก" },
 ];
+/** Private parcel providers offered when the carrier is not Thai Post (+ "อื่นๆ (ระบุ)"). */
+export const PROVIDERS = ["Nim Express", "Kerry Express", "Flash Express", "J&T Express", "SCG Express", "DHL Express"];
+
 export const asCarrierKey = (v: unknown): CarrierKey | undefined =>
   CARRIERS.some((c) => c.key === v) ? (v as CarrierKey) : undefined;
 export const carrierLabel = (k?: string | null) => CARRIERS.find((c) => c.key === k)?.label ?? "";

@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MapPin, CheckCircle2, Package, Plane } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import SearchSelect from "@/components/SearchSelect";
 import { VEHICLE_FUELS } from "@/lib/master-data";
-import { DESTINATIONS, estimateDistanceKm, haversineKm, provinceFromAddress } from "@/lib/geo";
+import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
+import { useRecipientDistance } from "@/lib/use-distance";
+import { findBranch } from "@/lib/branches";
 import type { Supplier, Batch } from "@/lib/types";
-import PackagingLines, { emptyPackLine, validatePackLines, packLinesToPayload, packLinesFromBatch, packKindLabel, packSizeText, packInnerText, packUsageText, packQty, type PackLine } from "@/components/PackagingLines";
-import { DEFAULT_FACTORS, type PackageSize } from "@/lib/factors";
-import { ORIGIN_AIRPORTS, DEST_AIRPORTS, airportLabel, findAirport, flightDistanceKm } from "@/lib/airports";
+import PackagingLines, { firstRow, validateRows, rowsToPayload, rowsFromBatch, rowsWeightKg, rowSummary, type PackRowState } from "@/components/PackagingLines";
+import { DEFAULT_CATALOG, type PackCatalog } from "@/lib/packaging-catalog";
+import { categoryOf } from "@/lib/produce";
+import { ORIGIN_AIRPORTS, DEST_AIRPORTS, AIRLINES, airportLabel, findAirport, flightDistanceKm } from "@/lib/airports";
 
 const inputCls =
   "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-blue-500";
@@ -31,18 +34,9 @@ function fuelGroup(k: string): string {
   return "อื่นๆ ระบุ";
 }
 const fuelOptions = (veh: string) => fuelsFor(veh).map((f) => ({ value: f.fuelKey, label: f.fuel, group: fuelGroup(f.fuelKey) }));
-const AIRLINE_OPTIONS = [
-  "การบินไทย (Thai Airways)", "ไทยสมายล์ (Thai Smile)", "บางกอกแอร์เวย์ส (Bangkok Airways)",
-  "ไทยแอร์เอเชีย (Thai AirAsia)", "ไทยไลอ้อนแอร์ (Thai Lion Air)", "นกแอร์ (Nok Air)",
-  "ไทยเวียตเจ็ท (Thai VietJet)", "เอมิเรตส์ (Emirates)", "สิงคโปร์แอร์ไลน์ (Singapore Airlines)",
-  "คาเธ่ย์แปซิฟิก (Cathay Pacific)", "ควอนตัสคาร์โก้ (Qantas Freight)", "ลุฟท์ฮันซาคาร์โก้ (Lufthansa Cargo)",
-].map((a) => ({ value: a, label: a }));
+const AIRLINE_OPTIONS = AIRLINES.map((a) => ({ value: a, label: a }));
 const DEST_AIRPORT_OPTIONS = DEST_AIRPORTS.map((a) => ({ value: a.code, label: airportLabel(a), group: a.country }));
 
-// Figma default: two seeded cards — a basket (→ หมายเลขตะกร้า) + a corrugated box (→ วัสดุภายในกล่อง)
-const defaultPacks = (): PackLine[] => [{ ...emptyPackLine(), kind: "basket" }, { ...emptyPackLine(), kind: "corrugated_box" }];
-// A seeded card the carrier never filled in is ignored (the farm's own packaging is kept).
-const touched = (p: PackLine) => !!(p.kind && (p.usage || p.assetId || p.boxMaterial || p.w || p.l || p.h || p.qty || p.priorUses));
 
 function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
@@ -60,8 +54,8 @@ type Errors = Record<string, string>;
 // Logistic / Exporter data-export (Figma "Logistic → data export"): pick a received Batch,
 // then enrich it with the export transport spec (vehicle, fuel, weight, reefer, domestic/intl).
 export default function LogisticExportForm({
-  suppliers, batches, sizePresets = DEFAULT_FACTORS.packageSizes,
-}: { suppliers: Supplier[]; batches: Batch[]; sizePresets?: PackageSize[] }) {
+  suppliers, batches, catalog = DEFAULT_CATALOG, originBranch,
+}: { suppliers: Supplier[]; batches: Batch[]; catalog?: PackCatalog; /** the carrier's own branch (สาขาต้นทาง) */ originBranch?: string }) {
   const router = useRouter();
   const supById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
 
@@ -79,7 +73,8 @@ export default function LogisticExportForm({
   const [flowerCount, setFlowerCount] = useState("");
   const [ageDays, setAgeDays] = useState("");
   const [exportBunches, setExportBunches] = useState("");
-  const [packs, setPacks] = useState<PackLine[]>(defaultPacks());
+  const [packs, setPacks] = useState<PackRowState[]>(() => [firstRow(catalog, "flower")]);
+  const packagingKg = rowsWeightKg(packs, catalog);
   // Transport
   const [shipType, setShipType] = useState<"domestic" | "international">("domestic");
   const [destination, setDestination] = useState("");
@@ -118,20 +113,21 @@ export default function LogisticExportForm({
   function onDestProvince(v: string) {
     setDestination(v);
     setErrs((x) => ({ ...x, destination: "" }));
-    const farm = farmOf(selectedBatch);
-    if (!destGpsParsed && farm) {
-      const est = estimateDistanceKm(v, { lat: farm.gpsLat, lng: farm.gpsLng });
-      if (est != null) setDistanceKm(String(est));
-    }
   }
   function onDestGps(v: string) {
     setDestGps(v);
-    const [a, b] = v.split(",").map((x) => Number(x.trim()));
-    const farm = farmOf(selectedBatch);
-    if (v.includes(",") && Number.isFinite(a) && Number.isFinite(b) && farm?.gpsLat && farm?.gpsLng) {
-      setDistanceKm(String(Math.round(haversineKm(farm.gpsLat, farm.gpsLng, a, b) * 1.3)));
-    }
   }
+  // Distance = recipient address − origin branch (the carrier's branch; else the farm), Thai Post doc 9 Oct 2026.
+  const [distEdited, setDistEdited] = useState(false);
+  const branchHit = findBranch(originBranch);
+  const farmNow = farmOf(selectedBatch);
+  const origin = branchHit
+    ? { lat: branchHit.lat, lng: branchHit.lng, label: branchHit.name }
+    : farmNow?.gpsLat && farmNow?.gpsLng ? { lat: farmNow.gpsLat, lng: farmNow.gpsLng, label: "ที่ตั้งฟาร์ม" } : null;
+  const dist = useRecipientDistance(shipType === "domestic" ? origin : null, destAddress, destGpsParsed, destination);
+  useEffect(() => {
+    if (!distEdited && dist.km != null) setDistanceKm(String(dist.km));
+  }, [dist.km, distEdited]);
   function onDestAddress(v: string) {
     setDestAddress(v);
     if (destination || shipType !== "domestic") return;
@@ -158,8 +154,8 @@ export default function LogisticExportForm({
     setDestination(b.destination ?? "");
     setDistanceKm(String(b.distanceKm ?? ""));
     // prefill packaging from the batch
-    const fromBatch = packLinesFromBatch(b.packagingItems, b.innerMaterials);
-    setPacks(fromBatch.length ? fromBatch : defaultPacks());
+    const fromBatch = rowsFromBatch(b.packagingItems, catalog);
+    setPacks(fromBatch.length ? fromBatch : [firstRow(catalog, categoryOf(b))]);
     if (b.originAirport) setOriginAirport(b.originAirport);
     if (b.destAirport) setDestAirport(b.destAirport);
     setFlightKm("");
@@ -189,7 +185,8 @@ export default function LogisticExportForm({
   function validate(): Errors {
     const e: Errors = {};
     if (!batchId) e.batchId = "กรุณาเลือกล็อต";
-    if (!weightKg || Number(weightKg) <= 0) e.weightKg = "กรุณาระบุน้ำหนักรวมบรรจุภัณฑ์";
+    if (!weightKg || Number(weightKg) <= 0) e.weightKg = "กรุณาระบุน้ำหนักรวมหลังแพ็ก";
+    else if (packagingKg > 0 && Number(weightKg) <= packagingKg) e.weightKg = `น้อยกว่าน้ำหนักบรรจุภัณฑ์ที่เลือกไว้ (≈ ${packagingKg.toFixed(2)} กก.)`;
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (shipType === "domestic") {
       if (!destination) e.destination = "กรุณาระบุปลายทาง";
@@ -199,8 +196,7 @@ export default function LogisticExportForm({
       if (!airline) e.airline = "กรุณาระบุสายการบิน";
       if (!destAirport && !(Number(flightKm) > 0)) e.destAirport = "กรุณาเลือกท่าอากาศยานปลายทาง หรือระบุระยะทางบิน";
     }
-    const pe = validatePackLines(packs);
-    for (const k of Object.keys(pe)) if (touched(packs[Number(k.split(".")[1])])) e[k] = pe[k];
+    Object.assign(e, validateRows(packs));
     return e;
   }
   function goReview() {
@@ -214,15 +210,14 @@ export default function LogisticExportForm({
     setServerError(null);
     setBusy(true);
     try {
-      const used = packs.filter(touched);
-      const pk = used.length ? packLinesToPayload(used) : null;
+      const pk = rowsToPayload(packs);
       const res = await fetch(`/api/batches/${batchId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shippedWeightKg: weightKg, shipType,
-          ...(pk ? { packagingItems: pk.packagingItems, innerMaterials: pk.innerMaterials } : {}), shipDate, destinationAddress: destAddress.trim() || undefined,
+          packagingItems: pk.packagingItems, shipDate, destinationAddress: destAddress.trim() || undefined,
           ...(shipType === "domestic"
-            ? { vehicleKey, fuelKey, isReeferUsed: isReefer, destination, distanceKm, ...(destGpsParsed ? { destLat: destGpsParsed.lat, destLng: destGpsParsed.lng } : {}) }
+            ? { vehicleKey, fuelKey, vehicleOther: vehicleKey ? undefined : vehicle || undefined, isReeferUsed: isReefer, destination, distanceKm, ...(destGpsParsed ? { destLat: destGpsParsed.lat, destLng: destGpsParsed.lng } : {}) }
             : { airline, flightNo, destination: destCountry || selectedBatch.destination || "ต่างประเทศ", isReeferUsed: false, originAirport, destAirport: destAirport || undefined, flightDistanceKm: Number(flightKm) > 0 ? Number(flightKm) : undefined }),
         }),
       });
@@ -249,7 +244,7 @@ export default function LogisticExportForm({
     const H = ({ children }: { children: React.ReactNode }) => (
       <div className="px-4 py-3 text-center text-[15px] font-semibold text-slate-700">{children}</div>
     );
-    const boxes = packs.filter(touched);
+    const boxes = packs.map((r) => rowSummary(r, catalog));
     return (
       <div className="max-w-4xl space-y-5">
         <Toast />
@@ -268,15 +263,13 @@ export default function LogisticExportForm({
                 <F label="จำนวนช่อดอกไม้" value={exportBunches ? `${exportBunches} ช่อ` : ""} />
               </div>
               <div className="space-y-4 border-slate-100 p-5 md:border-r">
-                {boxes.length === 0 ? <p className="text-[13px] text-slate-500">ใช้ข้อมูลบรรจุภัณฑ์เดิมของฟาร์ม</p> : null}
                 {boxes.map((p, i) => (
                   <div key={i} className="space-y-2 border-b border-slate-100 pb-3 last:border-0">
                     <p className="text-[13px] font-semibold text-slate-800">รายการที่ {i + 1}</p>
-                    <F label="บรรจุภัณฑ์" value={packKindLabel(p.kind)} />
-                    <F label="ประเภทการใช้งาน" value={packUsageText(p)} />
-                    {p.kind === "corrugated_box" ? <F label="วัสดุภายใน" value={packInnerText(p)} /> : null}
-                    <F label="ขนาด" value={packSizeText(p)} />
-                    <F label="จำนวน" value={packQty(p) ? `${packQty(p)} ${(p.kind === "basket" ? "ใบ" : p.kind === "corrugated_box" ? "กล่อง" : "ชิ้น")}` : ""} />
+                    <F label="บรรจุภัณฑ์" value={[p.name, p.usage].filter(Boolean).join(" · ")} />
+                    {p.code ? <F label="หมายเลข" value={p.code} /> : null}
+                    <F label="ขนาด · จำนวน" value={`${p.size} · ${p.qty}`} />
+                    <F label="วัสดุภายใน" value={p.inner} />
                   </div>
                 ))}
               </div>
@@ -284,9 +277,9 @@ export default function LogisticExportForm({
                 <F label="ประเภทการจัดส่ง" value={shipType === "domestic" ? "ส่งภายในประเทศ" : "ส่งต่างประเทศ"} />
                 {shipType === "domestic" ? (
                   <>
-                    <F label="ปลายทาง" value={destination} />
+                    <F label="จังหวัดปลายทาง" value={destination} />
                     <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
-                    <F label="น้ำหนักรวมบรรจุภัณฑ์" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
+                    <F label="น้ำหนักรวมหลังแพ็ก" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
                     <F label="ประเภทรถที่ใช้" value={vehicle} />
                     <F label="ระบบเชื้อเพลิง" value={fuelsFor(vehicle).find((f) => f.fuelKey === fuelKey)?.fuel ?? fuelKey} />
                     <F label="ใช้ตู้แช่เย็น/ห้องเย็น" value={isReefer ? "ใช่" : "ไม่ใช้"} />
@@ -294,7 +287,7 @@ export default function LogisticExportForm({
                 ) : (
                   <>
                     <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
-                    <F label="น้ำหนักรวมบรรจุภัณฑ์" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
+                    <F label="น้ำหนักรวมหลังแพ็ก" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
                     <F label="เส้นทางบิน" value={`${originAirport} → ${destAirport || "—"}`} />
                     <F label="ระยะทางบิน" value={`${(Number(flightKm) > 0 ? Number(flightKm) : autoFlightKm).toLocaleString("th-TH")} กม.`} />
                     <F label="สายการบิน" value={airline} />
@@ -344,15 +337,16 @@ export default function LogisticExportForm({
         </div>
       </Section>
 
-      <Section title="บรรจุภัณฑ์ที่ใช้ในการจัดส่ง" sub="เลือกวัสดุที่ใช้จริง พร้อมระบุขนาดและจำนวน">
+      <Section title="บรรจุภัณฑ์ที่ใช้ในการจัดส่ง" sub={`เลือกให้ตรงกับที่ใช้จริง ช่องไหนไม่มี ให้เลือก "ไม่มี" ระบบคำนวณคาร์บอนให้เอง`}>
         <PackagingLines
-          lines={packs}
+          rows={packs}
           onChange={setPacks}
           errs={errs}
           clearErr={(k) => setErrs((x) => ({ ...x, [k]: "" }))}
           inputCls={inputCls}
           labelCls={labelCls}
-          sizePresets={sizePresets}
+          catalog={catalog}
+          product={selectedBatch ? categoryOf(selectedBatch) : "flower"}
         />
       </Section>
 
@@ -381,14 +375,14 @@ export default function LogisticExportForm({
             <div className="grid gap-4 sm:grid-cols-3">
               <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
               <div>
-                <label className={labelCls}>ปลายทาง{req}</label>
+                <label className={labelCls}>จังหวัดปลายทาง{req}</label>
                 <select value={destination} onChange={(e) => onDestProvince(e.target.value)} className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`}>
                   <option value="">เลือกจังหวัดปลายทาง</option>
                   {DESTINATIONS.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
                 </select>
                 <Err msg={errs.destination} />
               </div>
-              <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="ระบบจะประมาณการอัตโนมัติ" className={`${inputCls} bg-slate-50`} /></div>
+              <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50`} /><p className="mt-1 text-[11px] text-slate-400">{distEdited ? <>แก้ไขเอง · <button type="button" onClick={() => setDistEdited(false)} className="underline">ให้ระบบคำนวณ</button></> : dist.looking ? "กำลังหาตำแหน่งที่อยู่ผู้รับ…" : dist.basis || "กรอกที่อยู่ผู้รับ"}</p></div>
               <div className="sm:col-span-2">
                 <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
                 <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="เช่น 99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110" className={inputCls} />
@@ -399,11 +393,11 @@ export default function LogisticExportForm({
                   <input value={destGps} onChange={(e) => onDestGps(e.target.value)} placeholder="13.7367, 100.5602" className={`${inputCls} min-w-0 flex-1`} />
                   <button type="button" onClick={useDestLocation} title="ใช้ตำแหน่งปัจจุบัน" className="grid size-[42px] shrink-0 place-items-center rounded-[8px] border border-gray-300 text-slate-500 hover:bg-gray-50"><MapPin size={16} /></button>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-400">ใส่พิกัดแล้วระบบคำนวณระยะทางจากฟาร์มให้ · คัดลอกจาก Google Maps ได้</p>
+                <p className="mt-1 text-[11px] text-slate-400">ไม่บังคับ · ใส่พิกัดผู้รับได้ระยะทางแม่นที่สุด · คัดลอกจาก Google Maps ได้</p>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
+              <div><label className={labelCls}>น้ำหนักรวมหลังแพ็ก (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ชั่งสินค้าพร้อมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
               <div>
                 <label className={labelCls}>ประเภทรถที่ใช้{req}</label>
                 <SearchSelect value={vehicle} onChange={(v) => { setVehicle(v); setFuelKey(""); setErrs((x) => ({ ...x, vehicle: "" })); }} options={VEHICLE_OPTIONS} placeholder="เลือกประเภทรถที่ใช้ขนส่ง" allowCustom invalid={!!errs.vehicle} />
@@ -426,7 +420,7 @@ export default function LogisticExportForm({
           <div className="grid gap-4 sm:grid-cols-3">
             <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
             <div><label className={labelCls}>ประเทศ / เมืองปลายทาง</label><input value={destCountry} onChange={(e) => setDestCountry(e.target.value)} placeholder="เช่น ญี่ปุ่น (โตเกียว)" className={inputCls} /></div>
-            <div><label className={labelCls}>น้ำหนักรวมบรรจุภัณฑ์ (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ระบุน้ำหนักรวมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
+            <div><label className={labelCls}>น้ำหนักรวมหลังแพ็ก (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ชั่งสินค้าพร้อมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
             <div className="sm:col-span-2">
                 <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
                 <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="ที่อยู่ผู้รับปลายทางในต่างประเทศ" className={inputCls} />
@@ -446,7 +440,7 @@ export default function LogisticExportForm({
             </div>
             <div>
               <label className={labelCls}>ท่าอากาศยานปลายทาง{req}</label>
-              <SearchSelect value={destAirport} onChange={onDestAirport} options={DEST_AIRPORT_OPTIONS} placeholder="เลือกท่าอากาศยานปลายทาง" invalid={!!errs.destAirport} />
+              <SearchSelect value={destAirport} onChange={onDestAirport} options={DEST_AIRPORT_OPTIONS} placeholder="เลือกท่าอากาศยานปลายทาง" allowCustom invalid={!!errs.destAirport} />
               <Err msg={errs.destAirport} />
             </div>
             <div>

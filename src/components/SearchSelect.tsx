@@ -121,7 +121,7 @@ export default function SearchSelect({
                 onClick={() => pick(q.trim())}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-blue-600 hover:bg-blue-50"
               >
-                <PlusMini /> เพิ่ม “{q.trim()}”
+                <PlusMini /> อื่นๆ (ระบุ): “{q.trim()}”
               </button>
             ) : null}
             {nothing ? <p className="px-3 py-4 text-center text-[12px] text-slate-400">ไม่พบรายการ</p> : null}

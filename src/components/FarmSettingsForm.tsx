@@ -7,7 +7,8 @@ import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "
 import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
 import { type SelectOption } from "@/components/SearchSelect";
 import { CertificationsEditor } from "@/components/ProduceGroupsEditor";
-import ResourceUsageFields, { resourcePayload, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
+import ResourceUsageFields, { resourcePayload, resourceStateFrom, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
+import { farmResourceLines } from "@/lib/resource-types";
 
 const OTHER = "__other__";
 const CAT_ICON: Record<ProductCategory, string> = { flower: "🌸", fruit: "🍊", vegetable: "🥬" };
@@ -252,18 +253,12 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
   const [adding, setAdding] = useState(false);
 
-  const [c, setC] = useState<ResourceState>({
-    fuelKind: supplier.fuelKind ?? "diesel",
-    fuelLitres: supplier.fuelLitres?.toString() ?? "",
-    electricityKwh: supplier.electricityKwh?.toString() ?? "",
-    fertilizerKind: supplier.fertilizerKind ?? "npk",
-    fertilizerKg: supplier.fertilizerKg?.toString() ?? "",
-    chemicalKind: supplier.chemicalKind ?? (supplier.agriChemicalsKg ? "insecticide" : "none"),
-    agriChemicalsKg: supplier.agriChemicalsKg?.toString() ?? "",
-    waterM3: supplier.waterM3?.toString() ?? "",
-    wasteKg: supplier.wasteKg?.toString() ?? "",
-    yields: Object.fromEntries((supplier.yieldLines ?? []).map((l) => [yieldKey(l), String(l.amount)])),
-  });
+  const [c, setC] = useState<ResourceState>(() =>
+    resourceStateFrom(farmResourceLines(supplier), {
+      electricityKwh: supplier.electricityKwh, waterM3: supplier.waterM3, wasteKg: supplier.wasteKg,
+      yields: Object.fromEntries((supplier.yieldLines ?? []).map((l) => [yieldKey(l), String(l.amount)])),
+    }),
+  );
   const sp = (k: keyof typeof p) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setP({ ...p, [k]: e.target.value });
 
   // ── ตัวช่วยแก้ไข fts ──

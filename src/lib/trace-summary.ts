@@ -29,7 +29,7 @@ export function buildTraceSummary(b: Batch, s: Supplier, origin: string): TraceS
   const bd = b.carbonBreakdown;
   return {
     batchId: b.id,
-    supplierId: s.id,
+    supplierId: s.code ?? s.id, // organisation ID (CID)
     product: { category, categoryLabel: categoryLabel(category), type: b.productType || s.flowerType, variety: b.variety, grade: b.grade },
     quantity: { value: isWeightBased(b) ? (b.quantity ?? 0) : b.flowerCount, unit: unitOf(b), unitLabel: UNIT_LABEL[unitOf(b)] },
     dates: { plantingDate: b.plantingDate, harvestDate: b.cutDate, harvestLabel: harvestLabel(category), daysSinceHarvest, ageLabel: ageLabel(category) },

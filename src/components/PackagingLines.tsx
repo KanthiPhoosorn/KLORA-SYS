@@ -1,152 +1,149 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import SearchSelect from "@/components/SearchSelect";
-import { INNER_MATERIALS, innerMaterial } from "@/lib/inner-materials";
-import type { PackageSize } from "@/lib/factors";
-import type { InnerMaterialLine, PackagingAsset, PackagingLine } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
+import type { PackagingAsset, PackagingLine, ProductCategory } from "@/lib/types";
+import {
+  OTHER, NO_PACK, NO_INNER, PACK_UNITS, INNER_UNITS, packsFor, innersFor, rowCarbon, rowText,
+  type PackCatalog, type PackRow, type MaterialId,
+} from "@/lib/packaging-catalog";
 
-// Packaging lines shared by the supplier round form and the logistic export form (Thai Post doc,
-// tab "ข้อมูลบรรจุภัณฑ์"): each line is บรรจุภัณฑ์ + ขนาด (กว้าง/ยาว/สูง) + ประเภทการใช้งาน —
-//   1) หมุนเวียน · เลือกจากที่มีอยู่แล้ว  → pick a registered code (trips used / design life / owner)
-//   2) หมุนเวียน · ลงทะเบียนใหม่        → the system issues the code, then it is used here
-//   3) ใช้ครั้งเดียว                    → quantity
-// Boxes also declare their inner material (KYN packaging master) and how much goes into each box.
-export const PACK_KINDS = [
-  { key: "basket", label: "ตะกร้า" },
-  { key: "corrugated_box", label: "กล่องลูกฟูก" },
-  { key: "plastic_film", label: "แผ่นพลาสติก / ซองห่อช่อ" },
-] as const;
-
-export interface PackLine {
-  kind: string;
-  usage: "" | "reusable" | "single";
-  source: "existing" | "new";
-  assetId: string;
-  priorUses: string; // ลงทะเบียนใหม่: trips already made before registering
-  w: string; l: string; h: string; // cm
-  qty: string; // single-use only (a registered item is one piece)
-  boxMaterial: string; // INNER_MATERIALS[].name
-  innerQty: string; // per box, in the material's own unit
+// บรรจุภัณฑ์ที่ใช้ในการจัดส่ง — Thai Post doc 9 Oct 2026 §4 (mockup "ฟอร์มบรรจุภัณฑ์"). Shared by the
+// farm round form and the logistic export form. Every row shows the same fields; a field that
+// does not apply says "ไม่มี" in grey instead of disappearing.
+//   บรรจุภัณฑ์ * | การใช้งาน * | หมายเลขบรรจุภัณฑ์ | ขนาด * | จำนวน * + หน่วย
+//   วัสดุภายใน (ต่อ 1 หน่วยบรรจุภัณฑ์) | จำนวน + หน่วย   — several per package
+export interface InnerState { kind: string; qty: string; unit: string; otherName: string; otherMaterial: MaterialId }
+export interface PackRowState {
+  kind: string; usage: "single" | "reusable"; code: string; // "" | PKG-… | "new"
+  size: string; dimW: string; dimL: string; dimH: string; dimUnit: "cm" | "in";
+  qty: string; unit: string;
+  otherName: string; otherMaterial: MaterialId; otherWeight: string; otherWeighed: string; otherWeighedUnit: "กรัม" | "กก.";
+  priorUses: string;
+  inners: InnerState[];
 }
-export const emptyPackLine = (): PackLine => ({ kind: "", usage: "", source: "existing", assetId: "", priorUses: "", w: "", l: "", h: "", qty: "", boxMaterial: "", innerQty: "" });
+const noInner = (): InnerState => ({ kind: NO_INNER, qty: "", unit: "ใบ", otherName: "", otherMaterial: "mixed" });
 
-const num = (v: string) => (Number(v) > 0 ? Number(v) : 0);
-const hasH = (kind: string) => kind !== "plastic_film";
+/** A row preset from the catalog: the kind's default usage, unit and middle size (§4.3). */
+export function rowFor(cat: PackCatalog, kind: string, prev?: PackRowState): PackRowState {
+  const k = cat.packs.find((p) => p.id === kind);
+  const base: PackRowState = prev ?? {
+    kind, usage: "single", code: "", size: "", dimW: "", dimL: "", dimH: "", dimUnit: "cm", qty: "", unit: "ใบ",
+    otherName: "", otherMaterial: "mixed", otherWeight: "mid", otherWeighed: "", otherWeighedUnit: "กรัม", priorUses: "", inners: [noInner()],
+  };
+  if (kind === NO_PACK) return { ...base, kind, usage: "single", code: "", size: "none", qty: "", inners: [noInner()] };
+  if (kind === OTHER) return { ...base, kind, usage: "single", code: "", size: "custom", unit: "ใบ" };
+  return {
+    ...base, kind,
+    usage: k?.usage ?? "single",
+    code: "",
+    unit: k?.unit ?? "ใบ",
+    size: k?.sizes[Math.floor(((k?.sizes.length ?? 1) - 1) / 2)]?.id ?? "unknown",
+  };
+}
+export const firstRow = (cat: PackCatalog, product: ProductCategory) => rowFor(cat, packsFor(cat, product)[0]?.id ?? "carton");
 
-export const packKindLabel = (k: string) => PACK_KINDS.find((x) => x.key === k)?.label ?? k;
-export function packSizeText(p: Pick<PackLine, "kind" | "w" | "l" | "h">): string {
-  if (!num(p.w) || !num(p.l)) return p.kind === "basket" ? "ตะกร้ามาตรฐาน" : "";
-  return hasH(p.kind) && num(p.h) ? `${p.w} × ${p.l} × ${p.h} ซม.` : `${p.w} × ${p.l} ซม.`;
-}
-export function packUsageText(p: PackLine): string {
-  if (p.usage === "reusable") return `หมุนเวียน${p.assetId ? ` · ${p.assetId}` : ""}`;
-  return p.usage === "single" ? "ใช้ครั้งเดียว" : "";
-}
-export function packInnerText(p: PackLine): string {
-  const m = innerMaterial(p.boxMaterial);
-  if (!m) return p.boxMaterial;
-  return `${m.name} · ${p.innerQty || m.defaultPerBox} ${m.countUnit}/กล่อง`;
-}
-/** Quantity shown in reviews: a registered reusable item is one piece. */
-export const packQty = (p: PackLine) => (p.usage === "reusable" ? 1 : Number(p.qty) || 0);
+const n = (v: string) => (Number(v) > 0 ? Number(v) : 0);
 
-function sizeMissing(p: PackLine) {
-  return !num(p.w) || !num(p.l) || (hasH(p.kind) && !num(p.h));
+/** State → stored row (batches.packaging_items, v: 2). */
+export function toPackRow(r: PackRowState): PackRow {
+  return {
+    v: 2,
+    kind: r.kind,
+    usage: r.kind === NO_PACK ? "single" : r.usage,
+    assetId: r.usage === "reusable" && r.code && r.code !== "new" ? r.code : undefined,
+    size: r.kind === NO_PACK ? "none" : r.size,
+    dims: r.size === "custom" && n(r.dimW) && n(r.dimL) ? { w: n(r.dimW), l: n(r.dimL), h: n(r.dimH), unit: r.dimUnit } : undefined,
+    quantity: r.kind === NO_PACK ? 0 : n(r.qty),
+    unit: r.unit,
+    other: r.kind === OTHER ? {
+      name: r.otherName.trim(), material: r.otherMaterial, weightClass: r.otherWeight,
+      weighedKg: r.otherWeight === "weighed" ? (r.otherWeighedUnit === "กรัม" ? n(r.otherWeighed) / 1000 : n(r.otherWeighed)) : undefined,
+    } : undefined,
+    inners: r.kind === NO_PACK ? [] : r.inners
+      .filter((i) => i.kind === NO_INNER || n(i.qty) > 0)
+      .map((i) => ({ kind: i.kind, qty: n(i.qty), unit: i.unit, ...(i.kind === OTHER ? { other: { name: i.otherName.trim() || "อื่นๆ", material: i.otherMaterial } } : {}) })),
+  };
 }
 
-export function validatePackLines(lines: PackLine[]): Record<string, string> {
+/** API payload pieces. */
+export function rowsToPayload(rows: PackRowState[]) {
+  const packagingItems = rows.map(toPackRow) as unknown as PackagingLine[];
+  const basketIds = [...new Set(rows.filter((r) => r.usage === "reusable" && r.code && r.code !== "new").map((r) => r.code))];
+  return { packagingItems, basketIds };
+}
+
+/** Stored lines → form state (edit / prefill). Older W×L×H lines are mapped to the nearest catalog row. */
+export function rowsFromBatch(items: PackagingLine[] | undefined, cat: PackCatalog): PackRowState[] {
+  return (items ?? []).map((p) => {
+    if (p.v === 2) {
+      const r = rowFor(cat, p.kind);
+      return {
+        ...r, usage: p.usage === "reusable" ? "reusable" : "single", code: p.assetId ?? "",
+        size: p.size ?? r.size, dimW: p.dims ? String(p.dims.w) : "", dimL: p.dims ? String(p.dims.l) : "", dimH: p.dims ? String(p.dims.h || "") : "", dimUnit: p.dims?.unit ?? "cm",
+        qty: p.quantity ? String(p.quantity) : "", unit: p.unit ?? r.unit,
+        otherName: p.other?.name ?? "", otherMaterial: p.other?.material ?? "mixed", otherWeight: p.other?.weightClass ?? "mid",
+        otherWeighed: p.other?.weighedKg ? String(p.other.weighedKg) : "", otherWeighedUnit: "กก.",
+        inners: p.inners?.length ? p.inners.map((i) => ({ kind: i.kind, qty: i.qty ? String(i.qty) : "", unit: i.unit, otherName: i.other?.name ?? "", otherMaterial: i.other?.material ?? "mixed" })) : [noInner()],
+      };
+    }
+    // 22 Sep form: basket → ตะกร้าพลาสติก, corrugated_box → กล่องลูกฟูก (custom size), plastic_film → ซอง (อื่นๆ)
+    if (p.kind === "basket") return { ...rowFor(cat, "basket"), usage: p.usage === "single" ? "single" : "reusable", code: p.assetId ?? p.basketNo ?? "", qty: String(p.quantity || 1) };
+    if (p.kind === "corrugated_box") return { ...rowFor(cat, "carton"), size: p.width ? "custom" : "unknown", dimW: p.width ? String(p.width) : "", dimL: p.length ? String(p.length) : "", dimH: p.height ? String(p.height) : "", qty: String(p.quantity || 1) };
+    return { ...rowFor(cat, OTHER), otherName: "แผ่นพลาสติก / ซองห่อช่อ", otherMaterial: "pe", otherWeight: "xlight", qty: String(p.quantity || 1) };
+  });
+}
+
+export function validateRows(rows: PackRowState[]): Record<string, string> {
   const e: Record<string, string> = {};
   const seen = new Map<string, number>();
-  lines.forEach((p, i) => {
-    if (!p.kind) { e[`pack.${i}.kind`] = "กรุณาเลือกบรรจุภัณฑ์"; return; }
-    if (!p.usage) e[`pack.${i}.usage`] = "กรุณาเลือกประเภทการใช้งาน";
-    if (p.usage === "reusable") {
-      if (!p.assetId) e[`pack.${i}.asset`] = p.source === "new" ? "กรุณากด “ลงทะเบียนและใช้งาน” ก่อน" : "กรุณาเลือกรหัสบรรจุภัณฑ์";
-      else if (seen.has(p.assetId)) e[`pack.${i}.asset`] = `รหัสนี้เลือกไว้แล้วในรายการที่ ${seen.get(p.assetId)! + 1}`;
-      else seen.set(p.assetId, i);
-      if (p.source === "new" && !p.assetId && sizeMissing(p)) e[`pack.${i}.size`] = "กรุณาระบุขนาดก่อนลงทะเบียน";
+  rows.forEach((r, i) => {
+    if (!r.kind) { e[`pack.${i}.kind`] = "กรุณาเลือกบรรจุภัณฑ์"; return; }
+    if (r.kind === NO_PACK) return;
+    if (r.usage === "reusable") {
+      if (!r.code) e[`pack.${i}.code`] = "บรรจุภัณฑ์หมุนเวียนต้องมีหมายเลข";
+      else if (r.code === "new") e[`pack.${i}.code`] = "กด “ลงทะเบียนและใช้งาน” ก่อน";
+      else if (seen.has(r.code)) e[`pack.${i}.code`] = `หมายเลขนี้เลือกไว้แล้วในบรรจุภัณฑ์ที่ ${seen.get(r.code)! + 1}`;
+      else seen.set(r.code, i);
     }
-    if (p.usage === "single") {
-      if (sizeMissing(p)) e[`pack.${i}.size`] = hasH(p.kind) ? "กรุณาระบุกว้าง ยาว และสูง" : "กรุณาระบุกว้างและยาว";
-      if (!(Number(p.qty) > 0)) e[`pack.${i}.qty`] = "กรุณาระบุจำนวน";
+    if (!r.size) e[`pack.${i}.size`] = "กรุณาเลือกขนาด";
+    if (r.size === "custom" && (!n(r.dimW) || !n(r.dimL))) e[`pack.${i}.size`] = "กรุณาระบุ กว้าง × ยาว (× สูง)";
+    if (!(n(r.qty) > 0)) e[`pack.${i}.qty`] = "กรุณาระบุจำนวน";
+    if (r.kind === OTHER) {
+      if (!r.otherName.trim()) e[`pack.${i}.otherName`] = "กรุณาระบุชื่อบรรจุภัณฑ์";
+      if (r.otherWeight === "weighed" && !n(r.otherWeighed)) e[`pack.${i}.otherWeighed`] = "กรุณาระบุน้ำหนักที่ชั่งได้";
     }
-    if (p.kind === "corrugated_box" && !p.boxMaterial) e[`pack.${i}.boxMaterial`] = "กรุณาระบุวัสดุภายในกล่อง";
+    r.inners.forEach((m, j) => {
+      if (m.kind !== NO_INNER && !(n(m.qty) > 0)) e[`pack.${i}.inner.${j}`] = "กรุณาระบุจำนวนวัสดุ";
+      if (m.kind === OTHER && !m.otherName.trim()) e[`pack.${i}.inner.${j}`] = "กรุณาระบุชื่อวัสดุ";
+    });
   });
   return e;
 }
 
-/** API payload pieces derived from the lines. */
-export function packLinesToPayload(lines: PackLine[]) {
-  const used = lines.filter((p) => p.kind);
-  const packagingItems: PackagingLine[] = used.map((p) => {
-    const reusable = p.usage === "reusable";
-    return {
-      kind: p.kind as PackagingLine["kind"],
-      usage: p.usage || undefined,
-      assetId: reusable ? p.assetId || undefined : undefined,
-      width: num(p.w) || undefined,
-      length: num(p.l) || undefined,
-      height: hasH(p.kind) ? num(p.h) || undefined : undefined,
-      quantity: packQty(p),
-      basketNo: p.kind === "basket" && reusable ? p.assetId || undefined : undefined,
-      boxMaterial: p.boxMaterial || undefined,
-    };
-  });
-  const innerMaterials: InnerMaterialLine[] = used
-    .filter((p) => p.kind === "corrugated_box" && p.boxMaterial)
-    .map((p) => {
-      const m = innerMaterial(p.boxMaterial);
-      const perBox = num(p.innerQty) || m?.defaultPerBox || 1;
-      return { material: p.boxMaterial, qty: perBox * (packQty(p) || 1) };
-    });
-  return {
-    packagingItems,
-    innerMaterials,
-    basketIds: [...new Set(used.filter((p) => p.kind === "basket" && p.usage === "reusable" && p.assetId).map((p) => p.assetId))],
-    boxMaterial: used.find((p) => p.kind === "corrugated_box")?.boxMaterial,
-  };
-}
-
-/** Rebuild lines from a stored batch (logistic form prefill). Older rounds: baskets = reusable. */
-export function packLinesFromBatch(items: PackagingLine[] | undefined, inner?: InnerMaterialLine[]): PackLine[] {
-  const pool = [...(inner ?? [])]; // each saved inner line belongs to one box line, in order
-  return (items ?? []).map((p) => {
-    const at = p.kind === "corrugated_box" ? pool.findIndex((m) => m.material === p.boxMaterial) : -1;
-    const inn = at >= 0 ? pool.splice(at, 1)[0] : undefined;
-    const perBox = inn && p.quantity ? inn.qty / p.quantity : undefined;
-    const usage = p.usage ?? (p.kind === "basket" && p.basketNo ? "reusable" : "single");
-    return {
-      kind: p.kind, usage, source: "existing" as const,
-      assetId: usage === "reusable" ? p.assetId ?? p.basketNo ?? "" : "",
-      priorUses: "",
-      w: p.width ? String(p.width) : "", l: p.length ? String(p.length) : "", h: p.height ? String(p.height) : "",
-      qty: usage === "single" && p.quantity ? String(p.quantity) : "",
-      boxMaterial: p.boxMaterial ?? "", innerQty: perBox ? String(Math.round(perBox * 100) / 100) : "",
-    };
-  });
-}
+/** Packaging weight (kg) of all rows — the total packed weight must be larger (§4.8 check). */
+export const rowsWeightKg = (rows: PackRowState[], cat: PackCatalog) => rows.reduce((s, r) => s + rowCarbon(toPackRow(r), cat).weightKg, 0);
+export const rowSummary = (r: PackRowState, cat: PackCatalog) => rowText(toPackRow(r), cat);
+export const rowEstimate = (r: PackRowState, cat: PackCatalog) => rowCarbon(toPackRow(r), cat).estimate;
 
 export default function PackagingLines({
-  lines, onChange, errs, clearErr, inputCls, labelCls, sizePresets,
-  ringCls = "accent-blue-600", outlineBtnCls = "border border-blue-600 text-blue-600 hover:bg-blue-50",
+  rows, onChange, errs, clearErr, inputCls, labelCls, catalog, product,
+  accentText = "text-blue-600", outlineBtnCls = "border border-blue-600 text-blue-600 hover:bg-blue-50",
 }: {
-  lines: PackLine[];
-  onChange: (l: PackLine[]) => void;
+  rows: PackRowState[];
+  onChange: (r: PackRowState[]) => void;
   errs: Record<string, string>;
   clearErr: (key: string) => void;
   inputCls: string;
   labelCls: string;
-  sizePresets: PackageSize[];
-  /** radio accent class, e.g. "accent-brand-pink" */
-  ringCls?: string;
+  catalog: PackCatalog;
+  product: ProductCategory;
+  accentText?: string;
   outlineBtnCls?: string;
 }) {
-  const uid = useId();
   const [assets, setAssets] = useState<PackagingAsset[]>([]);
   const [regBusy, setRegBusy] = useState<number | null>(null);
-  const [regMsg, setRegMsg] = useState<Record<number, { ok: boolean; text: string }>>({});
+  const [regMsg, setRegMsg] = useState<Record<number, { ok: boolean; text: string } | undefined>>({});
   useEffect(() => {
     let live = true;
     fetch("/api/packaging-assets").then((r) => (r.ok ? r.json() : [])).then((a) => { if (live && Array.isArray(a)) setAssets(a); }).catch(() => {});
@@ -155,30 +152,30 @@ export default function PackagingLines({
 
   const req = <span className="text-[#ee443f]"> *</span>;
   const Err = ({ k }: { k: string }) => (errs[k] ? <p className="mt-1 text-[12px] text-[#ee443f]">{errs[k]}</p> : null);
-  const set = (i: number, patch: Partial<PackLine>) => onChange(lines.map((p, j) => (j === i ? { ...p, ...patch } : p)));
   const bad = (k: string) => (errs[k] ? "border-[#ee443f]" : "");
+  const grey = "disabled:border-gray-200 disabled:bg-gray-100 disabled:text-slate-400";
+  const set = (i: number, patch: Partial<PackRowState>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const setInner = (i: number, j: number, patch: Partial<InnerState>) =>
+    onChange(rows.map((r, k) => (k === i ? { ...r, inners: r.inners.map((m, l) => (l === j ? { ...m, ...patch } : m)) } : r)));
 
-  function pickAsset(i: number, id: string) {
-    const a = assets.find((x) => x.id === id);
-    set(i, { assetId: id, ...(a?.width ? { w: String(a.width), l: String(a.length ?? ""), h: a.height ? String(a.height) : "" } : {}) });
-    clearErr(`pack.${i}.asset`); clearErr(`pack.${i}.size`);
-  }
+  const packOpts = packsFor(catalog, product);
+  const innerOpts = innersFor(catalog, product);
+  const pickable = catalog.materials.filter((m) => m.pick);
 
   async function register(i: number) {
-    const p = lines[i];
-    if (sizeMissing(p)) { setRegMsg((m) => ({ ...m, [i]: { ok: false, text: "กรุณาระบุขนาด (กว้าง ยาว" + (hasH(p.kind) ? " สูง" : "") + ") ก่อนลงทะเบียน" } })); return; }
-    setRegBusy(i); setRegMsg((m) => ({ ...m, [i]: undefined as never }));
+    const r = rows[i];
+    setRegBusy(i); setRegMsg((m) => ({ ...m, [i]: undefined }));
     try {
       const res = await fetch("/api/packaging-assets", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: p.kind, width: num(p.w), length: num(p.l), height: hasH(p.kind) ? num(p.h) : undefined, priorUses: Number(p.priorUses) || 0 }),
+        body: JSON.stringify({ kind: r.kind, priorUses: Number(r.priorUses) || 0 }),
       });
       const a = await res.json();
       if (!res.ok) throw new Error(a.error || "ลงทะเบียนไม่สำเร็จ");
       setAssets((x) => [a, ...x]);
-      set(i, { assetId: a.id, source: "existing" });
-      clearErr(`pack.${i}.asset`); clearErr(`pack.${i}.size`);
-      setRegMsg((m) => ({ ...m, [i]: { ok: true, text: `ลงทะเบียนแล้ว — รหัส ${a.id}` } }));
+      set(i, { code: a.id });
+      clearErr(`pack.${i}.code`);
+      setRegMsg((m) => ({ ...m, [i]: { ok: true, text: `ลงทะเบียนแล้ว · ${a.id} · ครั้งหน้าเลือกหมายเลขนี้จากรายการได้เลย` } }));
     } catch (e) {
       setRegMsg((m) => ({ ...m, [i]: { ok: false, text: (e as Error).message } }));
     }
@@ -187,159 +184,208 @@ export default function PackagingLines({
 
   return (
     <>
-      {lines.map((p, i) => {
-        const m = innerMaterial(p.boxMaterial);
-        const presets = sizePresets.filter((s) => (p.kind === "plastic_film" ? true : s.h > 0));
-        const reusable = p.usage === "reusable";
-        const asset = reusable && p.assetId ? assets.find((a) => a.id === p.assetId) : undefined;
-        // size comes from the registry once a registered item is picked
-        const sizeLocked = reusable && p.source === "existing" && !!asset?.width;
-        const assetOptions = assets.filter((a) => a.kind === p.kind).map((a) => ({
-          value: a.id, label: `${a.id} · ${packSizeText({ kind: a.kind, w: String(a.width ?? ""), l: String(a.length ?? ""), h: String(a.height ?? "") })}`, group: a.ownerLabel || "ไม่ระบุเจ้าของ",
-        }));
-        const used = asset ? asset.priorUses + (asset.uses ?? 0) : 0;
+      {rows.map((r, i) => {
+        const k = catalog.packs.find((p) => p.id === r.kind);
+        const noPack = r.kind === NO_PACK;
+        const once = r.usage === "single";
+        const estimate = !noPack && rowEstimate(r, catalog);
+        const codes = assets.filter((a) => a.kind === r.kind);
+        const sizeOpts = noPack ? [] : r.kind === OTHER ? [] : (k?.sizes ?? []).map((z) => ({ id: z.id, name: `${z.label} · ${z.capacity}` }));
         const msg = regMsg[i];
+        const onlyNone = r.inners.length === 1 && r.inners[0].kind === NO_INNER;
         return (
           <div key={i} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[14px] font-semibold text-slate-800">บรรจุภัณฑ์ที่ {i + 1}</p>
+              <div className="flex items-center gap-2">
+                {estimate ? <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">ค่าประมาณ</span> : null}
+                {rows.length > 1 ? (
+                  <button type="button" onClick={() => onChange(rows.filter((_, j) => j !== i))} className="inline-flex items-center gap-1 rounded-[8px] border border-gray-300 px-3 py-1.5 text-[12px] text-slate-700 hover:bg-gray-50">
+                    <Trash2 size={13} /> ลบบรรจุภัณฑ์
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            {/* บรรทัดบน */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1.5fr)]">
               <div>
                 <label className={labelCls}>บรรจุภัณฑ์{req}</label>
-                <select value={p.kind} onChange={(e) => {
-                  const kind = e.target.value;
-                  set(i, { kind, usage: p.usage || (kind === "basket" ? "reusable" : kind ? "single" : ""), assetId: "", source: "existing", h: hasH(kind) ? p.h : "" });
-                  clearErr(`pack.${i}.kind`); clearErr(`pack.${i}.usage`);
-                }} className={`${inputCls} ${bad(`pack.${i}.kind`)}`}>
-                  <option value="">เลือกบรรจุภัณฑ์</option>
-                  {PACK_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+                <select value={r.kind} onChange={(e) => { onChange(rows.map((x, j) => (j === i ? rowFor(catalog, e.target.value, x) : x))); clearErr(`pack.${i}.kind`); clearErr(`pack.${i}.code`); }} className={`${inputCls} ${bad(`pack.${i}.kind`)}`}>
+                  {packOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  <option value={OTHER}>อื่นๆ (ระบุ)</option>
+                  {product !== "flower" ? <option value={NO_PACK}>ไม่มีบรรจุภัณฑ์ (ขนแบบเทกอง)</option> : null}
                 </select>
                 <Err k={`pack.${i}.kind`} />
               </div>
               <div>
-                <label className={labelCls}>ขนาด{req}</label>
-                <select value="" disabled={!p.kind || sizeLocked} onChange={(e) => { const s = presets.find((x) => x.label === e.target.value); if (s) { set(i, { w: String(s.w), l: String(s.l), h: hasH(p.kind) && s.h ? String(s.h) : "" }); clearErr(`pack.${i}.size`); } }} className={`${inputCls} disabled:bg-slate-50`}>
-                  <option value="">{sizeLocked ? "ตามทะเบียนบรรจุภัณฑ์" : "เลือกขนาดมาตรฐาน หรือกรอกด้านล่าง"}</option>
-                  {presets.map((s) => <option key={s.label} value={s.label}>{s.label}</option>)}
+                <label className={labelCls}>การใช้งาน{req}</label>
+                <select value={noPack ? "none" : r.usage} disabled={noPack} onChange={(e) => { set(i, { usage: e.target.value as "single" | "reusable", code: "" }); clearErr(`pack.${i}.code`); }} className={`${inputCls} ${grey}`}>
+                  {noPack ? <option value="none">ไม่มี</option> : null}
+                  <option value="single">ใช้ครั้งเดียว</option>
+                  <option value="reusable">หมุนเวียน</option>
                 </select>
+              </div>
+              <div>
+                <label className={labelCls}>หมายเลขบรรจุภัณฑ์</label>
+                <select value={once || noPack ? "none" : r.code} disabled={once || noPack} onChange={(e) => { set(i, { code: e.target.value }); clearErr(`pack.${i}.code`); }} className={`${inputCls} ${grey} ${bad(`pack.${i}.code`)}`}>
+                  {once || noPack ? <option value="none">ไม่มี · ใช้ครั้งเดียว</option> : (
+                    <>
+                      <option value="">เลือกหมายเลข</option>
+                      {codes.map((a) => <option key={a.id} value={a.id}>{a.id} · ใช้แล้ว {(a.priorUses + (a.uses ?? 0)).toLocaleString("th-TH")} รอบ</option>)}
+                      {r.code && r.code !== "new" && !codes.some((a) => a.id === r.code) ? <option value={r.code}>{r.code}</option> : null}
+                      <option value="new">+ ลงทะเบียนใหม่</option>
+                    </>
+                  )}
+                </select>
+                <Err k={`pack.${i}.code`} />
+              </div>
+              <div>
+                <label className={labelCls}>ขนาด{req}</label>
+                <select value={noPack ? "none" : r.size} disabled={noPack} onChange={(e) => { set(i, { size: e.target.value }); clearErr(`pack.${i}.size`); }} className={`${inputCls} ${grey} ${bad(`pack.${i}.size`)}`}>
+                  {noPack ? <option value="none">ไม่มี</option> : null}
+                  {sizeOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  {!noPack ? <option value="custom">กำหนดเอง (กว้าง × ยาว × สูง)</option> : null}
+                  {!noPack ? <option value="unknown">ไม่ทราบขนาด · ใช้ค่าเฉลี่ย</option> : null}
+                </select>
+                <Err k={`pack.${i}.size`} />
+              </div>
+              <div>
+                <label className={labelCls}>จำนวน{req}</label>
+                <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+                  <input inputMode="numeric" type="number" min="0" value={noPack ? "" : r.qty} disabled={noPack} placeholder={noPack ? "ไม่มี" : "0"} onChange={(e) => { set(i, { qty: e.target.value }); clearErr(`pack.${i}.qty`); }} className={`${inputCls} ${grey} ${bad(`pack.${i}.qty`)}`} />
+                  <select aria-label="หน่วยจำนวน" value={r.unit} disabled={noPack} onChange={(e) => set(i, { unit: e.target.value })} className={`${inputCls} ${grey}`}>
+                    {PACK_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <Err k={`pack.${i}.qty`} />
               </div>
             </div>
 
-            {p.kind ? (
-              <div className={`grid gap-3 ${hasH(p.kind) ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`}>
-                {(["w", "l", "h"] as const).filter((k) => k !== "h" || hasH(p.kind)).map((k) => (
-                  <div key={k}>
-                    <label className={labelCls}>{k === "w" ? "กว้าง" : k === "l" ? "ยาว" : "สูง"} (ซม.)</label>
-                    <input type="number" min="0" step="any" value={p[k]} readOnly={sizeLocked} onChange={(e) => { set(i, { [k]: e.target.value } as Partial<PackLine>); clearErr(`pack.${i}.size`); }} placeholder="0" className={`${inputCls} ${bad(`pack.${i}.size`)} ${sizeLocked ? "bg-slate-50 text-slate-500" : ""}`} />
+            {r.usage === "reusable" && r.code === "new" ? (
+              <div className="grid gap-3 rounded-[10px] bg-slate-50 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                <div>
+                  <label className={labelCls}>ลงทะเบียนใหม่ · จำนวนรอบที่เคยใช้มาแล้ว</label>
+                  <div className="flex gap-2">
+                    <input inputMode="numeric" type="number" min="0" value={r.priorUses} onChange={(e) => set(i, { priorUses: e.target.value })} placeholder="0 = ของใหม่" className={`${inputCls} min-w-0`} />
+                    <span className="grid shrink-0 place-items-center rounded-[8px] border border-gray-200 bg-white px-3 text-[13px] text-slate-500">รอบ</span>
+                  </div>
+                </div>
+                <button type="button" onClick={() => register(i)} disabled={regBusy === i} className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[8px] px-5 text-[13px] font-medium ${outlineBtnCls} disabled:opacity-60`}>
+                  {regBusy === i ? <Loader2 size={14} className="animate-spin" /> : null} ลงทะเบียนและใช้งาน
+                </button>
+                <p className="text-[12px] text-slate-500 sm:col-span-2">ระบบสร้างหมายเลขให้อัตโนมัติ แล้วเลือกให้ในช่องหมายเลขทันที</p>
+              </div>
+            ) : null}
+            {msg ? <p className={`text-[12px] ${msg.ok ? "text-emerald-600" : "text-[#ee443f]"}`}>{msg.text}</p> : null}
+
+            {r.size === "custom" && !noPack ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(["dimW", "dimL", "dimH"] as const).map((f) => (
+                  <div key={f}>
+                    <label className={labelCls}>{f === "dimW" ? "กว้าง" : f === "dimL" ? "ยาว" : "สูง"}</label>
+                    <input inputMode="decimal" type="number" min="0" step="any" value={r[f]} onChange={(e) => { set(i, { [f]: e.target.value } as Partial<PackRowState>); clearErr(`pack.${i}.size`); }} placeholder={f === "dimW" ? "40" : f === "dimL" ? "30" : "25"} className={inputCls} />
                   </div>
                 ))}
-                <div className="col-span-full -mt-2"><Err k={`pack.${i}.size`} /></div>
-              </div>
-            ) : null}
-
-            {p.kind ? (
-              <div>
-                <label className={labelCls}>ประเภทการใช้งาน{req}</label>
-                <div className="flex gap-6">
-                  {([["reusable", "หมุนเวียน"], ["single", "ใช้ครั้งเดียว"]] as const).map(([k, label]) => (
-                    <label key={k} className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
-                      <input type="radio" name={`${uid}-usage-${i}`} checked={p.usage === k} onChange={() => { set(i, { usage: k }); clearErr(`pack.${i}.usage`); clearErr(`pack.${i}.asset`); clearErr(`pack.${i}.qty`); }} className={`size-4 ${ringCls}`} /> {label}
-                    </label>
-                  ))}
-                </div>
-                <Err k={`pack.${i}.usage`} />
-              </div>
-            ) : null}
-
-            {reusable ? (
-              <div>
-                <label className={labelCls}>แหล่งที่มา{req}</label>
-                <div className="flex gap-6">
-                  {([["existing", "เลือกจากที่มีอยู่แล้ว"], ["new", "ลงทะเบียนใหม่"]] as const).map(([k, label]) => (
-                    <label key={k} className="flex cursor-pointer items-center gap-2 text-[13px] text-slate-700">
-                      <input type="radio" name={`${uid}-src-${i}`} checked={p.source === k} onChange={() => { set(i, { source: k, ...(k === "new" ? { assetId: "" } : {}) }); clearErr(`pack.${i}.asset`); }} className={`size-4 ${ringCls}`} /> {label}
-                    </label>
-                  ))}
-                </div>
-
-                <div className="mt-3 rounded-[10px] bg-slate-50 p-4">
-                  {p.source === "existing" ? (
-                    <>
-                      <label className={labelCls}>รหัสบรรจุภัณฑ์{req}</label>
-                      <div className="sm:w-1/2">
-                        <SearchSelect value={p.assetId} onChange={(v) => pickAsset(i, v)} options={assetOptions} placeholder="ค้นหา / เลือกรหัส เช่น BSK-2026-00001" invalid={!!errs[`pack.${i}.asset`]} />
-                      </div>
-                      <Err k={`pack.${i}.asset`} />
-                      {asset ? (
-                        <div className="mt-3 space-y-1 text-[12px] text-slate-600">
-                          <p>ประเภท: {packKindLabel(asset.kind)}, ขนาด {packSizeText({ kind: asset.kind, w: String(asset.width ?? ""), l: String(asset.length ?? ""), h: String(asset.height ?? "") }) || "—"}</p>
-                          <p>ใช้แล้ว: <b>{used.toLocaleString("th-TH")} รอบ</b> จาก {asset.designLife.toLocaleString("th-TH")} รอบ (design life){used >= asset.designLife ? <span className="ml-1.5 font-medium text-[#ee443f]">· ครบอายุการใช้งานแล้ว</span> : null}</p>
-                          <p>เจ้าของ: {asset.ownerLabel || "—"}</p>
-                        </div>
-                      ) : p.assetId ? (
-                        <p className="mt-3 text-[12px] text-slate-500">รหัส {p.assetId} ยังไม่อยู่ในทะเบียน (ข้อมูลรอบเดิม) — คิดคาร์บอนแบบตะกร้ามาตรฐาน ใช้ได้ 100 รอบ</p>
-                      ) : assetOptions.length === 0 ? (
-                        <p className="mt-3 text-[12px] text-slate-500">ยังไม่มี{packKindLabel(p.kind)}ที่ลงทะเบียนไว้ — เลือก “ลงทะเบียนใหม่”</p>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <p className="mb-3 text-[12px] text-slate-500">ระบบจะสร้างรหัสบรรจุภัณฑ์ให้อัตโนมัติหลังลงทะเบียน</p>
-                      <label className={labelCls}>จำนวนรอบที่เคยใช้มาแล้ว</label>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <input type="number" min="0" step="1" value={p.priorUses} onChange={(e) => set(i, { priorUses: e.target.value })} placeholder="0 = ของใหม่เอี่ยม" className={inputCls} />
-                        <button type="button" onClick={() => register(i)} disabled={regBusy === i} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-[8px] border border-gray-300 bg-white text-[13px] font-medium text-slate-700 hover:bg-gray-50 disabled:opacity-60">
-                          {regBusy === i ? <Loader2 size={14} className="animate-spin" /> : null} ลงทะเบียนและใช้งาน
-                        </button>
-                      </div>
-                      <Err k={`pack.${i}.asset`} />
-                    </>
-                  )}
-                  {msg ? <p className={`mt-2 text-[12px] ${msg.ok ? "text-emerald-600" : "text-[#ee443f]"}`}>{msg.text}</p> : null}
-                </div>
-              </div>
-            ) : null}
-
-            {p.usage === "single" ? (
-              <div className="sm:w-1/2">
-                <label className={labelCls}>จำนวน{req}</label>
-                <input type="number" min="1" step="1" value={p.qty} onChange={(e) => { set(i, { qty: e.target.value }); clearErr(`pack.${i}.qty`); }} placeholder="ระบุจำนวนบรรจุภัณฑ์" className={`${inputCls} ${bad(`pack.${i}.qty`)}`} />
-                <Err k={`pack.${i}.qty`} />
-              </div>
-            ) : null}
-
-            {p.kind === "corrugated_box" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className={labelCls}>วัสดุภายในกล่อง{req}</label>
-                  <select value={p.boxMaterial} onChange={(e) => { set(i, { boxMaterial: e.target.value, innerQty: "" }); clearErr(`pack.${i}.boxMaterial`); }} className={`${inputCls} ${bad(`pack.${i}.boxMaterial`)}`}>
-                    <option value="">ระบุวัสดุภายในกล่อง</option>
-                    {INNER_MATERIALS.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
-                  </select>
-                  <Err k={`pack.${i}.boxMaterial`} />
+                  <label className={labelCls}>หน่วย</label>
+                  <select value={r.dimUnit} onChange={(e) => set(i, { dimUnit: e.target.value as "cm" | "in" })} className={inputCls}><option value="cm">ซม.</option><option value="in">นิ้ว</option></select>
                 </div>
-                {m ? (
-                  <div>
-                    <label className={labelCls}>ปริมาณวัสดุต่อกล่อง ({m.countUnit})</label>
-                    <input type="number" min="0" step="any" value={p.innerQty} onChange={(e) => set(i, { innerQty: e.target.value })} placeholder={String(m.defaultPerBox)} className={inputCls} />
-                    <p className="mt-1 text-[11px] text-slate-400">EF {m.ef} kg CO₂e/{m.perKg ? "kg" : m.countUnit} · น้ำหนักมาตรฐาน {m.weightPerUnitKg} kg/{m.countUnit} (ตาราง KYN)</p>
+                <p className="col-span-full -mt-1 text-[11px] text-slate-400">ระบบประมาณน้ำหนักจากขนาดให้</p>
+              </div>
+            ) : null}
+
+            {r.kind === OTHER ? (
+              <div className="grid gap-3 rounded-[10px] bg-slate-50 p-4 sm:grid-cols-3">
+                <div>
+                  <label className={labelCls}>ชื่อบรรจุภัณฑ์{req}</label>
+                  <input value={r.otherName} onChange={(e) => { set(i, { otherName: e.target.value }); clearErr(`pack.${i}.otherName`); }} placeholder="เช่น ตะกร้าหวาย" className={`${inputCls} ${bad(`pack.${i}.otherName`)}`} />
+                  <Err k={`pack.${i}.otherName`} />
+                </div>
+                <div>
+                  <label className={labelCls}>ทำจากอะไร{req}</label>
+                  <select value={r.otherMaterial} onChange={(e) => set(i, { otherMaterial: e.target.value as MaterialId })} className={inputCls}>
+                    {pickable.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.examples})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>น้ำหนักต่อหน่วย{req}</label>
+                  <select value={r.otherWeight} onChange={(e) => set(i, { otherWeight: e.target.value })} className={inputCls}>
+                    {catalog.weightClasses.map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}
+                    <option value="weighed">ชั่งเองแล้ว · กรอกน้ำหนัก</option>
+                    <option value="unknown">ไม่ทราบ · ใช้ค่าเฉลี่ยของวัสดุ</option>
+                  </select>
+                </div>
+                {r.otherWeight === "weighed" ? (
+                  <div className="sm:col-span-3 sm:w-1/2">
+                    <label className={labelCls}>น้ำหนักที่ชั่งได้</label>
+                    <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+                      <input inputMode="decimal" type="number" min="0" step="any" value={r.otherWeighed} onChange={(e) => { set(i, { otherWeighed: e.target.value }); clearErr(`pack.${i}.otherWeighed`); }} placeholder="350" className={`${inputCls} ${bad(`pack.${i}.otherWeighed`)}`} />
+                      <select aria-label="หน่วยน้ำหนัก" value={r.otherWeighedUnit} onChange={(e) => set(i, { otherWeighedUnit: e.target.value as "กรัม" | "กก." })} className={inputCls}><option>กรัม</option><option>กก.</option></select>
+                    </div>
+                    <Err k={`pack.${i}.otherWeighed`} />
                   </div>
                 ) : null}
+                <p className="text-[11px] text-amber-600 sm:col-span-3">ระบบคำนวณทันทีด้วยค่า EF ของวัสดุที่เลือก (ค่าประมาณ) และแจ้ง KYN ให้ตรวจสอบเพื่อเพิ่มเป็นรายการใหม่</p>
               </div>
             ) : null}
 
-            {lines.length > 1 ? (
-              <div className="flex justify-end">
-                <button type="button" onClick={() => onChange(lines.filter((_, j) => j !== i))} className="inline-flex items-center gap-1.5 rounded-[8px] border border-gray-300 px-3 py-1.5 text-[12px] text-slate-700 hover:bg-gray-50">
-                  <Trash2 size={13} /> ลบบรรจุภัณฑ์
+            {/* บรรทัดล่าง — วัสดุภายใน */}
+            <div className="space-y-3 border-t border-slate-100 pt-3">
+              <p className="text-[13px] font-medium text-slate-700">วัสดุภายใน <span className="font-normal text-slate-400">· ต่อ 1 {r.unit}</span></p>
+              {r.inners.map((m, j) => {
+                const off = m.kind === NO_INNER || noPack;
+                return (
+                  <div key={j} className="grid gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_110px] sm:items-end">
+                    <div>
+                      <label className={labelCls}>ชนิดวัสดุ{req}</label>
+                      <select value={noPack ? NO_INNER : m.kind} disabled={noPack} onChange={(e) => {
+                        const v = e.target.value; const it = catalog.inners.find((x) => x.id === v);
+                        setInner(i, j, { kind: v, unit: it?.unit ?? m.unit, qty: v === NO_INNER ? "" : m.qty || "1" }); clearErr(`pack.${i}.inner.${j}`);
+                      }} className={`${inputCls} ${grey}`}>
+                        <option value={NO_INNER}>ไม่มีวัสดุภายใน</option>
+                        {innerOpts.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        <option value={OTHER}>อื่นๆ (ระบุ)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>จำนวน</label>
+                      <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+                        <input inputMode="decimal" type="number" min="0" step="any" value={off ? "" : m.qty} disabled={off} placeholder={off ? "ไม่มี" : "0"} onChange={(e) => { setInner(i, j, { qty: e.target.value }); clearErr(`pack.${i}.inner.${j}`); }} className={`${inputCls} ${grey} ${bad(`pack.${i}.inner.${j}`)}`} />
+                        <select aria-label="หน่วยวัสดุ" value={m.unit} disabled={off} onChange={(e) => setInner(i, j, { unit: e.target.value })} className={`${inputCls} ${grey}`}>
+                          {INNER_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    {r.inners.length > 1 ? (
+                      <button type="button" onClick={() => set(i, { inners: r.inners.filter((_, l) => l !== j) })} className="inline-flex h-[42px] items-center gap-1 rounded-[8px] px-2 text-[12px] text-slate-500 hover:bg-gray-100 hover:text-red-500"><X size={14} /> ลบวัสดุนี้</button>
+                    ) : <span className="hidden sm:block" />}
+                    {m.kind === OTHER ? (
+                      <div className="grid gap-3 sm:col-span-3 sm:grid-cols-2">
+                        <input value={m.otherName} onChange={(e) => { setInner(i, j, { otherName: e.target.value }); clearErr(`pack.${i}.inner.${j}`); }} placeholder="ระบุชื่อวัสดุ เช่น ใบตอง" className={inputCls} />
+                        <select value={m.otherMaterial} onChange={(e) => setInner(i, j, { otherMaterial: e.target.value as MaterialId })} className={inputCls}>
+                          {pickable.map((x) => <option key={x.id} value={x.id}>ทำจาก{x.name}</option>)}
+                        </select>
+                      </div>
+                    ) : null}
+                    {errs[`pack.${i}.inner.${j}`] ? <p className="text-[12px] text-[#ee443f] sm:col-span-3">{errs[`pack.${i}.inner.${j}`]}</p> : null}
+                  </div>
+                );
+              })}
+              {!noPack && !onlyNone ? (
+                <button type="button" onClick={() => set(i, { inners: [...r.inners, { ...noInner(), kind: innerOpts[0]?.id ?? OTHER, qty: "1", unit: innerOpts[0]?.unit ?? "ชิ้น" }] })} className={`inline-flex items-center gap-1 text-[13px] font-medium hover:underline ${accentText}`}>
+                  <Plus size={14} /> เพิ่มวัสดุภายใน
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         );
       })}
-      <div>
-        <button type="button" onClick={() => onChange([...lines, emptyPackLine()])} className={`inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 text-[13px] font-medium ${outlineBtnCls}`}>
-          <Plus size={15} /> เพิ่มรายการอื่น
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={() => onChange([...rows, firstRow(catalog, product)])} className={`inline-flex items-center gap-1.5 rounded-[8px] px-4 py-2 text-[13px] font-medium ${outlineBtnCls}`}>
+          <Plus size={15} /> เพิ่มบรรจุภัณฑ์
         </button>
+        <p className="text-[12px] text-slate-400">{rows.length} รายการ · คาร์บอนคำนวณอัตโนมัติหลังกด “ถัดไป”</p>
       </div>
     </>
   );

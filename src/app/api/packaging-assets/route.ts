@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api-guard";
-import { listPackagingAssets, createPackagingAsset, getSupplier } from "@/lib/store";
+import { listPackagingAssets, createPackagingAsset, getSupplier, getCatalog } from "@/lib/store";
 import { rateLimit, tooMany } from "@/lib/rate-limit";
 import type { PackagingAsset } from "@/lib/types";
 
-const KINDS: PackagingAsset["kind"][] = ["basket", "corrugated_box", "plastic_film"];
+// legacy kinds of the 22 Sep form + every packaging kind of KYN's catalog
+const LEGACY: PackagingAsset["kind"][] = ["basket", "corrugated_box", "plastic_film"];
 const pos = (x: unknown) => (x != null && x !== "" && Number(x) > 0 ? Number(x) : undefined);
 
 // GET /api/packaging-assets — registered reusable packaging (with trip counts) for the picker.
@@ -23,7 +24,8 @@ export async function POST(req: Request) {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
   const kind = String(body.kind) as PackagingAsset["kind"];
-  if (!KINDS.includes(kind)) return NextResponse.json({ error: "กรุณาเลือกบรรจุภัณฑ์" }, { status: 400 });
+  const catalog = await getCatalog();
+  if (!LEGACY.includes(kind) && !catalog.packs.some((k) => k.id === kind)) return NextResponse.json({ error: "กรุณาเลือกบรรจุภัณฑ์" }, { status: 400 });
   const u = g.user;
   let ownerSupplierId: string | undefined;
   let ownerLabel: string;

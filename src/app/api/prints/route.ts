@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPrints, addPrint, getBatch } from "@/lib/store";
+import { getPrints, addPrint, getBatch, addBatchEvent } from "@/lib/store";
 import { guard } from "@/lib/api-guard";
 
 // Print logs are an operator concern (logistic / KYN) — never public.
@@ -28,9 +28,9 @@ export async function POST(req: Request) {
 
   const batchId = body.batchId ? String(body.batchId) : undefined;
   let destination = body.destination ? String(body.destination) : undefined;
-  if (!destination && batchId) {
-    destination = (await getBatch(batchId))?.destination;
-  }
+  const lot = batchId ? await getBatch(batchId) : null;
+  if (lot?.cancelledAt) return NextResponse.json({ error: `${lot.id} ถูกยกเลิกโดยฟาร์มแล้ว — พิมพ์ฉลากไม่ได้` }, { status: 409 });
+  if (!destination && lot) destination = lot.destination;
 
   const log = await addPrint({
     supplierId,
@@ -39,5 +39,6 @@ export async function POST(req: Request) {
     printedBy: body.printedBy ? String(body.printedBy) : "Thaipost",
     sortingPoint: body.sortingPoint ? String(body.sortingPoint) : undefined,
   });
+  if (log.batchId) await addBatchEvent({ batchId: log.batchId, actorId: g.user.id, actorName: g.user.username, action: "print" });
   return NextResponse.json(log, { status: 201 });
 }

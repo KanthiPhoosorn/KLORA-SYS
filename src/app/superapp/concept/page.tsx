@@ -24,7 +24,7 @@ export default function SuperAppConceptPage() {
 
         <H>1. ตัวเชื่อม (Key) ระหว่างสองระบบ</H>
         <div className="grid gap-3 sm:grid-cols-3">
-          <Box title="รหัสล็อต LOT (Corta)" tone="pink">รหัสรอบส่งออก เช่น <code>BAT-2026-0007</code> — เป็นรหัสเดียวกับที่ฝังใน QR บนกล่อง (URL <code>/trace/&lt;รหัสล็อต&gt;</code>) 1 batch = สินค้า 1 ชนิดจากฟาร์ม 1 แห่ง 1 รอบเก็บเกี่ยว</Box>
+          <Box title="รหัสล็อต LOT (Corta)" tone="pink">รหัสรอบส่งออก เช่น <code>LOT-2609-0007</code> — เป็นรหัสเดียวกับที่ฝังใน QR บนกล่อง (URL <code>/trace/&lt;รหัสล็อต&gt;</code>) 1 batch = สินค้า 1 ชนิดจากฟาร์ม 1 แห่ง 1 รอบเก็บเกี่ยว</Box>
           <Box title="Item / Tracking ID (ไปรษณีย์)">รหัสสินค้าหรือเลขพัสดุในออเดอร์ของ Super App — ต้องเก็บ รหัสล็อต ไว้กับรายการสินค้านั้น ณ ตอนที่ไปรษณีย์รับสินค้าและพิมพ์ QR (จุดเดียวกับที่ระบบ Corta บันทึกการพิมพ์อยู่แล้ว)</Box>
           <Box title="Order ID (ไปรษณีย์)">ออเดอร์ 1 ใบมีได้หลาย Item → หลาย รหัสล็อต · Corta ไม่ต้องรู้จัก Order ID</Box>
         </div>
@@ -43,7 +43,7 @@ export default function SuperAppConceptPage() {
         <H>3. API ที่มีให้แล้ววันนี้</H>
         <Box title="GET /api/trace/{batchId}  — สาธารณะ อ่านอย่างเดียว ไม่ต้องใช้ key" tone="green">
           ตอบ JSON ชุดเดียวกับหน้า QR: ประเภท/ชนิด/พันธุ์/เกรด · จำนวน+หน่วย · วันปลูก/เก็บเกี่ยว · อายุ ณ วันที่เรียก · ระยะการสุกตอนนี้ · อายุการเก็บคงเหลือ · อุณหภูมิเก็บ + คำเตือน · CO₂e ต่อหน่วยและรวม (แยกฟาร์ม/บรรจุภัณฑ์/ขนส่ง) · แหล่งผลิต + ใบรับรอง · สถานะขนส่ง · ลิงก์หน้าเต็ม<br />
-          ไม่มีข้อมูลส่วนบุคคล (ไม่มีเบอร์โทร/พิกัด/บัญชี) · CORS เปิด · cache 60 วินาที · ตัวอย่าง: <a className="text-brand-pink underline" href="/api/trace/BAT-2026-0007" target="_blank" rel="noopener">/api/trace/BAT-2026-0007</a>
+          ไม่มีข้อมูลส่วนบุคคล (ไม่มีเบอร์โทร/พิกัด/บัญชี) · CORS เปิด · cache 60 วินาที · ตัวอย่าง: <a className="text-brand-pink underline" href="/api/trace/LOT-2609-0007" target="_blank" rel="noopener">/api/trace/LOT-2609-0007</a>
         </Box>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Box title="ทำได้แล้ว (ใช้งานจริงบน corta.tech)" tone="green">ฟาร์มกรอกรอบส่งออก 3 ประเภทสินค้า · คำนวณ CO₂e · พิมพ์ QR · หน้า /trace · JSON API ข้างบน · ระบบสมาชิก/สิทธิ์</Box>
@@ -62,7 +62,7 @@ export default function SuperAppConceptPage() {
 
         <H>5. ตัวอย่างการตอบของ API (ย่อ)</H>
         <pre className="overflow-x-auto rounded-2xl bg-slate-900 p-4 text-[12px] leading-6 text-slate-100">{`{
-  "batchId": "BAT-2026-0007",
+  "batchId": "LOT-2609-0007",
   "product": { "category": "fruit", "categoryLabel": "ผลไม้", "type": "มะม่วง", "variety": "น้ำดอกไม้สีทอง", "grade": "ส่งออก" },
   "quantity": { "value": 240, "unit": "kg", "unitLabel": "กก." },
   "dates": { "plantingDate": "2021-06-10", "harvestDate": "2026-09-15", "daysSinceHarvest": 1 },
@@ -70,7 +70,7 @@ export default function SuperAppConceptPage() {
   "carbon": { "perUnit": 0.351, "perUnitLabel": "ต่อกก.", "totalKg": 84.3, "breakdown": { "farm": 56.7, "packaging": 12.0, "transport": 15.7 } },
   "origin": { "farmName": "สวนผลไม้และผักดอยฝาง", "province": "เชียงใหม่", "certifications": [{ "kind": "GAP", "certNo": "กษ 03-9001-50320-0117" }] },
   "shipment": { "status": "in_transit", "destination": "กรุงเทพฯ", "distanceKm": 690, "reefer": false },
-  "links": { "passport": "https://corta.tech/trace/BAT-2026-0007" }
+  "links": { "passport": "https://corta.tech/trace/LOT-2609-0007" }
 }`}</pre>
       </main>
     </div>
