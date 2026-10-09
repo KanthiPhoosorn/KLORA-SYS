@@ -135,7 +135,7 @@ export default function IncomingConsole({
               <tr key={b.id} onClick={() => setOpenId(b.id)} className="cursor-pointer border-b border-slate-50 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.entryDate)}</td>
                 <td className="px-4 py-3 font-mono text-xs text-slate-600">{supById.get(b.supplierId)?.code ?? b.supplierId}</td>
-                <td className="px-4 py-3 text-slate-700 cell-clip" title={String(s?.farmName ?? "—")}>{s?.farmName ?? "—"}</td>
+                <td className="px-4 py-3 text-slate-700" title={String(s?.farmName ?? "—")}><span className="cell-clip">{s?.farmName ?? "—"}</span></td>
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.cutDate)}</td>
                 <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
                 <td className="px-4 py-3 text-center"><Badge tone={st.tone}>{st.label}</Badge></td>

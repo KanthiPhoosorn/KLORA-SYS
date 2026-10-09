@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getInviteByToken, getSupplier, getUsers } from "@/lib/store";
 import { isFarmOrg } from "@/lib/api-guard";
 import JoinForm from "@/components/auth/JoinForm";
+import AuthLogo from "@/components/auth/AuthLogo";
 
 export const metadata = { title: "ตอบรับคำเชิญ · Corta" };
 export const dynamic = "force-dynamic";
@@ -30,12 +31,13 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           : null;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
+      <AuthLogo />
       <div className="relative hidden w-[63%] shrink-0 overflow-hidden bg-emerald-50 lg:block">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/figma/login-hero.png" alt="Corta farm" className="absolute inset-0 h-full w-full object-cover" />
       </div>
-      <div className="flex flex-1 items-center justify-center bg-white px-8 py-10">
+      <div className="flex flex-1 items-center justify-center bg-white px-8 pb-10 pt-20 lg:py-10">
         {problem ? (
           <div className="w-full max-w-[425px] space-y-4">
             <h1 className="text-[32px] font-semibold leading-[38px] text-black">ตอบรับคำเชิญ</h1>

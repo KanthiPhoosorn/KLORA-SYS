@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -34,6 +34,7 @@ export default function Modal({
     };
   }, [open, onClose]);
 
+  const titleId = useId();
   if (!open || !mounted) return null;
 
   return createPortal(
@@ -42,11 +43,14 @@ export default function Modal({
       onMouseDown={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={`my-auto w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-2xl border border-slate-200 bg-white shadow-xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"

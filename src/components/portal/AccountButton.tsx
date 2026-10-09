@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, User } from "lucide-react";
+import { Loader2, LogOut, User } from "lucide-react";
 import Modal from "@/components/Modal";
 
 // Avatar + id cluster with a logout action, shown in each portal's top header
@@ -38,7 +38,7 @@ export default function AccountButton({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <User size={18} />}
       </span>
-      <div className="leading-tight">
+      <div className="hidden whitespace-nowrap leading-tight sm:block">
         <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</div>
         <div className="font-mono text-sm font-semibold text-slate-800">{id}</div>
       </div>
@@ -46,14 +46,21 @@ export default function AccountButton({
   );
 
   return (
-    <div className="flex items-center gap-3">
-      {profileHref ? <Link href={profileHref} className="hover:opacity-80">{cluster}</Link> : cluster}
+    <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+      {profileHref ? <Link href={profileHref} className="hover:opacity-80" aria-label={`โปรไฟล์ · ${label} ${id}`}>{cluster}</Link> : cluster}
 
-      <span className="h-6 w-px bg-slate-200" />
+      <span className="hidden h-6 w-px bg-slate-200 sm:block" />
 
       <button
         onClick={() => setConfirmOpen(true)}
-        className="text-sm font-medium text-slate-600 hover:text-slate-900"
+        aria-label="ออกจากระบบ"
+        className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 sm:hidden"
+      >
+        <LogOut size={18} />
+      </button>
+      <button
+        onClick={() => setConfirmOpen(true)}
+        className="hidden whitespace-nowrap text-sm font-medium text-slate-600 hover:text-slate-900 sm:block"
       >
         ออกจากระบบ
       </button>

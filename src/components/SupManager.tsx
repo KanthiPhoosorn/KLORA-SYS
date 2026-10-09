@@ -213,7 +213,7 @@ export default function SupManager({
                   {kynUsers.map((u) => (
                     <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
                       <td className="px-5 py-3.5 text-slate-800">{u.username}{u.id === currentUserId ? <span className="ml-1.5 text-[11px] text-slate-400">(คุณ)</span> : null}</td>
-                      <td className="px-5 py-3.5 text-slate-600 cell-clip" title={String(u.email)}>{u.email}</td>
+                      <td className="px-5 py-3.5 text-slate-600" title={String(u.email)}><span className="cell-clip">{u.email}</span></td>
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{u.id}</td>
                       <td className="px-5 py-3.5">
                         <StatusDropdown value={u.status ?? "active"} disabled={u.id === currentUserId} busy={busyId === u.id} onChange={(v) => setUserStatus(u, v)} />
@@ -223,7 +223,7 @@ export default function SupManager({
                   {kynInvites.filter((i) => i.status === "pending").map((i) => (
                     <tr key={i.id} className="border-b border-slate-50 bg-amber-50/40 text-center last:border-0">
                       <td className="px-5 py-3.5 italic text-slate-400">รอตอบรับ</td>
-                      <td className="px-5 py-3.5 text-slate-600 cell-clip" title={String(i.email)}>{i.email}</td>
+                      <td className="px-5 py-3.5 text-slate-600" title={String(i.email)}><span className="cell-clip">{i.email}</span></td>
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-400">{i.id}</td>
                       <td className="px-5 py-3.5">
                         <button type="button" disabled={busyId === i.id} onClick={() => cancelInvite(i.id)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] text-slate-500 hover:bg-slate-50">
@@ -298,7 +298,7 @@ export default function SupManager({
                   ) : supRows.map((s) => (
                     <tr key={s.id} onClick={() => setEditSup(s)} className="cursor-pointer border-b border-slate-50 text-center last:border-0 hover:bg-slate-50">
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.code ?? s.id}</td>
-                      <td className="px-5 py-3.5 text-slate-800 cell-clip" title={String(s.farmName)}>{s.farmName}</td>
+                      <td className="px-5 py-3.5 text-slate-800" title={String(s.farmName)}><span className="cell-clip">{s.farmName}</span></td>
                       <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
                       <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
                         <select value={s.signupVia ?? ""} disabled={busyId === s.id} onChange={(e) => patchSupplier(s, { signupVia: e.target.value || null })} className="rounded-[6px] border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-600 outline-none focus:border-brand-purple">
@@ -361,9 +361,9 @@ export default function SupManager({
                     <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-400">ยังไม่มีบัญชีขนส่ง</td></tr>
                   ) : logRows.map((u) => (
                     <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
-                      <td className="px-5 py-3.5 text-slate-800 cell-clip" title={String(companyOf(u))}>{companyOf(u)}</td>
-                      <td className="px-5 py-3.5 text-slate-600 cell-clip" title={String(u.branch ?? "—")}>{u.branch ?? "—"}</td>
-                      <td className="px-5 py-3.5 text-slate-600 cell-clip" title={String(provinceOf(u.branch))}>{provinceOf(u.branch)}</td>
+                      <td className="px-5 py-3.5 text-slate-800" title={String(companyOf(u))}><span className="cell-clip">{companyOf(u)}</span></td>
+                      <td className="px-5 py-3.5 text-slate-600" title={String(u.branch ?? "—")}><span className="cell-clip">{u.branch ?? "—"}</span></td>
+                      <td className="px-5 py-3.5 text-slate-600" title={String(provinceOf(u.branch))}><span className="cell-clip">{provinceOf(u.branch)}</span></td>
                       <td className="px-5 py-3.5">
                         <StatusDropdown value={u.status ?? "active"} busy={busyId === u.id} onChange={(v) => setUserStatus(u, v)} />
                       </td>

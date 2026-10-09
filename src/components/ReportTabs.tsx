@@ -143,7 +143,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
                     return (
                       <tr key={i} className="border-b border-slate-50 last:border-0">
                         <td className="px-3 py-2.5 text-slate-700">{r.provider}</td>
-                        <td className="px-3 py-2.5 text-slate-600 cell-clip" title={String(r.farm)}>{r.farm}</td>
+                        <td className="px-3 py-2.5 text-slate-600" title={String(r.farm)}><span className="cell-clip">{r.farm}</span></td>
                         <td className="px-3 py-2.5 text-right tabular">{r.received.toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-right tabular">{r.forwarded.toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-right tabular font-medium text-slate-800">{r.discarded.toLocaleString()}</td>

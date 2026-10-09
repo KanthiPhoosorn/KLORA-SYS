@@ -1,4 +1,5 @@
 import RegisterForm from "@/components/auth/RegisterForm";
+import AuthLogo from "@/components/auth/AuthLogo";
 import { asCarrierKey, carrierLabel } from "@/lib/carriers";
 
 export const metadata = { title: "สมัครสมาชิก · Corta" };
@@ -10,7 +11,8 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
     <div className="relative min-h-screen">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/figma/register-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
-      <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      <AuthLogo />
+      <div className="relative flex min-h-screen items-center justify-center px-4 pb-10 pt-20 lg:py-10">
         <RegisterForm via={via} viaLabel={via ? carrierLabel(via) : undefined} />
       </div>
     </div>

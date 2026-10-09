@@ -130,7 +130,7 @@ export async function PATCH(
       patch.exportRecordedBy = g.user.id;
     }
     await updateBatch(id, patch);
-    await queueTransportOthers({ vehicleOther: body.vehicleOther ? String(body.vehicleOther) : undefined, fuelKey: body.fuelKey ? String(body.fuelKey) : undefined, airline: body.airline ? String(body.airline) : undefined, destAirport: body.destAirport ? String(body.destAirport) : undefined }, { userId: g.user.id, batchId: id, supplierId: batch.supplierId }).catch(() => undefined);
+    await queueTransportOthers({ originAirport: body.shipType === "international" && body.originAirport ? String(body.originAirport) : undefined, destProvince: body.shipType === "domestic" && body.destination ? String(body.destination) : undefined, vehicleOther: body.vehicleOther ? String(body.vehicleOther) : undefined, fuelKey: body.fuelKey ? String(body.fuelKey) : undefined, airline: body.airline ? String(body.airline) : undefined, destAirport: body.destAirport ? String(body.destAirport) : undefined }, { userId: g.user.id, batchId: id, supplierId: batch.supplierId }).catch(() => undefined);
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
       await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
@@ -189,7 +189,7 @@ export async function PATCH(
 
 // What the edit review and the history show as "ค่าเดิม → ค่าใหม่".
 const EDIT_LABELS: [keyof RoundFields, string][] = [
-  ["productType", "ชนิด"], ["variety", "พันธุ์"], ["quantity", "จำนวน"], ["unit", "หน่วย"], ["cutDate", "วันที่ตัด/เก็บเกี่ยว"],
+  ["productType", "ชนิด"], ["variety", "พันธุ์"], ["quantity", "จำนวน"], ["unit", "หน่วย"], ["cutDate", "วันที่ตัด/เก็บเกี่ยว"], ["shipDate", "วันที่จัดส่ง"],
   ["expectedAgeDays", "อายุหลังตัดที่คาดการณ์ (วัน)"], ["plantingDate", "วันที่ปลูก"], ["ripenessAtHarvest", "ระยะการสุก"], ["grade", "เกรด"],
   ["destination", "จังหวัดปลายทาง"], ["destinationAddress", "ที่อยู่ปลายทาง"], ["distanceKm", "ระยะทาง (กม.)"], ["carrier", "รูปแบบการขนส่ง"],
   ["provider", "ผู้ให้บริการ"], ["postalCode", "รหัสไปรษณีย์"], ["branch", "สาขาต้นทาง"], ["shippedWeightKg", "น้ำหนักรวมหลังแพ็ก (กก.)"],

@@ -87,7 +87,8 @@ export const packagingAssets = pgTable("packaging_assets", {
 // Who changed what on a lot (ประวัติการแก้ไข) — create, edit (field diffs), cancel, print, tracking.
 export const batchEvents = pgTable("batch_events", {
   id: text("id").primaryKey(),
-  batchId: text("batch_id").notNull(),
+  // history goes with its lot (scripts/add-event-fk.ts): deleting a lot deletes its events, a rename follows
+  batchId: text("batch_id").notNull().references(() => batches.id, { onDelete: "cascade", onUpdate: "cascade" }),
   at: text("at").notNull(),
   actorId: text("actor_id"),
   actorName: text("actor_name"),

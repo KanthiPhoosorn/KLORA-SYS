@@ -36,7 +36,7 @@ export default async function SupplierLayout({
 
   const header = (
     <>
-      <div className="text-lg font-semibold text-slate-800">{supplier.farmName}</div>
+      <div className="hidden min-w-0 truncate text-lg font-semibold text-slate-800 sm:block">{supplier.farmName}</div>
       <div className="ml-auto flex items-center gap-4">
         <Link
           href="/app/settings"

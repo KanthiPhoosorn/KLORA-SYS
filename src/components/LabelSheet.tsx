@@ -106,7 +106,8 @@ export default function LabelSheet({ labels, initialSize }: { labels: LabelData[
               <div className="band"><span>Corta</span></div>
               <div className="text">
                 <p className="product">{l.product}</p>
-                <p className="meta">{l.farm} · {l.place} · {l.cut}</p>
+                <p className="meta">{l.qty} · {l.cut}</p>
+                <p className="meta">{l.farm} · {l.place}</p>
                 <p className="lot">{l.id}</p>
                 <p className="scan">สแกนดูที่มาสินค้า</p>
               </div>
@@ -122,6 +123,7 @@ export default function LabelSheet({ labels, initialSize }: { labels: LabelData[
                 <div style={{ minWidth: 0 }}>
                   <p className="product" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.product}</p>
                   <p className="meta" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{size === "40x25" ? l.qty : `${l.qty} · ${l.cut}`}</p>
+                  {size === "40x25" ? <p className="meta" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.cut}</p> : null}
                   <p className="meta" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.farm}</p>
                 </div>
                 <p className="lot">{l.id}</p>

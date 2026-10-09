@@ -31,7 +31,7 @@ export default async function KynActionLogPage() {
     rows.push({
       at: s.createdAt,
       actor: s.farmName,
-      actorSub: s.id,
+      actorSub: s.code ?? s.id,
       type: "ลงทะเบียนผู้ผลิต",
       detail: `${s.province ?? "—"} · ${s.flowerType}`,
       status: s.status === "suspended" ? "ระงับการใช้งาน" : "ใช้งาน",
@@ -103,7 +103,7 @@ export default async function KynActionLogPage() {
                   <div className="font-mono text-xs text-slate-400">{r.actorSub}</div>
                 </td>
                 <td className="px-5 py-3 text-slate-700">{r.type}</td>
-                <td className="px-5 py-3 text-slate-600 cell-clip" title={String(r.detail)}>{r.detail}</td>
+                <td className="px-5 py-3 text-slate-600" title={String(r.detail)}><span className="cell-clip">{r.detail}</span></td>
                 <td className="px-5 py-3"><Badge tone={r.tone}>{r.status}</Badge></td>
               </tr>
             ))}

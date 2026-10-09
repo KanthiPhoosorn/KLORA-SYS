@@ -315,6 +315,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     flowerCount: input.flowerCount,
     variety: input.variety,
     cutDate: input.cutDate,
+    shipDate: input.shipDate,
     distanceKm: input.distanceKm,
     destination: input.destination,
     destinationAddress: input.destinationAddress,

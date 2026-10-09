@@ -30,6 +30,7 @@ export function parseRound(body: Record<string, unknown>): { fields: RoundFields
       flowerCount,
       variety: str("variety"),
       cutDate: String(body.cutDate),
+      shipDate: /^\d{4}-\d{2}-\d{2}$/.test(String(body.shipDate ?? "")) ? String(body.shipDate) : undefined,
       distanceKm: Number(body.distanceKm) || 0,
       destination: str("destination"),
       destinationAddress: str("destinationAddress"),

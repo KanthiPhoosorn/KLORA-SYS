@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ExternalLink, Loader2, Pencil } from "lucide-react";
@@ -63,16 +64,31 @@ export default function ShipmentsTable({
   const [err, setErr] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuBox = useRef<HTMLDivElement | null>(null);
+  const [menuAt, setMenuAt] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
 
-  // close the menu on an outside click / Esc
+  // close the menu on an outside click / Esc / scroll / resize (it floats over the page, see below)
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(null); };
+    const inside = (t: EventTarget | null) => t instanceof Node && (!!menuRef.current?.contains(t) || !!menuBox.current?.contains(t)); // resize/scroll targets can be window/document
+    const onDown = (e: MouseEvent) => { if (!inside(e.target)) setOpen(null); };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    const onMove = (e: Event) => { if (!inside(e.target)) setOpen(null); };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", onMove, true); window.removeEventListener("resize", onMove); };
   }, [open]);
+  // The table scrolls sideways in its own box, which would clip a dropdown on the last rows — so the
+  // menu is drawn on <body> at the pencil's position, opening upward when there is no room below.
+  const toggleMenu = (id: string, el: HTMLElement) => {
+    if (open === id) { setOpen(null); return; }
+    const b = el.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - b.right);
+    setMenuAt(b.bottom + 200 > window.innerHeight ? { bottom: window.innerHeight - b.top + 4, right } : { top: b.bottom + 4, right });
+    setOpen(id);
+  };
 
   // ---- filters (history page) ----
   const [cat, setCat] = useState<ProductCategory | "all">("all");
@@ -170,8 +186,8 @@ export default function ShipmentsTable({
               <th className="whitespace-nowrap px-4 py-3 font-semibold">รหัสล็อต</th>
               {mixed ? <th className="whitespace-nowrap px-4 py-3 text-center font-semibold">ประเภท</th> : null}
               <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">จำนวน</th>
-              <th className="whitespace-nowrap px-4 py-3 font-semibold">ปลายทาง</th>
-              <th className="whitespace-nowrap px-4 py-3 font-semibold">ขนส่ง</th>
+              <th className="w-[232px] whitespace-nowrap px-4 py-3 font-semibold">ปลายทาง</th>
+              <th className="w-[172px] whitespace-nowrap px-4 py-3 font-semibold">ขนส่ง</th>
               <th className="whitespace-nowrap px-4 py-3 font-semibold">เลขพัสดุ</th>
               <th className="whitespace-nowrap px-4 py-3 text-center font-semibold">สถานะ</th>
               <th className="whitespace-nowrap px-4 py-3 text-center font-semibold">จัดการ</th>
@@ -191,11 +207,11 @@ export default function ShipmentsTable({
                   <td className={`whitespace-nowrap px-4 py-3 font-mono text-[12px] ${off ? "line-through" : "text-slate-700"}`}>{r.id}</td>
                   {mixed ? <td className="px-4 py-3 text-center"><CategoryTag category={r.category} /></td> : null}
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular">{r.quantity}</td>
-                  <td className="max-w-[220px] px-4 py-3">
-                    <p className="truncate" title={r.address ? `${r.destination} · ${r.address}` : r.destination}>{r.destination || "—"}</p>
-                    {r.address ? <p className="truncate text-[11px] text-slate-400" title={r.address}>{r.address}</p> : null}
+                  <td className="px-4 py-3">
+                    <p className="max-w-[200px] truncate" title={r.address ? `${r.destination} · ${r.address}` : r.destination}>{r.destination || "—"}</p>
+                    {r.address ? <p className="max-w-[200px] truncate text-[11px] text-slate-400" title={r.address}>{r.address}</p> : null}
                   </td>
-                  <td className="max-w-[160px] px-4 py-3"><p className="truncate" title={r.carrier}>{r.carrier || "—"}</p></td>
+                  <td className="px-4 py-3"><p className="max-w-[140px] truncate" title={r.carrier}>{r.carrier || "—"}</p></td>
                   <td className="whitespace-nowrap px-4 py-3">
                     {trackText ? (
                       link && !off ? <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-[12px] text-blue-600 hover:underline">{trackText}<ExternalLink size={11} /></a>
@@ -207,12 +223,12 @@ export default function ShipmentsTable({
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="relative inline-block" ref={open === r.id ? menuRef : undefined}>
-                      <button type="button" aria-label={`จัดการรายการ ${r.id}`} aria-expanded={open === r.id} onClick={() => setOpen(open === r.id ? null : r.id)}
+                      <button type="button" aria-label={`จัดการรายการ ${r.id}`} aria-expanded={open === r.id} aria-haspopup="menu" onClick={(e) => toggleMenu(r.id, e.currentTarget)}
                         className={`inline-grid size-8 place-items-center rounded-lg border transition ${open === r.id ? "border-slate-300 bg-slate-100 text-slate-700" : "border-transparent text-slate-400 hover:bg-slate-100 hover:text-slate-700"}`}>
                         <Pencil size={15} />
                       </button>
-                      {open === r.id ? (
-                        <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg">
+                      {open === r.id && menuAt ? createPortal(
+                        <div ref={menuBox} role="menu" aria-label={`จัดการรายการ ${r.id}`} style={{ position: "fixed", top: menuAt.top, bottom: menuAt.bottom, right: menuAt.right }} className="z-50 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg">
                           {menuFor(r).map((m) => (
                             <button key={m.name} type="button" role="menuitem" disabled={!("go" in m)} onClick={"go" in m ? m.go : undefined}
                               className={`block w-full px-4 py-2.5 text-left ${"go" in m ? "hover:bg-slate-50" : "cursor-not-allowed"}`}>
@@ -220,7 +236,8 @@ export default function ShipmentsTable({
                               {"why" in m && m.why ? <span className="block text-[11px] text-slate-400">{m.why}</span> : null}
                             </button>
                           ))}
-                        </div>
+                        </div>,
+                        document.body,
                       ) : null}
                     </div>
                   </td>

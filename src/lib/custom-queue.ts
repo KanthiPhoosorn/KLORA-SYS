@@ -6,7 +6,7 @@ import { BRANCHES } from "./branches";
 import { DESTINATIONS } from "./geo";
 import { GRADE_OPTIONS } from "./produce";
 import { VEHICLE_FUELS } from "./master-data";
-import { AIRLINES, DEST_AIRPORTS } from "./airports";
+import { AIRLINES, DEST_AIRPORTS, findAirport } from "./airports";
 import { PRODUCTS } from "./master-data";
 import type { PackagingLine } from "./types";
 
@@ -29,11 +29,13 @@ export async function queueRoundOthers(b: { grade?: string; destination?: string
 }
 
 /** Typed-in transport values the carrier entered on /logistic/new → KYN's review queue. */
-export async function queueTransportOthers(b: { vehicleOther?: string; fuelKey?: string; airline?: string; destAirport?: string }, ctx: { userId?: string; batchId?: string; supplierId?: string }) {
+export async function queueTransportOthers(b: { vehicleOther?: string; fuelKey?: string; airline?: string; destAirport?: string; originAirport?: string; destProvince?: string }, ctx: { userId?: string; batchId?: string; supplierId?: string }) {
   if (b.vehicleOther) await queueCustomEntry({ field: "vehicle", value: b.vehicleOther, ...ctx });
   if (b.fuelKey && !VEHICLE_FUELS.some((v) => v.fuelKey === b.fuelKey)) await queueCustomEntry({ field: "vehicle_fuel", value: b.fuelKey, ...ctx });
   if (b.airline && !AIRLINES.includes(b.airline)) await queueCustomEntry({ field: "airline", value: b.airline, ...ctx });
   if (b.destAirport && !DEST_AIRPORTS.some((a) => a.code === b.destAirport)) await queueCustomEntry({ field: "airport", value: b.destAirport, ...ctx });
+  if (b.originAirport && !findAirport(b.originAirport)) await queueCustomEntry({ field: "airport", value: b.originAirport, ...ctx });
+  if (b.destProvince && !DESTINATIONS.some((d) => d.name === b.destProvince)) await queueCustomEntry({ field: "destination", value: b.destProvince, ...ctx });
 }
 
 /** Product types a farm typed in ("อื่นๆ" ชนิดสินค้า) → KYN's review queue. */

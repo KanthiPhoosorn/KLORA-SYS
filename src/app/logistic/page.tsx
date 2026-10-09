@@ -231,8 +231,8 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
                 rows.map((b) => (
                   <tr key={b.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-5 py-3 font-mono text-xs text-slate-600">{b.id}</td>
-                    <td className="px-5 py-3 text-slate-700 cell-clip" title={String(byId.get(b.supplierId)?.farmName ?? "—")}>{byId.get(b.supplierId)?.farmName ?? "—"}</td>
-                    <td className="px-5 py-3 text-slate-700 cell-clip" title={String(b.destination ?? "—")}>{b.destination ?? "—"}</td>
+                    <td className="px-5 py-3 text-slate-700" title={String(byId.get(b.supplierId)?.farmName ?? "—")}><span className="cell-clip">{byId.get(b.supplierId)?.farmName ?? "—"}</span></td>
+                    <td className="px-5 py-3 text-slate-700" title={String(b.destination ?? "—")}><span className="cell-clip">{b.destination ?? "—"}</span></td>
                     <td className="px-5 py-3 text-right tabular">{b.distanceKm}</td>
                     <td className="px-5 py-3 text-slate-600">{vehLabel(b.vehicleKey)}</td>
                     <td className="px-5 py-3 text-slate-600">{fuelLabel(b.fuelKey)}</td>

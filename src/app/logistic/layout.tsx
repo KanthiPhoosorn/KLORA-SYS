@@ -21,7 +21,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
 
   const header = (
     <>
-      <div className="text-lg font-semibold text-slate-800">โรงคัดแยกพัสดุ</div>
+      <div className="hidden min-w-0 truncate text-lg font-semibold text-slate-800 sm:block">โรงคัดแยกพัสดุ</div>
       <div className="ml-auto flex items-center gap-4">
         <Link href="/logistic/settings" className="hidden items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 sm:flex">
           <LifeBuoy size={16} /> Help center

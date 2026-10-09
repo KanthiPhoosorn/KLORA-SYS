@@ -6,6 +6,7 @@ import { Loader2, MapPin, CheckCircle2, Package, Plane } from "lucide-react";
 import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import SearchSelect from "@/components/SearchSelect";
+import SelectOther from "@/components/SelectOther";
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
 import { useRecipientDistance } from "@/lib/use-distance";
@@ -201,6 +202,8 @@ export default function LogisticExportForm({
       if (!airline) e.airline = "กรุณาระบุสายการบิน";
       if (awb.trim() && !awbNorm) e.awb = "เลข AWB ต้องเป็นตัวเลข 11 หลัก (XXX-XXXXXXXX)";
       if (!destAirport && !(Number(flightKm) > 0)) e.destAirport = "กรุณาเลือกท่าอากาศยานปลายทาง หรือระบุระยะทางบิน";
+      if (!originAirport.trim()) e.originAirport = "กรุณาระบุท่าอากาศยานต้นทาง";
+      else if (!findAirport(originAirport) && !(Number(flightKm) > 0)) e.originAirport = "ท่าอากาศยานนอกรายการ · กรุณาระบุระยะทางบิน";
     }
     Object.assign(e, validateRows(packs));
     return e;
@@ -383,10 +386,7 @@ export default function LogisticExportForm({
               <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
               <div>
                 <label className={labelCls}>จังหวัดปลายทาง{req}</label>
-                <select value={destination} onChange={(e) => onDestProvince(e.target.value)} className={`${inputCls} ${errs.destination ? "border-[#ee443f]" : ""}`}>
-                  <option value="">เลือกจังหวัดปลายทาง</option>
-                  {DESTINATIONS.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
-                </select>
+                <SelectOther value={destination} onChange={onDestProvince} options={DESTINATIONS.map((d) => ({ value: d.name, label: d.name }))} placeholder="เลือกจังหวัดปลายทาง" otherPlaceholder="ระบุจังหวัด / ปลายทาง" className={inputCls} invalid={!!errs.destination} />
                 <Err msg={errs.destination} />
               </div>
               <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50`} /><p className="mt-1 text-[11px] text-slate-400">{distEdited ? <>แก้ไขเอง · <button type="button" onClick={() => setDistEdited(false)} className="underline">ให้ระบบคำนวณ</button></> : dist.looking ? "กำลังหาตำแหน่งที่อยู่ผู้รับ…" : dist.basis || "กรอกที่อยู่ผู้รับ"}</p></div>
@@ -449,9 +449,8 @@ export default function LogisticExportForm({
             </div>
             <div>
               <label className={labelCls}>ท่าอากาศยานต้นทาง</label>
-              <select value={originAirport} onChange={(e) => setOriginAirport(e.target.value)} className={inputCls}>
-                {ORIGIN_AIRPORTS.map((a) => <option key={a.code} value={a.code}>{a.name} ({a.code})</option>)}
-              </select>
+              <SelectOther value={originAirport} onChange={(v) => { setOriginAirport(v); setErrs((x) => ({ ...x, originAirport: "" })); }} options={ORIGIN_AIRPORTS.map((a) => ({ value: a.code, label: `${a.name} (${a.code})` }))} otherPlaceholder="ชื่อหรือรหัสสนามบิน" className={inputCls} invalid={!!errs.originAirport} />
+              <Err msg={errs.originAirport} />
             </div>
             <div>
               <label className={labelCls}>ท่าอากาศยานปลายทาง{req}</label>

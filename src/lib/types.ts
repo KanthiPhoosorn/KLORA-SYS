@@ -355,6 +355,7 @@ export type BatchInput = Pick<
   "supplierId" | "flowerCount" | "cutDate" | "distanceKm"
 > & {
   variety?: string;
+  shipDate?: string; // วันที่จัดส่ง the farm plans (YYYY-MM-DD); the carrier may correct it later
   destination?: string;
   destinationAddress?: string;
   destLat?: number;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   LayoutGrid,
   PlusCircle,
@@ -19,6 +19,8 @@ import {
   QrCode,
   Lock,
   SlidersHorizontal,
+  Menu,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -74,55 +76,101 @@ export default function PortalShell({
   const pathname = usePathname();
   const a = ACCENT[accent];
 
+  // Phones (< md) have no sidebar: the top bar shows the Corta logo and a ☰ button that opens the same
+  // menu as a drawer (Thai Post doc 9 Oct 2026 §1 logo top-left on every system, §8 nothing crammed).
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNavOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
+  // Corta wordmark — the same for every portal (role lives in the menu, not the brand)
+  const logo = (className: string) => (
+    <Link href={items[0]?.href ?? "/"} className={className} aria-label={`Corta ${brand}`.trim()}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
+    </Link>
+  );
+
+  const nav = (
+    <nav className="flex flex-col gap-1 px-3 py-2">
+      {items.map((item) => {
+        const active = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(item.href + "/");
+        const Icon = ICONS[item.icon] ?? LayoutGrid;
+        if (item.locked) {
+          return (
+            <span
+              key={item.href}
+              className="flex cursor-default items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300"
+            >
+              <Lock size={18} /> {item.label}
+            </span>
+          );
+        }
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+              active ? `${a.active} font-semibold` : "font-medium text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Icon size={18} className={active ? "" : a.dot} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        {/* Corta wordmark — the same for every portal (role lives in the menu, not the brand) */}
-        <Link href={items[0]?.href ?? "/"} className="flex items-center px-6 py-5" aria-label={`Corta ${brand}`.trim()}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
-        </Link>
+        {logo("flex items-center px-6 py-5")}
         <div className="px-6 pb-1 text-xs font-medium text-slate-400">Menu</div>
-        <nav className="flex flex-col gap-1 px-3 py-2">
-          {items.map((item) => {
-            const active = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = ICONS[item.icon] ?? LayoutGrid;
-            if (item.locked) {
-              return (
-                <span
-                  key={item.href}
-                  className="flex cursor-default items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300"
-                >
-                  <Lock size={18} /> {item.label}
-                </span>
-              );
-            }
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
-                  active ? `${a.active} font-semibold` : "font-medium text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <Icon size={18} className={active ? "" : a.dot} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {nav}
         <div className="mt-auto">{footer}</div>
       </aside>
 
+      {/* Phone menu drawer */}
+      {navOpen ? (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setNavOpen(false)} aria-hidden />
+          <aside role="dialog" aria-modal="true" aria-label="เมนู" className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] flex-col overflow-y-auto bg-white shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4">
+              {logo("flex items-center")}
+              <button type="button" onClick={() => setNavOpen(false)} aria-label="ปิดเมนู" className="grid size-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 pb-1 text-xs font-medium text-slate-400">Menu</div>
+            {nav}
+          </aside>
+        </div>
+      ) : null}
+
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/90 px-6 backdrop-blur">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:gap-4 md:px-6">
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            aria-label="เปิดเมนู"
+            aria-expanded={navOpen}
+            className="-ml-1 grid size-9 shrink-0 place-items-center rounded-lg text-slate-600 hover:bg-slate-100 md:hidden"
+          >
+            <Menu size={20} />
+          </button>
+          {logo("flex shrink-0 items-center md:hidden")}
           {header}
         </header>
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
       </div>
     </div>
   );

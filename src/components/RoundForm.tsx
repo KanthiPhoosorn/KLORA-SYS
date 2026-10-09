@@ -147,7 +147,7 @@ export default function RoundForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
   // Shipping
-  const [shipDate, setShipDate] = useState("");
+  const [shipDate, setShipDate] = useState(edit?.shipDate ?? "");
   const [destination, setDestination] = useState(edit?.destination ?? "");
   const [destAddress, setDestAddress] = useState(edit?.destinationAddress ?? "");
   const [destGps, setDestGps] = useState(edit?.destLat != null && edit?.destLng != null ? `${edit.destLat}, ${edit.destLng}` : ""); // "lat, lng"
@@ -223,7 +223,9 @@ export default function RoundForm({
     อายุ: ageDays ? `${ageDays} วัน` : "", ระยะการสุก: ripeness ? RIPENESS_LABEL[ripeness] : "", เกรด: grade,
     จังหวัดปลายทาง: destination, ที่อยู่ปลายทาง: destAddress, พิกัดปลายทาง: destGps, ระยะทาง: distanceKm ? `${distanceKm} กม.` : "",
     รูปแบบการขนส่ง: carrierLabel, รหัสไปรษณีย์: postalCode, ผู้ให้บริการ: provider, สาขาต้นทาง: branchName(branch),
-    บรรจุภัณฑ์: JSON.stringify(rowsToPayload(packs).packagingItems),
+    // one key per packaging field, so the edit review can mark exactly what changed (old → new)
+    ...Object.fromEntries(packs.flatMap((r, i) => { const s = rowSummary(r, catalog); return [[`p${i}.บรรจุภัณฑ์`, [s.name, s.usage].filter(Boolean).join(" · ")], [`p${i}.หมายเลข`, s.code ?? ""], [`p${i}.ขนาด`, `${s.size} · ${s.qty}`], [`p${i}.วัสดุ`, s.inner]]; })),
+    วันที่จัดส่ง: formatThaiDate(shipDate),
     น้ำหนักรวม: packedKg ? `${packedKg.toLocaleString("th-TH", { maximumFractionDigits: 3 })} กก.` : "",
   });
   const original = useRef<Record<string, string> | null>(null);
@@ -284,6 +286,7 @@ export default function RoundForm({
           productType: flowerType,
           variety: variety || flowerType,
           cutDate,
+          shipDate,
           plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
           ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
           grade: !isFlower && grade ? grade : undefined,
@@ -327,7 +330,9 @@ export default function RoundForm({
     const packRows = packs.map((r) => rowSummary(r, catalog));
     const now = reviewPairs();
     const was = (k: string) => (edit && original.current && original.current[k] !== now[k] ? original.current[k] || "—" : undefined);
-    const changedCount = edit && original.current ? Object.keys(now).filter((k) => original.current![k] !== now[k]).length : 0;
+    const changedKeys = edit && original.current ? [...new Set([...Object.keys(now), ...Object.keys(original.current)])].filter((k) => (original.current![k] ?? "") !== (now[k] ?? "")) : [];
+    const changedCount = changedKeys.length;
+    const packChanged = changedKeys.some((k) => /^p\d+\./.test(k));
     const F = ({ label, value, k }: { label: string; value: string; k?: string }) => {
       const old = k ? was(k) : undefined;
       return old !== undefined ? (
@@ -373,14 +378,14 @@ export default function RoundForm({
             </div>
             {/* Col 2 — packaging */}
             <div className="space-y-4 border-slate-100 p-6 md:border-r">
-              <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">บรรจุภัณฑ์{was("บรรจุภัณฑ์") !== undefined ? <span className="ml-2 rounded-full bg-[#FFE7A3] px-2 py-0.5 text-[11px] font-semibold text-[#6B4A00]">แก้ไข</span> : null}</div>
+              <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">บรรจุภัณฑ์{packChanged ? <span className="ml-2 rounded-full bg-[#FFE7A3] px-2 py-0.5 text-[11px] font-semibold text-[#6B4A00]">แก้ไข</span> : null}</div>
               {packRows.map((p, i) => (
                 <div key={i} className="space-y-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                   <p className="text-[12px] font-semibold text-slate-400">รายการที่ {i + 1}</p>
-                  <F label="บรรจุภัณฑ์" value={[p.name, p.usage].filter(Boolean).join(" · ")} />
-                  {p.code ? <F label="หมายเลข" value={p.code} /> : null}
-                  <F label="ขนาด · จำนวน" value={`${p.size} · ${p.qty}`} />
-                  <F label="วัสดุภายใน" value={p.inner} />
+                  <F k={`p${i}.บรรจุภัณฑ์`} label="บรรจุภัณฑ์" value={[p.name, p.usage].filter(Boolean).join(" · ")} />
+                  {p.code ? <F k={`p${i}.หมายเลข`} label="หมายเลข" value={p.code} /> : null}
+                  <F k={`p${i}.ขนาด`} label="ขนาด · จำนวน" value={`${p.size} · ${p.qty}`} />
+                  <F k={`p${i}.วัสดุ`} label="วัสดุภายใน" value={p.inner} />
                 </div>
               ))}
               <F k="น้ำหนักรวม" label="น้ำหนักรวมหลังแพ็ก" value={packedKg ? `${packedKg.toLocaleString("th-TH", { maximumFractionDigits: 3 })} กก.` : ""} />
@@ -388,7 +393,7 @@ export default function RoundForm({
             {/* Col 3 — transport */}
             <div className="space-y-4 p-6">
               <div className="rounded-lg bg-emerald-500 px-3 py-2 text-center text-[13px] font-semibold text-white">ข้อมูลการขนส่ง</div>
-              <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
+              <F k="วันที่จัดส่ง" label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
               <F k="จังหวัดปลายทาง" label="จังหวัดปลายทาง" value={destination} />
               {destAddress ? <F k="ที่อยู่ปลายทาง" label="ที่อยู่ปลายทาง" value={destAddress} /> : null}
               {destGps ? <F k="พิกัดปลายทาง" label="พิกัดปลายทาง" value={destGps} /> : null}
@@ -410,7 +415,7 @@ export default function RoundForm({
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={() => setStep("form")} className={`h-[40px] rounded-[8px] ${T.outlineBtn} px-8 text-[14px] font-medium`}>แก้ไข</button>
-          <button type="button" onClick={() => setConfirmOpen(true)} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>บันทึก</button>
+          <button type="button" onClick={() => setConfirmOpen(true)} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>{edit ? "บันทึกการแก้ไข" : "บันทึก"}</button>
         </div>
 
         <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title={edit ? `บันทึกการแก้ไข ${edit.id}?` : "ยืนยันการจัดส่ง?"}>
@@ -636,7 +641,7 @@ export default function RoundForm({
 
       <div className="flex justify-end gap-3">
         <button type="button" onClick={() => router.push("/app")} className="h-[40px] rounded-[8px] border border-gray-300 px-8 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
-        <button type="button" onClick={goReview} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>บันทึก</button>
+        <button type="button" onClick={goReview} className={`h-[40px] rounded-[8px] ${T.solidBtn} px-10 text-[14px] font-medium`}>ถัดไป</button>
       </div>
     </div>
   );
