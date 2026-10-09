@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Flower2, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { getSupplier, getNotifications } from "@/lib/store";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
@@ -34,12 +34,6 @@ export default async function SupplierLayout({
     !isPro && (it.href === "/app" || it.href === "/app/dashboard") ? { ...it, locked: true } : it,
   );
 
-  const brandMark = (
-    <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
-      <Flower2 size={17} />
-    </span>
-  );
-
   const header = (
     <>
       <div className="text-lg font-semibold text-slate-800">{supplier.farmName}</div>
@@ -51,7 +45,7 @@ export default async function SupplierLayout({
           <LifeBuoy size={16} /> Help center
         </Link>
         <NotificationBell notifs={notifs} />
-        <AccountButton label="SUP ID" id={supplier.id} profileHref="/app/profile" />
+        <AccountButton label="ID" id={supplier.code ?? supplier.id} profileHref="/app/profile" />
       </div>
     </>
   );
@@ -64,7 +58,7 @@ export default async function SupplierLayout({
   );
 
   return (
-    <PortalShell accent="pink" brand="Supplier" brandMark={brandMark} items={items} header={header} footer={footer}>
+    <PortalShell accent="pink" brand="Supplier" items={items} header={header} footer={footer}>
       {children}
     </PortalShell>
   );

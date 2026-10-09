@@ -188,7 +188,7 @@ export default function LogisticExportForm({
 
   function validate(): Errors {
     const e: Errors = {};
-    if (!batchId) e.batchId = "กรุณาเลือก Batch";
+    if (!batchId) e.batchId = "กรุณาเลือกล็อต";
     if (!weightKg || Number(weightKg) <= 0) e.weightKg = "กรุณาระบุน้ำหนักรวมบรรจุภัณฑ์";
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (shipType === "domestic") {
@@ -261,7 +261,7 @@ export default function LogisticExportForm({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3">
               <div className="space-y-4 border-slate-100 p-5 md:border-r">
-                <F label="Batch ID" value={batchId} />
+                <F label="รหัสล็อต" value={batchId} />
                 <F label="ชนิดดอกไม้" value={flowerType} />
                 <F label="พันธุ์ดอกไม้" value={variety} />
                 <F label="อายุดอกไม้หลังตัด" value={ageDays ? `${ageDays} วัน` : ""} />
@@ -326,11 +326,11 @@ export default function LogisticExportForm({
     <div className="max-w-3xl space-y-5">
       <Toast />
 
-      <Section title="ข้อมูลดอกไม้" sub="เลือก Batch ที่รับเข้ามาเพื่อบันทึกการจัดส่ง">
+      <Section title="ข้อมูลดอกไม้" sub="เลือกล็อตที่รับเข้ามาเพื่อบันทึกการจัดส่ง">
         <div>
-          <label className={labelCls}>Batch ที่ต้องการจัดส่ง{req}</label>
+          <label className={labelCls}>ล็อตที่ต้องการจัดส่ง{req}</label>
           <select value={batchId} onChange={(e) => onPickBatch(e.target.value)} className={`${inputCls} ${errs.batchId ? "border-[#ee443f]" : ""}`}>
-            <option value="">เลือก Batch</option>
+            <option value="">เลือกล็อต</option>
             {batches.map((b) => <option key={b.id} value={b.id}>{b.id} · {supById.get(b.supplierId)?.farmName ?? b.supplierId}</option>)}
           </select>
           <Err msg={errs.batchId} />
@@ -458,7 +458,7 @@ export default function LogisticExportForm({
         )}
       </Section>
 
-      {selectedBatch ? null : <p className="rounded-[8px] bg-blue-50 px-3 py-2 text-[13px] text-blue-700"><Package size={14} className="mr-1 inline" /> เลือก Batch ด้านบนเพื่อดึงข้อมูลดอกไม้และบรรจุภัณฑ์อัตโนมัติ</p>}
+      {selectedBatch ? null : <p className="rounded-[8px] bg-blue-50 px-3 py-2 text-[13px] text-blue-700"><Package size={14} className="mr-1 inline" /> เลือกล็อต ด้านบนเพื่อดึงข้อมูลดอกไม้และบรรจุภัณฑ์อัตโนมัติ</p>}
       {Object.values(errs).some(Boolean) ? <p className="rounded-[8px] bg-red-50 px-3 py-2 text-[13px] text-red-600">กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน</p> : null}
 
       <div className="flex justify-end gap-3">

@@ -7,7 +7,7 @@ import { quantityLabel, categoryLabel, categoryOf, harvestLabel } from "@/lib/pr
 import AutoPrint from "@/components/AutoPrint";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "พิมพ์ฉลาก QR · KLORA" };
+export const metadata = { title: "พิมพ์ฉลาก QR · Corta" };
 
 // Stand-alone label sheet (no portal shell, no modals) — opened in a new tab by the logistic
 // search screen, prints itself once every QR image has loaded. ?ids=BAT-…,BAT-…
@@ -57,7 +57,7 @@ export default async function PrintLabelsPage({ searchParams }: { searchParams: 
           return (
             <div className="label" key={b.id}>
               <div>
-                <div className="brand">KLORA</div>
+                <div className="brand">Corta</div>
                 <div className="farm">{s.farmName}</div>
                 <div className="row"><span className="tag">{categoryLabel(categoryOf(b))}</span>{b.variety || b.productType || s.flowerType}{b.grade ? ` · เกรด ${b.grade}` : ""}</div>
                 <div className="row"><b>จำนวน</b> {quantityLabel(b)}</div>

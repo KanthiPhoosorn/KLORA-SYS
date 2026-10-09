@@ -54,7 +54,7 @@ export default function KynOverviewSection({
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-500"><Leaf size={18} /></span>
             <div>
-              <h2 className="text-base font-semibold text-slate-800">ผลการคำนวณแต่ละ Batch</h2>
+              <h2 className="text-base font-semibold text-slate-800">ผลการคำนวณแต่ละล็อต</h2>
               <p className="mt-0.5 text-sm text-slate-500">data ที่ต้องคำนวณ (คาร์บอน + อายุ)</p>
             </div>
           </div>
@@ -62,7 +62,7 @@ export default function KynOverviewSection({
             <table className="w-full min-w-[620px] text-sm">
               <thead>
                 <tr className="bg-brand-purple-head text-white">
-                  <th className="px-4 py-3 text-left font-semibold">Batch ID</th>
+                  <th className="px-4 py-3 text-left font-semibold">รหัสล็อต</th>
                   <th className="px-4 py-3 text-left font-semibold">ชื่อฟาร์ม</th>
                   <th className="px-4 py-3 text-right font-semibold">จำนวน</th>
                   <th className="px-4 py-3 text-right font-semibold">ระยะทาง (กม.)</th>

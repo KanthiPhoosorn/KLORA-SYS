@@ -67,10 +67,10 @@ export default function ProLock({
             <li>✓ แดชบอร์ดคาร์บอน — สัดส่วนการปล่อย อันดับ และการเปรียบเทียบ</li>
             <li>✓ ประวัติการส่งออกย้อนหลังทั้งหมด</li>
           </ul>
-          <p>การเปิดใช้แพ็กเกจ Pro ทำโดยทีม KYN — แจ้ง SUP ID ของฟาร์มคุณผ่านช่องทางด้านล่าง ทีมงานจะเปิดให้ภายใน 1 วันทำการ</p>
+          <p>การเปิดใช้แพ็กเกจ Pro ทำโดยทีม KYN — แจ้ง ID ของฟาร์มคุณผ่านช่องทางด้านล่าง ทีมงานจะเปิดให้ภายใน 1 วันทำการ</p>
           <div className="space-y-2 text-sm">
             <a href={CONTACT.lineUrl} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><MessageCircle size={16} className="text-emerald-600" /> LINE Official: <b>{CONTACT.lineId}</b></a>
-            <a href={`mailto:${CONTACT.email}?subject=ขอเปิดแพ็กเกจ Pro KLORA`} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Mail size={16} className="text-blue-600" /> อีเมล: <b>{CONTACT.email}</b></a>
+            <a href={`mailto:${CONTACT.email}?subject=ขอเปิดแพ็กเกจ Pro Corta`} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Mail size={16} className="text-blue-600" /> อีเมล: <b>{CONTACT.email}</b></a>
             <a href={CONTACT.phoneHref} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Phone size={16} className="text-slate-500" /> โทร: <b>{CONTACT.phone}</b> ({CONTACT.hours})</a>
           </div>
         </div>

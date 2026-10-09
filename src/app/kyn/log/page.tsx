@@ -23,6 +23,7 @@ export default async function KynActionLogPage() {
   await requireRole("kyn");
   const [suppliers, batches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
   const supName = (id: string) => suppliers.find((s) => s.id === id)?.farmName ?? id;
+  const supCode = (id: string) => { const s = suppliers.find((x) => x.id === id); return s?.code ?? id; };
 
   const rows: LogRow[] = [];
 
@@ -41,7 +42,7 @@ export default async function KynActionLogPage() {
     rows.push({
       at: b.createdAt,
       actor: supName(b.supplierId),
-      actorSub: b.supplierId,
+      actorSub: supCode(b.supplierId),
       type: b.status === "computed" ? "คำนวณคาร์บอนแล้ว" : "ส่งข้อมูลรอบส่งออก",
       detail: `${b.id} · ${quantityLabel(b)} → ${b.destination ?? "—"}`,
       status: b.status === "computed" ? "คำนวณแล้ว" : "รอคำนวณ",
@@ -54,7 +55,7 @@ export default async function KynActionLogPage() {
       actor: p.printedBy || "ไปรษณีย์ไทย",
       actorSub: p.sortingPoint ?? "จุดคัดแยก",
       type: p.cancelled ? "ยกเลิกการพิมพ์ QR" : "พิมพ์ QR Code",
-      detail: `${p.batchId ?? p.supplierId} → ${p.destination ?? "—"}`,
+      detail: `${p.batchId ?? supCode(p.supplierId)} → ${p.destination ?? "—"}`,
       status: p.cancelled ? "ยกเลิกแล้ว" : "สำเร็จ",
       tone: p.cancelled ? "red" : "green",
     });

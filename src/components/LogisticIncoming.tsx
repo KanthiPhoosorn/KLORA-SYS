@@ -63,10 +63,10 @@ export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
       <Card className="p-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <label className={labelCls}>ค้นหา SUP ID หรือชื่อแหล่งผลิต</label>
+            <label className={labelCls}>ค้นหา ID หรือชื่อแหล่งผลิต</label>
             <div className="flex items-center gap-2 rounded-[8px] border border-gray-300 bg-white px-3">
               <Search size={16} className="text-slate-400" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="กรอก SUP ID ที่ต้องการค้นหา" className="w-full bg-transparent py-2.5 text-[13px] outline-none" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="กรอก ID ที่ต้องการค้นหา" className="w-full bg-transparent py-2.5 text-[13px] outline-none" />
             </div>
           </div>
           <div>
@@ -108,7 +108,7 @@ export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
             <thead>
               <tr className="bg-[#e9ebf8] text-center font-semibold text-slate-700">
                 <th className="rounded-l-lg px-5 py-3.5">วันที่รับข้อมูล</th>
-                <th className="px-5 py-3.5">Batch ID</th>
+                <th className="px-5 py-3.5">รหัสล็อต</th>
                 <th className="px-5 py-3.5">แหล่งผลิต</th>
                 <th className="px-5 py-3.5">อายุดอกไม้หลังตัด (วัน)</th>
                 <th className="px-5 py-3.5">จำนวนดอกไม้รับเข้า</th>

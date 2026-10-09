@@ -29,6 +29,7 @@ import type {
 
 export const suppliers = pgTable("suppliers", {
   id: text("id").primaryKey(),
+  code: text("code"), // CID-NNNN (older farms keep a SUP-… id; new farms have id = code)
   farmName: text("farm_name").notNull(),
   address: text("address").notNull(),
   province: text("province"),
@@ -91,7 +92,8 @@ export const appSettings = pgTable("app_settings", {
 });
 
 export const batches = pgTable("batches", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey(), // LOT-YYMM-NNNN
+  legacyId: text("legacy_id"), // BAT-… before the 9 Oct 2026 rename — old QR stickers
   supplierId: text("supplier_id").notNull(),
   flowerCount: integer("flower_count").notNull(),
   variety: text("variety"),
@@ -148,6 +150,7 @@ export const batches = pgTable("batches", {
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
+  orgCode: text("org_code"), // CID-NNNN for logistic organisations
   role: text("role").$type<UserRole>().notNull(),
   supplierId: text("supplier_id"),
   company: text("company"),

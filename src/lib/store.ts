@@ -26,8 +26,10 @@ import type {
   PackagingAsset,
 } from "./types";
 import {
-  nextSupplierId,
-  nextBatchId,
+  codeNumber,
+  formatCid,
+  formatLot,
+  formatPkg,
   nextUserId,
   nextPrintId,
   nextMemberId,
@@ -51,7 +53,6 @@ export async function saveFactors(value: unknown, userId: string): Promise<Facto
   return merged;
 }
 // --- Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน) ---------------------------
-const ASSET_PREFIX: Record<PackagingAsset["kind"], string> = { basket: "BSK", corrugated_box: "BOX", plastic_film: "PLF" };
 
 /** How many rounds reference each asset code (packaging_items[].assetId). */
 async function assetUseCounts(): Promise<Map<string, number>> {
@@ -80,13 +81,11 @@ export async function createPackagingAsset(input: {
   ownerSupplierId?: string; ownerLabel?: string; createdBy?: string;
 }): Promise<PackagingAsset> {
   const factors = await getFactors();
-  const year = new Date().getFullYear();
-  const prefix = `${ASSET_PREFIX[input.kind]}-${year}-`;
   for (let attempt = 0; attempt < 5; attempt++) {
-    const taken = await db.select({ id: packagingAssets.id }).from(packagingAssets).where(like(packagingAssets.id, `${prefix}%`));
-    const max = taken.reduce((m, r) => Math.max(m, Number(r.id.slice(prefix.length)) || 0), 0);
+    const taken = await db.select({ id: packagingAssets.id }).from(packagingAssets).where(like(packagingAssets.id, "PKG-%"));
+    const max = taken.reduce((m, r) => Math.max(m, codeNumber(r.id)), 0);
     const row = {
-      id: `${prefix}${String(max + 1 + attempt).padStart(5, "0")}`,
+      id: formatPkg(max + 1 + attempt),
       kind: input.kind,
       width: input.width ?? null, length: input.length ?? null, height: input.height ?? null,
       designLife: factors.reuseLife[input.kind],
@@ -170,22 +169,26 @@ export async function getSuppliers(): Promise<Supplier[]> {
 }
 
 export async function getSupplier(id: string): Promise<Supplier | null> {
-  const r = await db.select().from(suppliers).where(eq(suppliers.id, id)).limit(1);
+  const r = await db.select().from(suppliers).where(or(eq(suppliers.id, id), eq(suppliers.code, id))).limit(1);
   return r[0] ? clean<Supplier>(r[0]) : null;
+}
+
+/** Next CID running number — one sequence for farms and logistic organisations. */
+async function nextCidNumber(): Promise<number> {
+  const [s] = await db.select({ code: suppliers.code }).from(suppliers).where(sql`${suppliers.code} like 'CID-%'`).orderBy(desc(suppliers.code)).limit(1);
+  const [u] = await db.select({ code: users.orgCode }).from(users).where(sql`${users.orgCode} like 'CID-%'`).orderBy(desc(users.orgCode)).limit(1);
+  return Math.max(codeNumber(s?.code), codeNumber(u?.code)) + 1;
 }
 
 export async function addSupplier(input: SupplierInput): Promise<Supplier> {
   const now = new Date();
-  const ids = await db.select({ id: suppliers.id }).from(suppliers);
-  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
-  const row = {
-    ...input,
-    id: nextSupplierId(maxN, now.getUTCFullYear()),
-    status: "active" as const,
-    createdAt: now.toISOString(),
-  };
-  const [inserted] = await db.insert(suppliers).values(row).returning();
-  return clean<Supplier>(inserted);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = formatCid((await nextCidNumber()) + attempt);
+    const row = { ...input, id: code, code, status: "active" as const, createdAt: now.toISOString() };
+    const inserted = await db.insert(suppliers).values(row).onConflictDoNothing().returning();
+    if (inserted.length) return clean<Supplier>(inserted[0]);
+  }
+  throw new Error("สร้างรหัสองค์กรไม่สำเร็จ ลองใหม่อีกครั้ง");
 }
 
 export async function updateSupplier(
@@ -203,8 +206,9 @@ export async function getBatches(): Promise<Batch[]> {
   return rows.map((r) => clean<Batch>(r));
 }
 
+/** By LOT code, or by the pre-rename BAT id (old QR stickers, old links). */
 export async function getBatch(id: string): Promise<Batch | null> {
-  const r = await db.select().from(batches).where(eq(batches.id, id)).limit(1);
+  const r = await db.select().from(batches).where(or(eq(batches.id, id), eq(batches.legacyId, id))).limit(1);
   return r[0] ? clean<Batch>(r[0]) : null;
 }
 
@@ -220,11 +224,11 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
 
   const now = new Date();
   const entryDate = now.toISOString().slice(0, 10);
-  const ids = await db.select({ id: batches.id }).from(batches);
-  const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
+  const [last] = await db.select({ id: batches.id }).from(batches).where(sql`${batches.id} like 'LOT-%'`).orderBy(sql`substring(${batches.id} from 10)::int desc`).limit(1);
+  const lotNo = codeNumber(last?.id) + 1;
 
   const row = {
-    id: nextBatchId(maxN, now.getUTCFullYear()),
+    id: formatLot(lotNo, now),
     supplierId: input.supplierId,
     flowerCount: input.flowerCount,
     variety: input.variety,
@@ -424,7 +428,8 @@ export async function getUserByLogin(login: string): Promise<User | null> {
 export async function addUser(input: Omit<User, "id" | "createdAt">): Promise<User> {
   const ids = await db.select({ id: users.id }).from(users);
   const maxN = ids.reduce((mx, r) => Math.max(mx, trailingNum(r.id)), 0);
-  const row = { ...input, id: nextUserId(maxN), createdAt: new Date().toISOString() };
+  const orgCode = input.role === "logistic" && !input.orgCode ? formatCid(await nextCidNumber()) : input.orgCode;
+  const row = { ...input, orgCode, id: nextUserId(maxN), createdAt: new Date().toISOString() };
   const [inserted] = await db.insert(users).values(row).returning();
   return clean<User>(inserted);
 }
@@ -624,8 +629,9 @@ export async function clearOtp(email: string): Promise<void> {
 // --- Print logs (Thai Post → KYN Shipment/QR log) -------------------------
 
 export async function getPrints(): Promise<PrintLog[]> {
-  const rows = await db.select().from(prints);
-  return rows.map((r) => clean<PrintLog>(r));
+  const [rows, farms] = await Promise.all([db.select().from(prints), db.select({ id: suppliers.id, code: suppliers.code }).from(suppliers)]);
+  const code = new Map(farms.map((f) => [f.id, f.code ?? f.id]));
+  return rows.map((r) => ({ ...clean<PrintLog>(r), supplierCode: code.get(r.supplierId) ?? r.supplierId }));
 }
 
 export async function addPrint(

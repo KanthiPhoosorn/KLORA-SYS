@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Printer, Loader2, CheckCircle2, PackageSearch, Scissors, MapPin, ArrowRight, Package, Cloud, Calendar, Flower2, User } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -12,13 +12,16 @@ export default function ThaiPostConsole({
   suppliers,
   batches,
   prints,
+  initialQuery = "",
 }: {
   suppliers: Supplier[];
   batches: Batch[];
   prints: PrintLog[];
+  /** ?q= from the QR scan page — searched on load */
+  initialQuery?: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<Batch[] | null>(null); // null = not searched
   const [notFound, setNotFound] = useState(false);
   // Matches that exist but cannot be printed here: already printed (offer reprint) / not computed.
@@ -42,12 +45,14 @@ export default function ThaiPostConsole({
     [batches, activePrinted],
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (initialQuery) runSearch(); }, []);
   function runSearch() {
     const q = query.trim().toLowerCase();
     if (!q) { setResults(null); setNotFound(false); return; }
     const match = (b: Batch) => {
       const s = supById.get(b.supplierId);
-      return b.supplierId.toLowerCase().includes(q) || b.id.toLowerCase().includes(q) || (s?.farmName.toLowerCase().includes(q) ?? false);
+      return b.supplierId.toLowerCase().includes(q) || (s?.code ?? "").toLowerCase().includes(q) || b.id.toLowerCase().includes(q) || (b.legacyId ?? "").toLowerCase().includes(q) || (s?.farmName.toLowerCase().includes(q) ?? false);
     };
     const hits = printable.filter(match);
     setResults(hits);
@@ -96,7 +101,7 @@ export default function ThaiPostConsole({
           <img src="/figma/search-banner.webp" alt="" aria-hidden className="pointer-events-none absolute inset-0 h-full w-full object-cover object-right-bottom" />
           <div className="relative max-w-xl p-8">
             <h1 className="text-2xl font-bold leading-snug">
-              <span className="text-blue-700">ค้นหาด้วยชื่อ หรือ SUP ID</span><br />
+              <span className="text-blue-700">ค้นหาด้วยชื่อ หรือ ID</span><br />
               <span className="text-emerald-600">เพื่อจัดการพัสดุ</span>
             </h1>
             <div className="mt-5 flex gap-3">
@@ -151,14 +156,14 @@ export default function ThaiPostConsole({
                         <span className="grid size-11 place-items-center rounded-full bg-blue-50 text-blue-500"><User size={20} /></span>
                         <div>
                           <div className="font-semibold text-slate-900">{s?.farmName ?? "—"}</div>
-                          <div className="font-mono text-xs text-slate-400">{b.supplierId}</div>
+                          <div className="font-mono text-xs text-slate-400">{supById.get(b.supplierId)?.code ?? b.supplierId}</div>
                         </div>
                       </div>
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600"><Scissors size={13} /> {roundsBySup.get(b.supplierId) ?? 1} รอบการตัด</span>
                     </div>
 
                     <div className="mt-5 grid grid-cols-2 gap-4 text-sm">
-                      <div><div className="text-slate-400">เลข Batch (Batch No.)</div><div className="font-medium text-slate-800">{b.id}</div></div>
+                      <div><div className="text-slate-400">รหัสล็อต (LOT)</div><div className="font-medium text-slate-800">{b.id}</div></div>
                       <div><div className="text-slate-400">วันที่คาดว่าจะถึง</div><div className="font-medium text-slate-800">{thaiDateShort(eta)}</div></div>
                     </div>
 
@@ -187,8 +192,8 @@ export default function ThaiPostConsole({
                   {/* Right — QR */}
                   <div>
                     <div className="flex justify-between text-sm">
-                      <div><div className="text-slate-400">SUP ID</div><div className="font-medium text-slate-800">{b.supplierId}</div></div>
-                      <div><div className="text-slate-400">Batch ID</div><div className="font-medium text-slate-800">{b.id}</div></div>
+                      <div><div className="text-slate-400">ID</div><div className="font-medium text-slate-800">{supById.get(b.supplierId)?.code ?? b.supplierId}</div></div>
+                      <div><div className="text-slate-400">รหัสล็อต</div><div className="font-medium text-slate-800">{b.id}</div></div>
                     </div>
                     <div className="mt-3 grid place-items-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -206,7 +211,6 @@ export default function ThaiPostConsole({
             })}
 
             <div className="flex justify-end gap-3">
-              <button className="h-[42px] rounded-[8px] border border-blue-600 px-8 text-sm font-medium text-blue-600 hover:bg-blue-50">แก้ไขข้อมูล</button>
               <button onClick={() => setConfirmOpen(true)} className="inline-flex h-[42px] items-center gap-2 rounded-[8px] bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700"><Printer size={16} /> พิมพ์ฉลาก</button>
             </div>
           </div>

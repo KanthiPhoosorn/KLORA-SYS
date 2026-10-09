@@ -17,13 +17,13 @@ const rows = (file) => {
 };
 const q = (s) => JSON.stringify(s ?? "");
 
-const flowers = rows("thailand_cut_flowers_list.csv");
 
-// Fruit + vegetable master (KYN xlsx, 16 Sep 2026 — sheets ผลไม้ / ผัก; the ดอกไม้ sheet is a
-// re-spelled copy of the flower CSV and is intentionally NOT used so stored varieties keep matching).
+// Product master (KYN thailand_cut_flowers_list.xlsx, 8 Oct 2026 — sheets ดอกไม้ / ผลไม้ / ผัก).
+// The flower sheet replaced the older CSV list (Thai Post doc tab: "ข้อมูลดอกไม้ยังเป็นชุดเก่า").
 const XLSX = require("xlsx");
 const wb = XLSX.readFile(path.join(dir, "produce_master.xlsx"));
-const sheetRows = (name) => XLSX.utils.sheet_to_json(wb.Sheets[name]);
+const sheetRows = (name) => XLSX.utils.sheet_to_json(wb.Sheets[name]).filter((r) => r.Type_TH && r.Variant_TH);
+const flowers = sheetRows("ดอกไม้");
 const produce = [
   ...sheetRows("ผลไม้").map((r) => ({ ...r, cat: "fruit" })),
   ...sheetRows("ผัก").map((r) => ({ ...r, cat: "vegetable" })),

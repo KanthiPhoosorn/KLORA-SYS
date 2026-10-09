@@ -1,5 +1,5 @@
 // Consumer-safe traceability summary of one batch — the payload a partner app (e.g. the
-// Thai Post Super App "My Item" order detail) would pull from KLORA. No account PII: farm name,
+// Thai Post Super App "My Item" order detail) would pull from Corta. No account PII: farm name,
 // province and certifications only. Shared by GET /api/trace/[id] and the /superapp prototype.
 import type { Batch, Supplier } from "./types";
 import {

@@ -1,5 +1,5 @@
 // "Sign in with Google" — plain OAuth 2.0 authorization-code flow, no SDK.
-// Identity only: Google tells us a verified email, and we sign in the EXISTING KLORA
+// Identity only: Google tells us a verified email, and we sign in the EXISTING Corta
 // account with that email (a farm needs its full profile, so accounts are never
 // auto-created here). Needs GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET.
 //

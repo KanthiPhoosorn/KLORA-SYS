@@ -107,7 +107,7 @@ export default function SupManager({
   );
   const supRows = suppliers.filter(
     (s) =>
-      (!supId || s.id.toLowerCase().includes(supId.toLowerCase())) &&
+      (!supId || `${s.id} ${s.code ?? ""}`.toLowerCase().includes(supId.toLowerCase())) &&
       (farm === "all" || s.farmName === farm),
   );
 
@@ -260,8 +260,8 @@ export default function SupManager({
           {/* Filters */}
           <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">SUP ID</label>
-              <input value={supId} onChange={(e) => setSupId(e.target.value)} placeholder="SUP - 00214" className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none focus:border-brand-purple" />
+              <label className="mb-1.5 block text-[13px] font-medium text-slate-600">ID</label>
+              <input value={supId} onChange={(e) => setSupId(e.target.value)} placeholder="CID-0001" className="w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none focus:border-brand-purple" />
             </div>
             <div>
               <label className="mb-1.5 block text-[13px] font-medium text-slate-600">ชื่อฟาร์ม</label>
@@ -284,7 +284,7 @@ export default function SupManager({
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="bg-brand-purple-head">
-                    <th className={th}>SUP ID</th>
+                    <th className={th}>ID</th>
                     <th className={th}>แหล่งผลิต</th>
                     <th className={th}>จังหวัด</th>
                     <th className={th}>ขนส่ง</th>
@@ -297,7 +297,7 @@ export default function SupManager({
                     <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">ไม่พบผู้ผลิต</td></tr>
                   ) : supRows.map((s) => (
                     <tr key={s.id} onClick={() => setEditSup(s)} className="cursor-pointer border-b border-slate-50 text-center last:border-0 hover:bg-slate-50">
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.id}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.code ?? s.id}</td>
                       <td className="px-5 py-3.5 text-slate-800">{s.farmName}</td>
                       <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
                       <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>

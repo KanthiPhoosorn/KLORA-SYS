@@ -49,7 +49,7 @@ export default function IncomingConsole({
       .filter(({ b, s, st }) =>
         (statusF === "all" || st.key === statusF) &&
         (days === 0 || now - new Date(b.entryDate).getTime() <= days * 86400000) &&
-        (!q || b.supplierId.toLowerCase().includes(q.toLowerCase()) || (s?.farmName ?? "").includes(q)),
+        (!q || b.supplierId.toLowerCase().includes(q.toLowerCase()) || (s?.code ?? "").toLowerCase().includes(q.toLowerCase()) || b.id.toLowerCase().includes(q.toLowerCase()) || (s?.farmName ?? "").includes(q)),
       );
   }, [batches, supById, q, statusF, periodF]);
 
@@ -67,8 +67,8 @@ export default function IncomingConsole({
     // Prefer the stored engine breakdown (incl. air freight + inner packaging); fall back to the legacy estimate.
     const cb = open.carbonBreakdown;
     const bd = cb && cb.total > 0
-      ? (() => { const p = (n: number) => Math.round((n / cb.total) * 100); return { transport: cb.transport, planting: cb.farm, basket: cb.packaging, total: cb.total, air: cb.air ?? 0, inner: cb.innerPackaging ?? 0, pct: { transport: p(cb.transport), planting: p(cb.farm), basket: p(cb.packaging) } }; })()
-      : { ...sourceBreakdown([open], (id) => supById.get(id), (id) => reuse.get(id) ?? 0), air: 0, inner: 0 };
+      ? (() => { const p = (n: number) => Math.round((n / cb.total) * 1000) / 10; return { transport: cb.transport, planting: cb.farm, basket: cb.packaging, total: cb.total, air: cb.air ?? 0, inner: cb.innerPackaging ?? 0, pct: { transport: p(cb.transport), planting: p(cb.farm), basket: p(cb.packaging) } }; })()
+      : (() => { const sb = sourceBreakdown([open], (id) => supById.get(id), (id) => reuse.get(id) ?? 0); const p = (n: number) => (sb.total > 0 ? Math.round((n / sb.total) * 1000) / 10 : 0); return { ...sb, air: 0, inner: 0, pct: { transport: p(sb.transport), planting: p(sb.planting), basket: p(sb.basket) } }; })();
     const print = prints.find((p) => p.batchId === open.id && !p.cancelled);
     return { perFlower, total, bd, print };
   }, [open, openSup, reuseBySup, supById, prints]);
@@ -90,10 +90,10 @@ export default function IncomingConsole({
       {/* Filters */}
       <div className="grid gap-4 sm:grid-cols-[1.6fr_1fr_1fr]">
         <div>
-          <label className="mb-1.5 block text-[13px] font-medium text-slate-600">ค้นหา SUP ID หรือชื่อแหล่งผลิต</label>
+          <label className="mb-1.5 block text-[13px] font-medium text-slate-600">ค้นหา ID หรือชื่อแหล่งผลิต</label>
           <div className="flex items-center gap-2 rounded-[8px] border border-gray-300 bg-white px-3">
             <Search size={16} className="text-slate-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="กรอก SUP ID ที่ต้องการค้นหา" className="w-full bg-transparent py-2.5 text-[13px] outline-none" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="กรอก ID ที่ต้องการค้นหา" className="w-full bg-transparent py-2.5 text-[13px] outline-none" />
           </div>
         </div>
         <div>
@@ -121,7 +121,7 @@ export default function IncomingConsole({
           <thead>
             <tr className="bg-brand-purple-head text-white">
               <th className={th}>วันที่รับข้อมูล</th>
-              <th className={th}>SUP ID</th>
+              <th className={th}>ID</th>
               <th className={th}>แหล่งผลิต</th>
               <th className={th}>วันที่ตัดดอก</th>
               <th className="px-4 py-3 text-right font-semibold">จำนวน</th>
@@ -134,7 +134,7 @@ export default function IncomingConsole({
             ) : rows.map(({ b, s, st }) => (
               <tr key={b.id} onClick={() => setOpenId(b.id)} className="cursor-pointer border-b border-slate-50 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.entryDate)}</td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-600">{b.supplierId}</td>
+                <td className="px-4 py-3 font-mono text-xs text-slate-600">{supById.get(b.supplierId)?.code ?? b.supplierId}</td>
                 <td className="px-4 py-3 text-slate-700">{s?.farmName ?? "—"}</td>
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.cutDate)}</td>
                 <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
@@ -162,7 +162,7 @@ export default function IncomingConsole({
           <aside className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-[440px] flex-col overflow-y-auto bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-5">
               <div>
-                <div className="flex items-center gap-2"><span className="text-[13px] font-semibold text-slate-500">SUP ID</span><span className="font-mono text-[15px] font-bold text-slate-900">{open.supplierId}</span></div>
+                <div className="flex items-center gap-2"><span className="text-[13px] font-semibold text-slate-500">ID</span><span className="font-mono text-[15px] font-bold text-slate-900">{openSup.code ?? open.supplierId}</span></div>
                 <div className="mt-1 flex items-center gap-2 text-[13px]"><span className="text-slate-400">แหล่งผลิต</span><span className="text-slate-700">{openSup.farmName}</span></div>
               </div>
               <button onClick={() => setOpenId(null)} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={18} /></button>
@@ -197,7 +197,7 @@ export default function IncomingConsole({
                     ["ปลายทาง", open.destination || "—"],
                     ...(open.destinationAddress ? [["ที่อยู่ปลายทาง", open.destinationAddress]] : []),
                     ...(open.destLat != null && open.destLng != null ? [["พิกัดปลายทาง", `${open.destLat.toFixed(4)}, ${open.destLng.toFixed(4)}`]] : []),
-                    ["Batch ID", open.id],
+                    ["รหัสล็อต", open.id],
                     ["QR Code", detail.print ? detail.print.id : "ยังไม่พิมพ์"],
                   ].map(([k, v]) => (
                     <div key={k} className="flex items-center justify-between py-2">
@@ -235,7 +235,7 @@ export default function IncomingConsole({
                     { label: "บรรจุภัณฑ์", pct: detail.bd.pct.basket, color: "bg-emerald-500", note: detail.bd.inner > 0 ? `รวมวัสดุภายในกล่อง ${detail.bd.inner.toFixed(2)} kg CO₂e` : "" },
                   ].map((a) => (
                     <div key={a.label}>
-                      <div className="flex items-center justify-between text-[13px]"><span className="font-medium text-slate-700">{a.label}</span><span className="tabular text-slate-500">{a.pct}%</span></div>
+                      <div className="flex items-center justify-between text-[13px]"><span className="font-medium text-slate-700">{a.label}</span><span className="tabular text-slate-500">{a.pct.toFixed(1)}%</span></div>
                       {a.note ? <p className="text-[11px] text-slate-400">{a.note}</p> : null}
                       <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${a.color}`} style={{ width: `${Math.max(a.pct, 2)}%` }} /></div>
                     </div>

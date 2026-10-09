@@ -16,7 +16,7 @@ const CAT_TONE: Record<string, string> = { flower: "bg-pink-100 text-pink-700", 
 const CAT_EMOJI: Record<string, string> = { flower: "🌷", fruit: "🥭", vegetable: "🥬" };
 const RIPE_TONE: Record<string, string> = { unripe: "bg-lime-100 text-lime-800", turning: "bg-amber-100 text-amber-800", ripe: "bg-emerald-100 text-emerald-800", overripe: "bg-rose-100 text-rose-800" };
 
-// A neutral, unbranded "super app" phone mock. Everything under "รายละเอียดสินค้า" is real KLORA
+// A neutral, unbranded "super app" phone mock. Everything under "รายละเอียดสินค้า" is real Corta
 // data (TraceSummary) — the rest (menu, orders, prices) is illustrative.
 export default function SuperAppPrototype({ orders }: { orders: DemoOrder[] }) {
   const [screen, setScreen] = useState<Screen>({ name: "home" });
@@ -128,7 +128,7 @@ export default function SuperAppPrototype({ orders }: { orders: DemoOrder[] }) {
               </div>
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700"><Leaf size={12} /> ข้อมูลจากระบบ KLORA</div>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700"><Leaf size={12} /> ข้อมูลจากระบบ Corta</div>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   <div><div className="text-[11px] text-slate-500">{t.dates.ageLabel}</div><div className="text-xl font-bold text-slate-900">{t.dates.daysSinceHarvest} วัน</div></div>
                   {t.freshness.ripenessLabel ? <div><div className="text-[11px] text-slate-500">ระยะการสุกตอนนี้</div><span className={`mt-0.5 inline-block rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${RIPE_TONE[t.freshness.ripeness!]}`}>{t.freshness.ripenessLabel}</span></div>

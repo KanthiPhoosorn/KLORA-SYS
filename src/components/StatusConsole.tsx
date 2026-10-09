@@ -92,15 +92,15 @@ export default function StatusConsole({
       <section className="space-y-3">
         <div className="flex items-center gap-2 rounded-[5px] border border-gray-300 bg-white px-3 sm:max-w-sm">
           <Search size={16} className="text-slate-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา SUP ID / Batch" className="w-full bg-transparent py-2 text-[13px] outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา ID / รหัสล็อต" className="w-full bg-transparent py-2 text-[13px] outline-none" />
         </div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-blue-600 text-left font-semibold text-white">
                 <th className="px-5 py-3">เวลาพิมพ์</th>
-                <th className="px-5 py-3">SUP ID</th>
-                <th className="px-5 py-3">Batch ID</th>
+                <th className="px-5 py-3">ID</th>
+                <th className="px-5 py-3">รหัสล็อต</th>
                 <th className="px-5 py-3">ปลายทาง</th>
                 <th className="px-5 py-3 text-right">จัดการ</th>
               </tr>
@@ -111,7 +111,7 @@ export default function StatusConsole({
               ) : printRows.map((p) => (
                 <tr key={p.id} className={`border-b border-slate-50 last:border-0 ${p.cancelled ? "opacity-50" : ""}`}>
                   <td className="px-5 py-3 text-slate-600">{thaiDateTime(p.printedAt)}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{p.supplierId}</td>
+                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{p.supplierCode ?? p.supplierId}</td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.batchId ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-700">{p.destination ?? "—"}</td>
                   <td className="px-5 py-3 text-right">
@@ -144,7 +144,7 @@ export default function StatusConsole({
             <thead>
               <tr className="bg-blue-600 text-left font-semibold text-white">
                 <th className="px-5 py-3">วันที่จัดส่ง</th>
-                <th className="px-5 py-3">Batch ID</th>
+                <th className="px-5 py-3">รหัสล็อต</th>
                 <th className="px-5 py-3">ฟาร์ม</th>
                 <th className="px-5 py-3">การจัดส่ง</th>
                 <th className="px-5 py-3 text-right">จำนวน</th>

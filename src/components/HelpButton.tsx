@@ -20,7 +20,7 @@ export default function HelpButton({ compact }: { compact?: boolean }) {
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="ติดต่อแอดมิน · ขอคำแนะนำ">
         <p className="text-sm text-slate-600">
-          หากระบบมีปัญหาหรือต้องการคำแนะนำ ติดต่อทีมงาน KLORA ได้ตามช่องทางด้านล่าง
+          หากระบบมีปัญหาหรือต้องการคำแนะนำ ติดต่อทีมงาน Corta ได้ตามช่องทางด้านล่าง
         </p>
         <div className="mt-4 space-y-2 text-sm">
           <a href={CONTACT.lineUrl} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50">

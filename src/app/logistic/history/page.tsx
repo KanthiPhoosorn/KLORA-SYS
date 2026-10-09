@@ -24,7 +24,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
     .sort((a, b) => b.printedAt.localeCompare(a.printedAt))
     .map((p) => ({
       id: p.id,
-      supplierId: p.supplierId,
+      supplierId: p.supplierCode ?? p.supplierId, // shown/searched as the farm CID
       printedAtIso: p.printedAt,
       batchId: p.batchId ?? p.supplierId,
       destination: p.destination ?? "—",

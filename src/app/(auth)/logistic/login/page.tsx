@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Box } from "lucide-react";
 import LoginForm from "@/components/LoginForm";
 
-export const metadata = { title: "เข้าสู่ระบบ · Logistic · KLORA" };
+export const metadata = { title: "เข้าสู่ระบบ · Logistic · Corta" };
 
 // Logistic portal login — blue-themed variant of the shared login (matches the Figma Logistic auth frame).
 // Lives in the (auth) group so it is NOT wrapped by the guarded /logistic portal layout.
@@ -12,10 +11,9 @@ export default function LogisticLoginPage() {
       {/* Top bar */}
       <header className="flex h-[70px] shrink-0 items-center justify-between border-b border-gray-100 px-6 lg:px-10">
         <Link href="/logistic/login" className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-emerald-400 to-brand-blue text-white">
-            <Box size={17} />
-          </span>
-          <span className="text-lg font-bold text-brand-blue">Logistic</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
+          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-brand-blue">Logistic</span>
         </Link>
         <div className="flex items-center gap-5 text-sm text-slate-600">
           <span className="h-6 w-px bg-gray-200" />
@@ -35,7 +33,7 @@ export default function LogisticLoginPage() {
             <p className="mt-5 max-w-md text-[15px] leading-relaxed text-slate-500">
               จัดการการจัดส่งดอกไม้ตั้งแต่ต้นทาง
               <br />
-              พร้อมติดตามข้อมูลในทุกขั้นตอนกับ KLORA
+              พร้อมติดตามข้อมูลในทุกขั้นตอนกับ Corta
             </p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}

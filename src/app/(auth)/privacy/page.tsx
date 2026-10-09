@@ -2,8 +2,8 @@ import Link from "next/link";
 import { CONTACT } from "@/lib/contact";
 
 export const metadata = {
-  title: "นโยบายความเป็นส่วนตัว · KLORA",
-  description: "ข้อมูลที่ KLORA เก็บ ใช้ทำอะไร แชร์ให้ใคร และสิทธิ์ของผู้ใช้ตาม PDPA",
+  title: "นโยบายความเป็นส่วนตัว · Corta",
+  description: "ข้อมูลที่ Corta เก็บ ใช้ทำอะไร แชร์ให้ใคร และสิทธิ์ของผู้ใช้ตาม PDPA",
 };
 
 // Public privacy notice (PDPA) — also the Privacy Policy URL registered with Google for
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white">
       <header className="flex h-[70px] items-center justify-between border-b border-gray-100 px-6 lg:px-10">
-        <Link href="/login" className="text-lg font-extrabold tracking-tight text-brand-pink">KLORA</Link>
+        <Link href="/login" className="text-lg font-extrabold tracking-tight text-brand-pink">Corta</Link>
         <Link href="/login" className="text-sm text-slate-600 hover:text-brand-pink">เข้าสู่ระบบ</Link>
       </header>
 
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         <p className="mt-2 text-sm text-slate-500">ปรับปรุงล่าสุด 14 กันยายน 2569</p>
 
         <P>
-          KLORA เป็นระบบติดตามคาร์บอนฟุตพรินต์ของการขนส่งดอกไม้ตัด ใช้งานร่วมกันระหว่างแหล่งผลิต (ฟาร์ม)
+          Corta เป็นระบบติดตามคาร์บอนฟุตพรินต์ของการขนส่งดอกไม้ตัด ใช้งานร่วมกันระหว่างแหล่งผลิต (ฟาร์ม)
           ผู้ให้บริการขนส่ง และผู้ดำเนินการ KYN โดยเข้าใช้ได้ที่ corta.tech หน้านี้อธิบายว่าเราเก็บข้อมูลอะไรบ้าง
           เอาไปใช้ทำอะไร ส่งต่อให้ใคร และคุณมีสิทธิ์อะไรกับข้อมูลของตัวเองตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล
           พ.ศ. 2562 (PDPA)
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
           <><b>ข้อมูลแหล่งผลิต</b> — ชื่อฟาร์ม ที่อยู่ จังหวัด พิกัด GPS ชื่อผู้ติดต่อ LINE ID ชนิดและพันธุ์ดอกไม้ และตัวเลขการใช้ทรัพยากรรายเดือน (น้ำมัน ไฟฟ้า ปุ๋ย สารเคมี น้ำ ของเสีย ปริมาณผลผลิต)</>,
           <><b>ข้อมูลรอบส่งออก</b> — วันตัด จำนวนดอก บรรจุภัณฑ์ น้ำหนัก ปลายทาง ระยะทาง ยานพาหนะ สถานะขนส่ง และผลคำนวณคาร์บอน</>,
           <><b>ข้อมูลองค์กรขนส่ง</b> — ชื่อบริษัท สาขา และประวัติการพิมพ์ QR</>,
-          <><b>เมื่อเข้าสู่ระบบด้วย Google</b> — เราได้รับเฉพาะอีเมลและชื่อที่แสดงจากบัญชี Google ของคุณ เพื่อจับคู่กับบัญชี KLORA ที่มีอยู่แล้วเท่านั้น เราไม่ขอสิทธิ์เข้าถึง Gmail, Drive, รายชื่อติดต่อ หรือข้อมูลอื่นใด และไม่สร้างบัญชีใหม่ให้โดยอัตโนมัติ</>,
+          <><b>เมื่อเข้าสู่ระบบด้วย Google</b> — เราได้รับเฉพาะอีเมลและชื่อที่แสดงจากบัญชี Google ของคุณ เพื่อจับคู่กับบัญชี Corta ที่มีอยู่แล้วเท่านั้น เราไม่ขอสิทธิ์เข้าถึง Gmail, Drive, รายชื่อติดต่อ หรือข้อมูลอื่นใด และไม่สร้างบัญชีใหม่ให้โดยอัตโนมัติ</>,
           <><b>ข้อมูลทางเทคนิค</b> — คุกกี้สำหรับจดจำการเข้าสู่ระบบ และหมายเลข IP ซึ่งใช้จำกัดจำนวนครั้งของการพยายามเข้าสู่ระบบและขอรหัส OTP เพื่อป้องกันการโจมตี</>,
         ]} />
 
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
 
         <H>5. สิทธิ์ของคุณ</H>
         <P>ตาม PDPA คุณมีสิทธิ์ขอเข้าถึง ขอสำเนา แก้ไข ลบ หรือระงับการใช้ข้อมูลของคุณ รวมถึงถอนความยินยอมได้ทุกเมื่อ ข้อมูลบัญชีและข้อมูลฟาร์มส่วนใหญ่แก้ไขได้เองในหน้าโปรไฟล์และหน้าข้อมูลฟาร์ม ส่วนคำขออื่นติดต่อเราตามช่องทางด้านล่าง</P>
-        <P>หากคุณเข้าสู่ระบบด้วย Google คุณสามารถถอนสิทธิ์ที่ให้ KLORA ได้ที่ myaccount.google.com/permissions โดยบัญชี KLORA ของคุณจะยังใช้ได้ด้วยรหัสผ่านตามปกติ</P>
+        <P>หากคุณเข้าสู่ระบบด้วย Google คุณสามารถถอนสิทธิ์ที่ให้ Corta ได้ที่ myaccount.google.com/permissions โดยบัญชี Corta ของคุณจะยังใช้ได้ด้วยรหัสผ่านตามปกติ</P>
 
         <H>6. ความปลอดภัย</H>
         <P>การเชื่อมต่อทั้งหมดเข้ารหัสด้วย HTTPS รหัสผ่านเก็บแบบแฮช (scrypt) คุกกี้เข้าสู่ระบบเป็นแบบ httpOnly และมีลายเซ็นป้องกันการปลอมแปลง การเข้าถึงข้อมูลผ่าน API ทุกจุดต้องผ่านการยืนยันตัวตนและตรวจสิทธิ์ตามบทบาท</P>
@@ -87,11 +87,11 @@ export default function PrivacyPage() {
         <P>หากมีการเปลี่ยนแปลงสำคัญ เราจะแจ้งผ่านอีเมลที่ลงทะเบียนไว้หรือประกาศในระบบ และปรับวันที่ "ปรับปรุงล่าสุด" ด้านบน</P>
 
         <H>9. ติดต่อเรา</H>
-        <P>ทีมงาน KLORA — อีเมล {CONTACT.email} · LINE {CONTACT.lineId} · โทร {CONTACT.phone} ({CONTACT.hours}) หรือปุ่ม "ช่วยเหลือ" ภายในระบบ</P>
+        <P>ทีมงาน Corta — อีเมล {CONTACT.email} · LINE {CONTACT.lineId} · โทร {CONTACT.phone} ({CONTACT.hours}) หรือปุ่ม "ช่วยเหลือ" ภายในระบบ</P>
       </main>
 
       <footer className="border-t border-gray-100 px-6 py-6 text-center text-xs text-slate-400">
-        © 2569 KLORA · <Link href="/privacy" className="hover:text-slate-600">นโยบายความเป็นส่วนตัว</Link>
+        © 2569 Corta · <Link href="/privacy" className="hover:text-slate-600">นโยบายความเป็นส่วนตัว</Link>
       </footer>
     </div>
   );

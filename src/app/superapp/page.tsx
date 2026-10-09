@@ -4,10 +4,10 @@ import SuperAppPrototype, { type DemoOrder } from "@/components/SuperAppPrototyp
 import { headers } from "next/headers";
 import Link from "next/link";
 
-export const metadata = { title: "Super App Prototype · KLORA" };
+export const metadata = { title: "Super App Prototype · Corta" };
 export const dynamic = "force-dynamic";
 
-// Demo orders for the 18 Sep walkthrough: each order line points at a REAL KLORA batch, so the
+// Demo orders for the 18 Sep walkthrough: each order line points at a REAL Corta batch, so the
 // "รายละเอียดสินค้า" screen shows live traceability data through the same JSON a partner app
 // would call (GET /api/trace/[batchId]). Missing batches are skipped so the page never breaks.
 const DEMO_ORDERS: { orderNo: string; date: string; status: string; items: { batchId: string; qty: string; price: number }[] }[] = [
@@ -39,9 +39,9 @@ export default async function SuperAppPage() {
     <div className="min-h-screen bg-slate-100">
       <header className="flex h-[60px] items-center justify-between border-b border-slate-200 bg-white px-6">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-extrabold tracking-tight text-brand-pink">KLORA</span>
+          <span className="text-lg font-extrabold tracking-tight text-brand-pink">Corta</span>
           <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">ต้นแบบ · Prototype</span>
-          <span className="hidden text-sm text-slate-500 sm:inline">แนวคิดการแสดงข้อมูล KLORA ใน Super App ของพันธมิตรขนส่ง</span>
+          <span className="hidden text-sm text-slate-500 sm:inline">แนวคิดการแสดงข้อมูล Corta ใน Super App ของพันธมิตรขนส่ง</span>
         </div>
         <Link href="/superapp/concept" className="text-sm font-medium text-brand-pink hover:underline">แนวคิดการเชื่อมข้อมูล →</Link>
       </header>
@@ -53,10 +53,10 @@ export default async function SuperAppPage() {
             <li>ลูกค้าเปิด Super App → เมนู <b>ของสด / ดอกไม้</b></li>
             <li><b>My Item</b> → รายการสั่งซื้อของตัวเอง</li>
             <li>เลือกสินค้าในออเดอร์ → <b>รายละเอียดสินค้า</b></li>
-            <li>แอปเรียก <code className="rounded bg-slate-200 px-1 text-[12px]">GET /api/trace/&lt;batchId&gt;</code> ของ KLORA แล้วแสดงแหล่งผลิต วันเก็บเกี่ยว อายุ ระยะการสุก CO₂e และใบรับรอง — ข้อมูลชุดเดียวกับที่สแกน QR</li>
+            <li>แอปเรียก <code className="rounded bg-slate-200 px-1 text-[12px]">GET /api/trace/&lt;batchId&gt;</code> ของ Corta แล้วแสดงแหล่งผลิต วันเก็บเกี่ยว อายุ ระยะการสุก CO₂e และใบรับรอง — ข้อมูลชุดเดียวกับที่สแกน QR</li>
           </ol>
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
-            หน้าจอนี้เป็นภาพจำลองเพื่อคุยแนวทางกับทีม Super App / Interface เท่านั้น — ไม่ใช่แอปจริงของไปรษณีย์ไทย ข้อมูลสินค้าในหน้ารายละเอียดดึงจากระบบ KLORA จริง
+            หน้าจอนี้เป็นภาพจำลองเพื่อคุยแนวทางกับทีม Super App / Interface เท่านั้น — ไม่ใช่แอปจริงของไปรษณีย์ไทย ข้อมูลสินค้าในหน้ารายละเอียดดึงจากระบบ Corta จริง
           </p>
           <p className="text-[13px] text-slate-500">ข้อมูลตัวอย่าง: มะม่วง / คะน้า / กล้วย จากสวนดอยฝาง และกุหลาบจากสวนดอยแม่สลอง</p>
         </aside>

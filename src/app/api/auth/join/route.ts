@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInviteByToken, getUserByLogin, getUsers, addUser, addMember, updateInvite, getSupplier, addNotification } from "@/lib/store";
-import { KYN_ORG } from "@/lib/api-guard";
+import { KYN_ORG, isFarmOrg } from "@/lib/api-guard";
 import { hashPassword, setSessionCookie, homeForRole } from "@/lib/auth";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { UserRole } from "@/lib/types";
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   if (password.length < 8) return NextResponse.json({ error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร" }, { status: 400 });
   if (password !== confirm) return NextResponse.json({ error: "รหัสผ่านและการยืนยันไม่ตรงกัน" }, { status: 400 });
   if (await getUserByLogin(invite.email)) {
-    return NextResponse.json({ error: "อีเมลนี้มีบัญชี KLORA อยู่แล้ว กรุณาเข้าสู่ระบบ" }, { status: 409 });
+    return NextResponse.json({ error: "อีเมลนี้มีบัญชี Corta อยู่แล้ว กรุณาเข้าสู่ระบบ" }, { status: 409 });
   }
   if (await getUserByLogin(username)) {
     return NextResponse.json({ error: "ชื่อผู้ใช้นี้ถูกใช้แล้ว" }, { status: 409 });
@@ -44,7 +44,8 @@ export async function POST(req: Request) {
   let supplierId: string | undefined = invite.supplierId;
   let company: string | undefined;
   let branch: string | undefined;
-  if (invite.supplierId.startsWith("SUP-")) {
+  let orgCode: string | undefined;
+  if (isFarmOrg(invite.supplierId)) {
     if (!(await getSupplier(invite.supplierId))) return NextResponse.json({ error: "ไม่พบองค์กรที่เชิญ" }, { status: 404 });
   } else if (invite.supplierId === KYN_ORG) {
     role = "kyn";
@@ -56,13 +57,14 @@ export async function POST(req: Request) {
     supplierId = inviter.supplierId;
     company = inviter.company;
     branch = inviter.branch;
+    orgCode = inviter.orgCode; // same organisation → same CID
   }
 
   const { hash, salt } = hashPassword(password);
-  const user = await addUser({ role, supplierId, company, branch, email: invite.email, username, passwordHash: hash, salt });
+  const user = await addUser({ role, supplierId, company, branch, orgCode, email: invite.email, username, passwordHash: hash, salt });
   await addMember({ supplierId: invite.supplierId, name: username, email: invite.email, role: invite.role, lastActiveAt: new Date().toISOString() });
   await updateInvite(invite.id, "accepted");
-  if (invite.supplierId.startsWith("SUP-")) {
+  if (isFarmOrg(invite.supplierId)) {
     await addNotification({ supplierId: invite.supplierId, kind: "success", title: "สมาชิกใหม่เข้าร่วมทีม", body: `${username} (${invite.email}) ตอบรับคำเชิญแล้ว` });
   }
   await setSessionCookie(user.id);

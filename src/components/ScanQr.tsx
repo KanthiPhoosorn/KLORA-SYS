@@ -16,14 +16,15 @@ export default function ScanQr() {
     if (on) {
       navigator.mediaDevices?.getUserMedia({ video: { facingMode: "environment" } })
         .then((s) => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
-        .catch(() => setErr("ไม่สามารถเข้าถึงกล้องได้ — กรุณาระบุ SUP ID ด้วยตนเอง"));
+        .catch(() => setErr("ไม่สามารถเข้าถึงกล้องได้ — กรุณาระบุ ID ด้วยตนเอง"));
     }
     return () => { stream?.getTracks().forEach((t) => t.stop()); };
   }, [on]);
 
   function go(e: React.FormEvent) {
     e.preventDefault();
-    const id = code.trim();
+    // a pasted QR link (corta.tech/t/LOT-… or /trace/BAT-…) → just the code
+    const id = code.trim().replace(/^.*\/(?:t|trace)\//, "").replace(/[?#].*$/, "");
     if (id) router.push(`/logistic/search?q=${encodeURIComponent(id)}`);
   }
 
@@ -31,7 +32,7 @@ export default function ScanQr() {
     <div className="mx-auto max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">สแกน QR Code</h1>
-        <p className="mt-0.5 text-[13px] text-slate-400">สแกน QR บนพัสดุ หรือระบุ SUP ID เพื่อค้นหา</p>
+        <p className="mt-0.5 text-[13px] text-slate-400">สแกน QR บนพัสดุ หรือระบุ ID เพื่อค้นหา</p>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
@@ -60,7 +61,7 @@ export default function ScanQr() {
       <form onSubmit={go} className="flex gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         <div className="flex flex-1 items-center gap-2 px-3">
           <Search size={18} className="text-slate-400" />
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ระบุ SUP ID เช่น SUP-2026-0002" className="w-full bg-transparent py-2 text-sm outline-none" />
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ระบุรหัสล็อต เช่น LOT-2610-0001 หรือ ID ฟาร์ม CID-0001" className="w-full bg-transparent py-2 text-sm outline-none" />
         </div>
         <button type="submit" className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">ค้นหา</button>
       </form>

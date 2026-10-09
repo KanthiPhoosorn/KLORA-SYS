@@ -16,7 +16,7 @@ export default function TopBar({
         <div className="flex min-w-0 items-center gap-3">
           {left ?? (
             <Link href="/" className="text-lg font-extrabold tracking-tight text-pink-500">
-              KLORA
+              Corta
             </Link>
           )}
         </div>

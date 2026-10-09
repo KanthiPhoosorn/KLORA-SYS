@@ -1,4 +1,4 @@
-import { Bell, BarChart3 } from "lucide-react";
+import { Bell } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
@@ -18,12 +18,6 @@ const ITEMS: PortalNavItem[] = [
 export default async function KynLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole("kyn");
 
-  const brandMark = (
-    <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white">
-      <BarChart3 size={16} />
-    </span>
-  );
-
   const header = (
     <>
       <div className="text-lg font-semibold text-slate-800">KYN Console</div>
@@ -35,7 +29,7 @@ export default async function KynLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <PortalShell accent="purple" brand="KYN" brandMark={brandMark} items={ITEMS} header={header}>
+    <PortalShell accent="purple" brand="KYN" items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

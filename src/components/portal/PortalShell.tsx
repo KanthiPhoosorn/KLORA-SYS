@@ -59,7 +59,6 @@ const ACCENT: Record<Accent, { brand: string; active: string; dot: string }> = {
 export default function PortalShell({
   accent,
   brand,
-  brandMark,
   items,
   header,
   footer,
@@ -67,7 +66,6 @@ export default function PortalShell({
 }: {
   accent: Accent;
   brand: string;
-  brandMark?: ReactNode;
   items: PortalNavItem[];
   header: ReactNode;
   footer?: ReactNode;
@@ -80,10 +78,11 @@ export default function PortalShell({
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
-        <div className="flex items-center gap-2 px-6 py-5">
-          {brandMark}
-          <span className={`text-xl font-extrabold tracking-tight ${a.brand}`}>{brand}</span>
-        </div>
+        {/* Corta wordmark — the same for every portal (role lives in the menu, not the brand) */}
+        <Link href={items[0]?.href ?? "/"} className="flex items-center px-6 py-5" aria-label={`Corta ${brand}`.trim()}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
+        </Link>
         <div className="px-6 pb-1 text-xs font-medium text-slate-400">Menu</div>
         <nav className="flex flex-col gap-1 px-3 py-2">
           {items.map((item) => {

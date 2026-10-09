@@ -218,7 +218,7 @@ export default function RegisterForm({ via, viaLabel }: { via?: string; viaLabel
             {step < 2 ? (
               <button type="button" onClick={next} className="flex h-[35px] flex-1 items-center justify-center rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90">ถัดไป</button>
             ) : (
-              <button type="button" onClick={submit} disabled={busy} className="flex h-[35px] flex-1 items-center justify-center gap-2 rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy ? <Loader2 size={16} className="animate-spin" /> : null} สมัครสมาชิก · รับ SUP ID</button>
+              <button type="button" onClick={submit} disabled={busy} className="flex h-[35px] flex-1 items-center justify-center gap-2 rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy ? <Loader2 size={16} className="animate-spin" /> : null} สมัครสมาชิก · รับ ID</button>
             )}
           </div>
           <p className="text-center text-[10px] text-black">

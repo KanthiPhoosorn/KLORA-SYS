@@ -1,6 +1,6 @@
 import LoginForm from "@/components/LoginForm";
 
-export const metadata = { title: "เข้าสู่ระบบ · KLORA" };
+export const metadata = { title: "เข้าสู่ระบบ · Corta" };
 
 export default function LoginPage() {
   return (
@@ -10,7 +10,7 @@ export default function LoginPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/figma/login-hero.png"
-          alt="KLORA farm"
+          alt="Corta farm"
           className="absolute inset-0 h-full w-full object-cover"
         />
       </div>

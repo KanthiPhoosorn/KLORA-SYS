@@ -24,10 +24,10 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
     // case 2: ลงทะเบียนใหม่ → system issues the code
     const a1 = await api("/api/packaging-assets", "POST", { kind: "basket", width: 40, length: 60, height: 30, priorUses: 10 }, cookie);
     if (a1.json.id) assetIds.push(a1.json.id);
-    log("register basket → BSK code, design life 100, owner = farm", a1.status === 201 && /^BSK-\d{4}-\d{5}$/.test(a1.json.id) && a1.json.designLife === 100 && a1.json.priorUses === 10 && a1.json.ownerSupplierId === supId, `${a1.status} ${a1.json.id} ${a1.json.designLife}`);
+    log("register basket → PKG code, design life 100, owner = farm", a1.status === 201 && /^PKG-\d{4,}$/.test(a1.json.id) && a1.json.designLife === 100 && a1.json.priorUses === 10 && a1.json.ownerSupplierId === supId, `${a1.status} ${a1.json.id} ${a1.json.designLife}`);
     const a2 = await api("/api/packaging-assets", "POST", { kind: "corrugated_box", width: 30, length: 40, height: 20 }, lg);
     if (a2.json.id) assetIds.push(a2.json.id);
-    log("carrier registers reusable box → BOX code, life 5, owner label", a2.status === 201 && a2.json.id?.startsWith("BOX-") && a2.json.designLife === 5 && !a2.json.ownerSupplierId && !!a2.json.ownerLabel, `${a2.json.id} ${a2.json.ownerLabel}`);
+    log("carrier registers reusable box → PKG code, life 5, owner label", a2.status === 201 && a2.json.id?.startsWith("PKG-") && a2.json.designLife === 5 && !a2.json.ownerSupplierId && !!a2.json.ownerLabel, `${a2.json.id} ${a2.json.ownerLabel}`);
     log("register rejects bad kind", (await api("/api/packaging-assets", "POST", { kind: "crate" }, cookie)).status === 400);
     log("register needs sign-in", (await api("/api/packaging-assets", "POST", { kind: "basket" })).status === 401);
     const list = await api("/api/packaging-assets", "GET", undefined, cookie);

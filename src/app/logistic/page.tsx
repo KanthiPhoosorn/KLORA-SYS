@@ -207,14 +207,14 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
       {/* Batch table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">ผลการคำนวณแต่ละ Batch</h2>
+          <h2 className="text-lg font-bold text-slate-800">ผลการคำนวณแต่ละล็อต</h2>
           <span className="text-sm text-slate-400">Result {rows.length} รายการ</span>
         </div>
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="bg-blue-50 text-left text-slate-600">
-                <th className="px-5 py-3 font-semibold">Batch ID</th>
+                <th className="px-5 py-3 font-semibold">รหัสล็อต</th>
                 <th className="px-5 py-3 font-semibold">ต้นทาง</th>
                 <th className="px-5 py-3 font-semibold">ปลายทาง</th>
                 <th className="px-5 py-3 text-right font-semibold">ระยะทาง</th>

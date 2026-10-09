@@ -1,4 +1,4 @@
-// KLORA domain types.
+// Corta domain types.
 // SUP = Supplier (ผู้ผลิต/ฟาร์ม). Batch = a shipment of cut flowers logged each cutting round.
 
 export type SupplierStatus = "active" | "suspended"; // ใช้งาน / ระงับ
@@ -12,7 +12,8 @@ export interface FlowerTypeEntry {
 }
 
 export interface Supplier {
-  id: string; // SUP-YYYY-NNNN — issued by the system
+  id: string; // primary key: CID-NNNN (farms created before 9 Oct 2026 keep SUP-YYYY-NNNN)
+  code?: string; // CID-NNNN — the organisation ID shown everywhere
 
   // --- ข้อมูลพื้นฐานบังคับ (mandatory profile) ---
   farmName: string; // ชื่อฟาร์ม
@@ -126,7 +127,7 @@ export interface PackagingAsset {
   ownerLabel?: string;
   createdAt: string;
   createdBy?: string;
-  /** rounds in KLORA that used it (computed on read) */
+  /** rounds in Corta that used it (computed on read) */
   uses?: number;
 }
 
@@ -151,7 +152,8 @@ export type BatchStatus = "draft" | "submitted" | "computed";
 export type ShipmentStatus = "cutting" | "in_transit" | "delivered";
 
 export interface Batch {
-  id: string; // BAT-YYYY-NNNN
+  id: string; // LOT-YYMM-NNNN — one code from the farm to the QR
+  legacyId?: string; // BAT-YYYY-NNNN for lots created before the rename
   supplierId: string; // → Supplier.id
 
   // --- ข้อมูลที่ใช้คำนวณ (ลงใหม่ทุกครั้ง / entered every round) ---
@@ -240,6 +242,7 @@ export type UserRole = "supplier" | "logistic" | "kyn";
 // User account (any role). Password is scrypt-hashed (see lib/auth).
 export interface User {
   id: string; // USR-NNNN
+  orgCode?: string; // CID-NNNN — logistic organisations
   role: UserRole; // which portal this account signs into
   supplierId?: string; // → Supplier.id (only for role "supplier")
   company?: string; // ชื่อบริษัท (logistic accounts)
@@ -291,6 +294,7 @@ export interface Notification {
 export interface PrintLog {
   id: string; // PRT-NNNN
   supplierId: string;
+  supplierCode?: string; // CID of the farm (read-only, filled on read)
   batchId?: string;
   destination?: string; // ปลายทาง
   printedBy: string; // เช่น "Thaipost"

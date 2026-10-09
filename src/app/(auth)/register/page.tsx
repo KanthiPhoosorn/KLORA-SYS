@@ -1,7 +1,7 @@
 import RegisterForm from "@/components/auth/RegisterForm";
 import { asCarrierKey, carrierLabel } from "@/lib/carriers";
 
-export const metadata = { title: "สมัครสมาชิก · KLORA" };
+export const metadata = { title: "สมัครสมาชิก · Corta" };
 
 // /register?via=thaipost — a carrier's signup link: the farm will only ship with that carrier.
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ via?: string }> }) {

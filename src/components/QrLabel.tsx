@@ -15,7 +15,7 @@ export default function QrLabel({
     <div className="print-label mx-auto w-[340px] rounded-2xl border border-pink-900/15 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="text-lg font-extrabold tracking-tight text-pink-400">
-          KLORA
+          Corta
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wide text-pink-900/40">

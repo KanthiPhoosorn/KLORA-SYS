@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getBatch, getSupplier } from "@/lib/store";
 import { thaiDateShort, thaiDateFull } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
@@ -32,6 +32,8 @@ export default async function TracePage({
   const { batchId } = await params;
   const batch = await getBatch(batchId);
   if (!batch) notFound();
+  // An old sticker (BAT-…) opens the lot under its current code.
+  if (batch.id !== batchId) redirect(`/t/${batch.id}`);
   const supplier = await getSupplier(batch.supplierId);
   if (!supplier) notFound();
 
@@ -62,7 +64,7 @@ export default async function TracePage({
         {/* Brand + product */}
         <div>
           <div className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight text-pink-500">
-            <Flower2 size={20} /> KLORA
+            <Flower2 size={20} /> Corta
           </div>
           <div className="mt-3 flex items-center gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${CATEGORY_TAG[category]}`}>{categoryLabel(category)}</span>
@@ -162,7 +164,7 @@ export default async function TracePage({
         </section>
 
         <div className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-slate-400">
-          <ShieldCheck size={13} /> ข้อมูลนี้ยืนยันโดย klora system · {supplier.id} · {batch.id}
+          <ShieldCheck size={13} /> ข้อมูลนี้ยืนยันโดย klora system · {supplier.code ?? supplier.id} · {batch.id}
         </div>
       </div>
     </div>

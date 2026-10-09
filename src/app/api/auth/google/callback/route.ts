@@ -5,7 +5,7 @@ import { getUserByLogin, getSupplier } from "@/lib/store";
 import { homeForRole, sessionCookie } from "@/lib/auth";
 
 // GET /api/auth/google/callback?code=&state= — finish Google sign-in.
-// Only an EXISTING KLORA account with the same (verified) email can sign in this way;
+// Only an EXISTING Corta account with the same (verified) email can sign in this way;
 // unknown emails are sent to register first. Every failure lands back on the login
 // page with ?error=<code> (rendered in Thai by LoginForm).
 export async function GET(req: Request) {
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   try {
     identity = await exchangeCode(code, origin);
   } catch (e) {
-    console.error("[KLORA] Google sign-in failed", e);
+    console.error("[Corta] Google sign-in failed", e);
     return fail("google_failed");
   }
   if (!identity.emailVerified) return fail("google_unverified");

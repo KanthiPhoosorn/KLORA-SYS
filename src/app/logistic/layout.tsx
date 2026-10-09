@@ -19,11 +19,6 @@ const ITEMS: PortalNavItem[] = [
 export default async function LogisticLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole("logistic");
 
-  const brandMark = (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src="/figma/logistic-logo.svg" alt="Logistic" className="h-8 w-auto" />
-  );
-
   const header = (
     <>
       <div className="text-lg font-semibold text-slate-800">โรงคัดแยกพัสดุ</div>
@@ -32,13 +27,13 @@ export default async function LogisticLayout({ children }: { children: React.Rea
           <LifeBuoy size={16} /> Help center
         </Link>
         <button className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><Bell size={18} /></button>
-        <AccountButton label="Username" id={user.username} profileHref="/logistic/profile" />
+        <AccountButton label="ID" id={user.orgCode ?? user.username} profileHref="/logistic/profile" />
       </div>
     </>
   );
 
   return (
-    <PortalShell accent="blue" brand="" brandMark={brandMark} items={ITEMS} header={header}>
+    <PortalShell accent="blue" brand="Logistic" items={ITEMS} header={header}>
       {children}
     </PortalShell>
   );

@@ -136,10 +136,10 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
         <h2 className="text-xl font-bold text-slate-900">ประวัติการพิมพ์ QR code</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelCls}>ค้นหา SUP ID</label>
+            <label className={labelCls}>ค้นหา ID</label>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input value={pSup} onChange={(e) => setPSup(e.target.value)} placeholder="ระบุ SUP ID" className={`${inputCls} pl-9`} />
+              <input value={pSup} onChange={(e) => setPSup(e.target.value)} placeholder="ระบุ ID" className={`${inputCls} pl-9`} />
             </div>
           </div>
           <div>
@@ -153,7 +153,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
             <table className="w-full min-w-[640px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#e9ebf8]">
-                  <Th>เวลาพิมพ์</Th><Th>Batch ID</Th><Th>ปลายทาง</Th><Th>จัดการ</Th>
+                  <Th>เวลาพิมพ์</Th><Th>รหัสล็อต</Th><Th>ปลายทาง</Th><Th>จัดการ</Th>
                 </tr>
               </thead>
               <tbody>
@@ -206,7 +206,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
             <table className="w-full min-w-[720px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#e9ebf8]">
-                  <Th>วันที่จัดส่ง</Th><Th>Batch ID</Th><Th>จำนวน</Th><Th>ปลายทาง</Th><Th>สถานะ</Th>
+                  <Th>วันที่จัดส่ง</Th><Th>รหัสล็อต</Th><Th>จำนวน</Th><Th>ปลายทาง</Th><Th>สถานะ</Th>
                 </tr>
               </thead>
               <tbody>
