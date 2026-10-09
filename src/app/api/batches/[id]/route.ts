@@ -7,6 +7,7 @@ import type { Batch } from "@/lib/types";
 import { flightDistanceKm, roadToAirportKm } from "@/lib/airports";
 import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
 import { queueTransportOthers, queuePackagingOthers } from "@/lib/custom-queue";
+import { normalizeAwb } from "@/lib/tracking";
 import { guard, forbidden } from "@/lib/api-guard";
 import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
@@ -104,6 +105,8 @@ export async function PATCH(
       patch.shipDate = body.shipDate ? String(body.shipDate) : undefined;
       patch.airline = body.shipType === "international" && body.airline ? String(body.airline) : undefined;
       patch.flightNo = body.shipType === "international" && body.flightNo ? String(body.flightNo) : undefined;
+      // Air Waybill (XXX-XXXXXXXX) — what cargo tracking uses; cleared on domestic
+      patch.awbNo = body.shipType === "international" ? normalizeAwb(body.awbNo ? String(body.awbNo) : "") : null;
       if (body.shipType === "international") {
         patch.carrier = `ส่งออกต่างประเทศ${body.airline ? ` · ${String(body.airline)}` : ""}`;
         // Air-freight leg: airports → great-circle distance unless the carrier typed one.

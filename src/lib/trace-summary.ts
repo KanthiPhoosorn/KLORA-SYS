@@ -59,6 +59,6 @@ export function buildTraceSummary(b: Batch, s: Supplier, origin: string): TraceS
       certifications: (s.certifications ?? []).filter((c) => c.appliesTo.includes(category)).map((c) => ({ kind: c.kind, name: c.name, certNo: c.certNo, expiresAt: c.expiresAt })),
     },
     shipment: { status: b.shipmentStatus, destination: b.destination, carrier: b.carrier, provider: b.provider, distanceKm: b.distanceKm, reefer: !!b.isReeferUsed },
-    links: { passport: `${origin}/trace/${b.id}` },
+    links: { passport: `${origin}/t/${b.id}` },
   };
 }

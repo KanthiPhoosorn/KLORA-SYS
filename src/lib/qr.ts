@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 
 // Build the path a batch's QR should point at.
 export function tracePath(batchId: string): string {
-  return `/trace/${batchId}`;
+  return `/t/${batchId}`; // short link (bigger QR dots); /trace/… still works
 }
 
 // Absolute URL for the QR payload. Falls back to localhost for local demos.
@@ -15,10 +15,10 @@ export function traceUrl(batchId: string, origin?: string): string {
 }
 
 // Render any string to an inline SVG string (served by /api/qr).
-export async function qrSvg(data: string): Promise<string> {
+export async function qrSvg(data: string, margin = 1): Promise<string> {
   return QRCode.toString(data, {
     type: "svg",
-    margin: 1,
+    margin,
     width: 240,
     errorCorrectionLevel: "M",
   });

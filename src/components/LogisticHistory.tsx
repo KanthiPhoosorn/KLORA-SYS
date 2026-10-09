@@ -150,7 +150,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="max-h-[360px] overflow-y-auto">
-            <table className="w-full min-w-[640px]">
+            <table className="tbl w-full min-w-[640px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#e9ebf8]">
                   <Th>เวลาพิมพ์</Th><Th>รหัสล็อต</Th><Th>ปลายทาง</Th><Th>จัดการ</Th>
@@ -203,7 +203,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="max-h-[360px] overflow-y-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="tbl w-full min-w-[720px]">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#e9ebf8]">
                   <Th>วันที่จัดส่ง</Th><Th>รหัสล็อต</Th><Th>จำนวน</Th><Th>ปลายทาง</Th><Th>สถานะ</Th>

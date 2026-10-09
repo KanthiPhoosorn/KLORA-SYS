@@ -55,7 +55,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
               ))}
             </div>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[520px] text-sm">
+              <table className="tbl w-full min-w-[520px] text-sm">
                 <thead><tr className="bg-brand-purple-head text-left text-xs text-white">
                   <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">ดอกไม้</th><th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th>
                 </tr></thead>
@@ -93,7 +93,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
 
         {tab === "ranking" && (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[380px] text-sm">
+            <table className="tbl w-full min-w-[380px] text-sm">
               <thead><tr className="bg-brand-purple-head text-left text-xs text-white"><th className="px-3 py-2.5 font-semibold">#</th><th className="px-3 py-2.5 font-semibold">ฟาร์ม</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th></tr></thead>
               <tbody>{data.ranking.map((r, i) => (
                 <tr key={r.name} className="border-b border-slate-50 last:border-0"><td className="px-3 py-2 tabular text-slate-500">{i + 1}</td><td className="px-3 py-2 text-slate-700">{r.name}</td><td className="px-3 py-2 text-right tabular">{r.rounds}</td><td className="px-3 py-2 text-right font-semibold tabular text-emerald-600">{r.avg.toFixed(3)}</td></tr>
@@ -124,7 +124,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
                 </div>
               </div>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="tbl w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="bg-brand-purple-head text-left text-xs text-white">
                       <th className="px-3 py-2.5 font-semibold">ผู้ให้บริการโลจิสติกส์</th>
@@ -143,7 +143,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
                     return (
                       <tr key={i} className="border-b border-slate-50 last:border-0">
                         <td className="px-3 py-2.5 text-slate-700">{r.provider}</td>
-                        <td className="px-3 py-2.5 text-slate-600">{r.farm}</td>
+                        <td className="px-3 py-2.5 text-slate-600 cell-clip" title={String(r.farm)}>{r.farm}</td>
                         <td className="px-3 py-2.5 text-right tabular">{r.received.toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-right tabular">{r.forwarded.toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-right tabular font-medium text-slate-800">{r.discarded.toLocaleString()}</td>

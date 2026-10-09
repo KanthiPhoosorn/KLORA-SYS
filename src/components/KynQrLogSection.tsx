@@ -22,7 +22,7 @@ export default function KynQrLogSection({ prints }: { prints: PrintLog[] }) {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[520px] text-sm">
+        <table className="tbl w-full min-w-[520px] text-sm">
           <thead>
             <tr className="bg-brand-purple-head">
               <th className={th}>ID</th>

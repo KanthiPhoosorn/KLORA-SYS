@@ -104,7 +104,7 @@ export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
         </div>
 
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="tbl w-full min-w-[820px] text-sm">
             <thead>
               <tr className="bg-[#e9ebf8] text-center font-semibold text-slate-700">
                 <th className="rounded-l-lg px-5 py-3.5">วันที่รับข้อมูล</th>
@@ -123,7 +123,7 @@ export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
                 <tr key={r.id} className="border-b border-slate-100 text-center last:border-0">
                   <td className="px-5 py-4 text-slate-700">{r.receivedDate}</td>
                   <td className="px-5 py-4 text-slate-700">{r.id}</td>
-                  <td className="px-5 py-4 text-slate-700">{r.farmName}</td>
+                  <td className="px-5 py-4 text-slate-700 cell-clip" title={String(r.farmName)}>{r.farmName}</td>
                   <td className="px-5 py-4 tabular text-slate-700">{r.ageDays}</td>
                   <td className="px-5 py-4 tabular text-slate-700">{r.received.toLocaleString()}</td>
                   <td className="px-5 py-4 tabular text-slate-700">{r.remaining.toLocaleString()}</td>

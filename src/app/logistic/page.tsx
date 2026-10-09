@@ -211,7 +211,7 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
           <span className="text-sm text-slate-400">Result {rows.length} รายการ</span>
         </div>
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="tbl w-full min-w-[820px] text-sm">
             <thead>
               <tr className="bg-blue-50 text-left text-slate-600">
                 <th className="px-5 py-3 font-semibold">รหัสล็อต</th>
@@ -231,8 +231,8 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
                 rows.map((b) => (
                   <tr key={b.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-5 py-3 font-mono text-xs text-slate-600">{b.id}</td>
-                    <td className="px-5 py-3 text-slate-700">{byId.get(b.supplierId)?.farmName ?? "—"}</td>
-                    <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
+                    <td className="px-5 py-3 text-slate-700 cell-clip" title={String(byId.get(b.supplierId)?.farmName ?? "—")}>{byId.get(b.supplierId)?.farmName ?? "—"}</td>
+                    <td className="px-5 py-3 text-slate-700 cell-clip" title={String(b.destination ?? "—")}>{b.destination ?? "—"}</td>
                     <td className="px-5 py-3 text-right tabular">{b.distanceKm}</td>
                     <td className="px-5 py-3 text-slate-600">{vehLabel(b.vehicleKey)}</td>
                     <td className="px-5 py-3 text-slate-600">{fuelLabel(b.fuelKey)}</td>

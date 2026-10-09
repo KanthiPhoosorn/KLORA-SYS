@@ -45,7 +45,7 @@ export default async function SupplierLayout({
           <LifeBuoy size={16} /> Help center
         </Link>
         <NotificationBell notifs={notifs} />
-        <AccountButton label="ID" id={supplier.code ?? supplier.id} profileHref="/app/profile" />
+        <AccountButton label="ID" id={supplier.code ?? supplier.id} profileHref="/app/profile" avatar={user.avatar} />
       </div>
     </>
   );

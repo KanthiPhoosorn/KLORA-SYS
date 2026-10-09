@@ -54,7 +54,7 @@ export default function BranchTable({ rows }: { rows: BranchRow[] }) {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="tbl w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-blue-50 text-left text-slate-600">
                 <th className="px-5 py-3 font-semibold">จังหวัด</th>
@@ -73,7 +73,7 @@ export default function BranchTable({ rows }: { rows: BranchRow[] }) {
                 filtered.map((r, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3 text-slate-700">{r.province}</td>
-                    <td className="px-5 py-3 text-slate-700">{r.branch}</td>
+                    <td className="px-5 py-3 text-slate-700 cell-clip" title={String(r.branch)}>{r.branch}</td>
                     <td className="px-5 py-3 text-right tabular">{r.rounds.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.flowers.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.transportCo2e.toFixed(1)}</td>

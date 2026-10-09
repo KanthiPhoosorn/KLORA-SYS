@@ -47,6 +47,19 @@ let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fai
 
     const f = await api("/api/batches", "POST", { flowerCount: 100, variety: "x", cutDate: "2026-10-08", distanceKm: 100, expectedAgeDays: 14, packagingItems: [{ kind: "basket", usage: "single", quantity: 1, width: 40, length: 60, height: 30 }] }, cookie);
     log("expected age saved", f.json.expectedAgeDays === 14, String(f.json.expectedAgeDays));
+
+    // profile picture + label size (prefs)
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const av = await api("/api/profile/prefs", "PATCH", { avatar: png }, cookie);
+    const [u1] = await sql`SELECT avatar FROM users WHERE email = ${EMAIL}`;
+    log("avatar saved", av.status === 200 && u1?.avatar === png, String(av.status));
+    log("non-image avatar refused", (await api("/api/profile/prefs", "PATCH", { avatar: "data:text/html;base64,PGI+" }, cookie)).status === 400);
+    log("label size saved + bad size refused", (await api("/api/profile/prefs", "PATCH", { labelSize: "80x25" }, cookie)).status === 200 && (await api("/api/profile/prefs", "PATCH", { labelSize: "99x99" }, cookie)).status === 400);
+    await api("/api/profile/prefs", "PATCH", { avatar: null }, cookie);
+    const [u2] = await sql`SELECT avatar FROM users WHERE email = ${EMAIL}`;
+    log("avatar removed", u2?.avatar == null);
+    const prof = await fetch(`${BASE}/app/profile`, { headers: { Cookie: `klora_session=${cookie}` } });
+    log("profile page renders", prof.status === 200 && (await prof.text()).includes("เปลี่ยนรหัสผ่าน"));
   } finally {
     if (supId) { await sql`DELETE FROM custom_entries WHERE supplier_id = ${supId}`; await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }
     await sql`DELETE FROM rate_limits WHERE key IN (SELECT 'geocode:user:' || id FROM users WHERE email = ${EMAIL})`;

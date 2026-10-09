@@ -79,3 +79,10 @@ body {
 .print-only {
   display: none;
 }
+
+/* Data tables: dates, codes, numbers, status pills and buttons never wrap (Thai Post doc 9 Oct 2026
+   §8); a long text cell (farm, destination, address, detail) gets .cell-clip — one line with "…",
+   the full text in its title tooltip — so a long address no longer pushes the page around. */
+table.tbl th, table.tbl td { white-space: nowrap; }
+table.tbl td.cell-clip { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+table.tbl td.cell-wrap { white-space: normal; min-width: 180px; }

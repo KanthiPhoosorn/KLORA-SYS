@@ -29,10 +29,11 @@ function monthlyAvg(bs: Batch[]) {
 export default async function CarbonDashboardPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const user = await requireRole("supplier");
   const cat = parseCat((await searchParams).cat);
-  const [supplier, ownBatches] = await Promise.all([
+  const [supplier, allOwn] = await Promise.all([
     getSupplier(user.supplierId!),
     getBatchesBySupplier(user.supplierId!),
   ]);
+  const ownBatches = allOwn.filter((b) => !b.cancelledAt); // ยกเลิกรายการ = out of every total
   const mixed = new Set(ownBatches.map(categoryOf)).size > 1;
   const batches = cat === "all" ? ownBatches : ownBatches.filter((b) => categoryOf(b) === cat);
   // Carbon dashboard is a Pro feature (freemium).
@@ -179,7 +180,7 @@ export default async function CarbonDashboardPage({ searchParams }: { searchPara
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500"><Calendar size={13} /> {periodLabel}</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="tbl w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="bg-emerald-500 text-white">
                   <th className="px-4 py-3 text-left font-semibold">ลำดับ</th>

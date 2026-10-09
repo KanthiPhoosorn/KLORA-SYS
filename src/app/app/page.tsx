@@ -1,13 +1,14 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier, getPrints } from "@/lib/store";
 import { MetricCard, BarChart, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
 import ShipmentStepper from "@/components/ShipmentStepper";
 import { buildMonthSeries, thaiDateShort } from "@/lib/format";
-import { Truck, Cloud, Package, Clock, Pencil } from "lucide-react";
-import { batchCo2e, quantityLabel, categoryOf, perUnitLabel } from "@/lib/produce";
-import CategoryFilter, { CategoryTag, parseCat } from "@/components/CategoryFilter";
+import { Truck, Cloud, Package, Clock } from "lucide-react";
+import ShipmentsTable from "@/components/ShipmentsTable";
+import { toShipRows } from "@/lib/ship-rows";
+import { batchCo2e, categoryOf, perUnitLabel } from "@/lib/produce";
+import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,8 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
   ]);
   // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every number on the page. Units never mix:
   // a single category reports CO₂e per stem/kg, "ทั้งหมด" reports CO₂e per shipment instead.
-  const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
+  const inCat = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
+  const batches = inCat.filter((b) => !b.cancelledAt); // ยกเลิกรายการ = out of every total
   const mixed = new Set(allBatches.map(categoryOf)).size > 1;
 
   // Freemium (Figma "Lock" state): the ภาพรวม overview is a Pro feature.
@@ -97,54 +99,10 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
         </Card>
       </div>
 
-      {/* Latest shipments table */}
+      {/* Latest shipments — ✏️ opens the manage menu in place (Thai Post doc §5) */}
       <div className="space-y-3">
         <h2 className="text-lg font-bold text-slate-800">รายการจัดส่งล่าสุด</h2>
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="bg-emerald-500 text-left text-white">
-                <th className="px-5 py-3 font-semibold">วันที่ส่ง</th>
-                {cat === "all" && mixed ? <th className="px-5 py-3 text-center font-semibold">ประเภท</th> : null}
-                <th className="px-5 py-3 text-center font-semibold">จำนวน</th>
-                <th className="px-5 py-3 font-semibold">ปลายทาง</th>
-                <th className="px-5 py-3 font-semibold">ขนส่ง</th>
-                <th className="px-5 py-3 text-center font-semibold">สถานะ</th>
-                <th className="px-5 py-3 text-center font-semibold">จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.length === 0 ? (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">ยังไม่มีรอบส่งออก</td></tr>
-              ) : (
-                sorted.map((b) => {
-                  const printed = printedIds.has(b.id);
-                  return (
-                    <tr key={b.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.cutDate)}</td>
-                      {cat === "all" && mixed ? <td className="px-5 py-3 text-center"><CategoryTag category={categoryOf(b)} /></td> : null}
-                      <td className="px-5 py-3 text-center tabular">{quantityLabel(b)}</td>
-                      <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
-                      <td className="px-5 py-3 text-slate-600">{b.carrier ?? "—"}</td>
-                      <td className="px-5 py-3 text-center">
-                        {printed ? (
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">พิมพ์แล้ว</span>
-                        ) : (
-                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">รอสั่งพิมพ์</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <Link href="/app/history" className="inline-grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-                          <Pencil size={15} />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </Card>
+        <ShipmentsTable rows={toShipRows(inCat, prints).slice(0, 8)} />
       </div>
     </div>
   );

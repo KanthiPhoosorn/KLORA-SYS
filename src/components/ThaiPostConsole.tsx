@@ -83,7 +83,7 @@ export default function ThaiPostConsole({
     router.refresh();
   }
 
-  const qrSrc = (b: Batch) => `/api/qr?data=${encodeURIComponent(`${origin}/trace/${b.id}`)}`;
+  const qrSrc = (b: Batch) => `/api/qr?data=${encodeURIComponent(`${origin}/t/${b.id}`)}`;
 
   return (
     <>

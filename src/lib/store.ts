@@ -351,6 +351,8 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     shipmentStatus: "cutting" as const,
     createdAt: now.toISOString(),
   };
+  // a lot code freed by deleted test data must not inherit that lot's history
+  await db.delete(batchEvents).where(eq(batchEvents.batchId, row.id));
   const [inserted] = await db.insert(batches).values(row).returning();
   return clean<Batch>(inserted);
 }

@@ -9,6 +9,7 @@ import SearchSelect from "@/components/SearchSelect";
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
 import { useRecipientDistance } from "@/lib/use-distance";
+import { normalizeAwb, awbAirline, awbUrl } from "@/lib/tracking";
 import { findBranch } from "@/lib/branches";
 import type { Supplier, Batch } from "@/lib/types";
 import PackagingLines, { firstRow, validateRows, rowsToPayload, rowsFromBatch, rowsWeightKg, rowSummary, type PackRowState } from "@/components/PackagingLines";
@@ -86,6 +87,10 @@ export default function LogisticExportForm({
   const [isReefer, setIsReefer] = useState(false);
   const [airline, setAirline] = useState("");
   const [flightNo, setFlightNo] = useState("");
+  // Air Waybill — what air-cargo tracking actually uses (11 digits; the first 3 = the airline)
+  const [awb, setAwb] = useState("");
+  const awbNorm = normalizeAwb(awb);
+  const awbLine = awbNorm ? awbAirline(awbNorm) : undefined;
   const [destCountry, setDestCountry] = useState(""); // ส่งต่างประเทศ: ประเทศ/เมืองปลายทาง
   // Air-freight leg (DEFRA): airports → great-circle distance, overridable.
   const [originAirport, setOriginAirport] = useState("BKK");
@@ -194,6 +199,7 @@ export default function LogisticExportForm({
       if (!fuelKey) e.fuelKey = "กรุณาเลือกระบบเชื้อเพลิง";
     } else {
       if (!airline) e.airline = "กรุณาระบุสายการบิน";
+      if (awb.trim() && !awbNorm) e.awb = "เลข AWB ต้องเป็นตัวเลข 11 หลัก (XXX-XXXXXXXX)";
       if (!destAirport && !(Number(flightKm) > 0)) e.destAirport = "กรุณาเลือกท่าอากาศยานปลายทาง หรือระบุระยะทางบิน";
     }
     Object.assign(e, validateRows(packs));
@@ -218,7 +224,7 @@ export default function LogisticExportForm({
           packagingItems: pk.packagingItems, shipDate, destinationAddress: destAddress.trim() || undefined,
           ...(shipType === "domestic"
             ? { vehicleKey, fuelKey, vehicleOther: vehicleKey ? undefined : vehicle || undefined, isReeferUsed: isReefer, destination, distanceKm, ...(destGpsParsed ? { destLat: destGpsParsed.lat, destLng: destGpsParsed.lng } : {}) }
-            : { airline, flightNo, destination: destCountry || selectedBatch.destination || "ต่างประเทศ", isReeferUsed: false, originAirport, destAirport: destAirport || undefined, flightDistanceKm: Number(flightKm) > 0 ? Number(flightKm) : undefined }),
+            : { airline, flightNo, awbNo: awbNorm ?? undefined, destination: destCountry || selectedBatch.destination || "ต่างประเทศ", isReeferUsed: false, originAirport, destAirport: destAirport || undefined, flightDistanceKm: Number(flightKm) > 0 ? Number(flightKm) : undefined }),
         }),
       });
       const data = await res.json();
@@ -292,6 +298,7 @@ export default function LogisticExportForm({
                     <F label="ระยะทางบิน" value={`${(Number(flightKm) > 0 ? Number(flightKm) : autoFlightKm).toLocaleString("th-TH")} กม.`} />
                     <F label="สายการบิน" value={airline} />
                     <F label="หมายเลขเที่ยวบิน" value={flightNo} />
+                    <F label="เลขใบตราส่งสินค้าทางอากาศ (AWB)" value={awbNorm ? `${awbNorm}${awbLine ? ` · ${awbLine.name}` : ""}` : ""} />
                   </>
                 )}
               </div>
@@ -432,6 +439,14 @@ export default function LogisticExportForm({
               <Err msg={errs.airline} />
             </div>
             <div><label className={labelCls}>หมายเลขเที่ยวบิน</label><input value={flightNo} onChange={(e) => setFlightNo(e.target.value)} placeholder="ระบุหมายเลขเที่ยวบิน เช่น TG102" className={inputCls} /></div>
+            <div>
+              <label className={labelCls}>เลขใบตราส่งสินค้าทางอากาศ (AWB)</label>
+              <input value={awb} onChange={(e) => { setAwb(e.target.value); setErrs((x) => ({ ...x, awb: "" })); }} placeholder="เช่น 232-12345678" inputMode="numeric" className={`${inputCls} font-mono ${errs.awb ? "border-[#ee443f]" : ""}`} />
+              <Err msg={errs.awb} />
+              <p className="mt-1 text-[11px] text-slate-400">
+                {awbNorm ? (awbLine ? <>สายการบิน {awbLine.name} · <a href={awbUrl(awbNorm)!} target="_blank" rel="noreferrer" className="text-blue-600 underline">เช็กสถานะ</a></> : <>ไม่รู้จักรหัสสายการบิน {awbNorm.slice(0, 3)} · <a href={awbUrl(awbNorm)!} target="_blank" rel="noreferrer" className="text-blue-600 underline">เช็กสถานะ</a></>) : "ใช้ติดตามสถานะพัสดุทางอากาศ (Cargo Tracking) แทนหมายเลขเที่ยวบิน"}
+              </p>
+            </div>
             <div>
               <label className={labelCls}>ท่าอากาศยานต้นทาง</label>
               <select value={originAirport} onChange={(e) => setOriginAirport(e.target.value)} className={inputCls}>

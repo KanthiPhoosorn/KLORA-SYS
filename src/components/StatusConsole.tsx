@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { awbUrl } from "@/lib/tracking";
 import { useRouter } from "next/navigation";
 import { Search, RotateCcw, Loader2, PackageX } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui";
@@ -95,7 +96,7 @@ export default function StatusConsole({
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา ID / รหัสล็อต" className="w-full bg-transparent py-2 text-[13px] outline-none" />
         </div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="tbl w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-blue-600 text-left font-semibold text-white">
                 <th className="px-5 py-3">เวลาพิมพ์</th>
@@ -113,7 +114,7 @@ export default function StatusConsole({
                   <td className="px-5 py-3 text-slate-600">{thaiDateTime(p.printedAt)}</td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-600">{p.supplierCode ?? p.supplierId}</td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.batchId ?? "—"}</td>
-                  <td className="px-5 py-3 text-slate-700">{p.destination ?? "—"}</td>
+                  <td className="px-5 py-3 text-slate-700 cell-clip" title={String(p.destination ?? "—")}>{p.destination ?? "—"}</td>
                   <td className="px-5 py-3 text-right">
                     {p.cancelled ? <span className="text-xs text-slate-400">ยกเลิกแล้ว</span> : (
                       <button onClick={() => setCancelTarget(p)} disabled={cancelBusy === p.id} className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-50">
@@ -140,7 +141,7 @@ export default function StatusConsole({
           </select>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="tbl w-full min-w-[640px] text-sm">
             <thead>
               <tr className="bg-blue-600 text-left font-semibold text-white">
                 <th className="px-5 py-3">วันที่จัดส่ง</th>
@@ -161,10 +162,10 @@ export default function StatusConsole({
                 <tr key={b.id} id={`row-${b.id}`} className={`border-b border-slate-50 last:border-0 ${b.id === highlightId ? "bg-emerald-50 ring-2 ring-inset ring-emerald-300" : ""}`}>
                   <td className="px-5 py-3 text-slate-700">{thaiDateShort(b.shipDate ?? b.entryDate)}</td>
                   <td className="px-5 py-3 font-mono text-[12px] text-slate-600">{b.id}</td>
-                  <td className="px-5 py-3 text-slate-600">{supName(b.supplierId)}</td>
+                  <td className="px-5 py-3 text-slate-600 cell-clip" title={String(supName(b.supplierId))}>{supName(b.supplierId)}</td>
                   <td className="px-5 py-3 text-[12px]">
                     {b.shipType === "international" ? (
-                      <span className="inline-flex flex-col"><span className="w-fit rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">ต่างประเทศ</span>{b.airline ? <span className="mt-0.5 text-slate-500">{b.airline}{b.flightNo ? ` · ${b.flightNo}` : ""}</span> : null}</span>
+                      <span className="inline-flex flex-col"><span className="w-fit rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">ต่างประเทศ</span>{b.airline ? <span className="mt-0.5 text-slate-500">{b.airline}{b.flightNo ? ` · ${b.flightNo}` : ""}</span> : null}{b.awbNo ? <a href={awbUrl(b.awbNo) ?? "#"} target="_blank" rel="noreferrer" className="mt-0.5 font-mono text-[11px] text-blue-600 hover:underline">AWB {b.awbNo}</a> : null}</span>
                     ) : b.shipType === "domestic" ? (
                       <span className="w-fit rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">ในประเทศ</span>
                     ) : (
@@ -173,7 +174,7 @@ export default function StatusConsole({
                     {b.exportRecordedAt ? <div className="mt-0.5 text-[11px] text-emerald-600">✓ ขนส่งบันทึกแล้ว</div> : null}
                   </td>
                   <td className="px-5 py-3 text-right tabular">{quantityLabel(b)}</td>
-                  <td className="px-5 py-3 text-slate-700">{b.destination ?? "—"}</td>
+                  <td className="px-5 py-3 text-slate-700 cell-clip" title={String(b.destination ?? "—")}>{b.destination ?? "—"}</td>
                   <td className="px-5 py-3"><Badge tone={SHIP_STATUS[b.shipmentStatus].tone as Tone}>{SHIP_STATUS[b.shipmentStatus].label}</Badge></td>
                   <td className="px-5 py-3 text-right tabular">{b.discardedCount != null ? b.discardedCount.toLocaleString() : "—"}</td>
                   <td className="px-5 py-3 text-right">

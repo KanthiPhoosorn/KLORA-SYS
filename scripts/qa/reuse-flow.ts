@@ -4,7 +4,8 @@ import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
 import { packagingItemCarbon, basketCarbonPerUse } from "../../src/lib/carbon-kyn";
 import { mergeFactors } from "../../src/lib/factors";
-import { validatePackLines, emptyPackLine, packLinesToPayload, packLinesFromBatch } from "../../src/components/PackagingLines";
+import { validateRows, rowsToPayload, rowsFromBatch, rowFor, type PackRowState } from "../../src/components/PackagingLines";
+import { DEFAULT_CATALOG } from "../../src/lib/packaging-catalog";
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36); const EMAIL = `qa-reuse-${TS}@klora-qa.test`;
 const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return `${Buffer.from(p).toString("base64url")}.${createHmac("sha256", process.env.KLORA_SESSION_SECRET!).update(p).digest("base64url")}`; };
 const api = async (path: string, method: string, body?: unknown, cookie?: string) => { const r = await fetch(BASE + path, { method, headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: `klora_session=${cookie}` } : {}) }, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})), cookie: /klora_session=([^;]+)/.exec(r.headers.get("set-cookie") || "")?.[1] }; };
@@ -28,7 +29,7 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
     const a2 = await api("/api/packaging-assets", "POST", { kind: "corrugated_box", width: 30, length: 40, height: 20 }, lg);
     if (a2.json.id) assetIds.push(a2.json.id);
     log("carrier registers reusable box → PKG code, life 5, owner label", a2.status === 201 && a2.json.id?.startsWith("PKG-") && a2.json.designLife === 5 && !a2.json.ownerSupplierId && !!a2.json.ownerLabel, `${a2.json.id} ${a2.json.ownerLabel}`);
-    log("register rejects bad kind", (await api("/api/packaging-assets", "POST", { kind: "crate" }, cookie)).status === 400);
+    log("register rejects bad kind", (await api("/api/packaging-assets", "POST", { kind: "spaceship" }, cookie)).status === 400);
     log("register needs sign-in", (await api("/api/packaging-assets", "POST", { kind: "basket" })).status === 401);
     const list = await api("/api/packaging-assets", "GET", undefined, cookie);
     log("farm sees own + carrier-owned items", list.status === 200 && list.json.some((x: { id: string }) => x.id === a1.json.id) && list.json.some((x: { id: string }) => x.id === a2.json.id));
@@ -66,23 +67,25 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
       packagingItems: [{ kind: "basket", usage: "reusable", assetId: a1.json.id, quantity: 1 }] }, lg);
     log("logistic PATCH updates basketIds from lines", p.status === 200 && JSON.stringify(p.json.basketIds) === JSON.stringify([a1.json.id]), `${p.status} ${JSON.stringify(p.json.basketIds)}`);
 
-    // client-side rules
-    const L = (x: object) => ({ ...emptyPackLine(), ...x });
-    const e = validatePackLines([
-      L({ kind: "basket" }),
-      L({ kind: "basket", usage: "reusable", source: "existing" }),
-      L({ kind: "corrugated_box", usage: "single", w: "30", l: "40" }),
-      L({ kind: "basket", usage: "reusable", assetId: "X" }), L({ kind: "basket", usage: "reusable", assetId: "X" }),
-      L({ kind: "basket", usage: "reusable", source: "new" }),
+    // client-side rules (catalog rows, Thai Post doc §4)
+    const R = (kind: string, x: Partial<PackRowState> = {}): PackRowState => ({ ...rowFor(DEFAULT_CATALOG, kind), ...x });
+    const e = validateRows([
+      R("crate", { usage: "reusable", code: "", qty: "2" }),
+      R("carton", { qty: "" }),
+      R("carton", { size: "custom", dimW: "", qty: "1" }),
+      R("crate", { usage: "reusable", code: "PKG-9", qty: "1" }), R("crate", { usage: "reusable", code: "PKG-9", qty: "1" }),
+      R("crate", { usage: "reusable", code: "new", qty: "1" }),
+      R("other", { otherName: "", qty: "1" }),
+      R("nopack"),
     ]);
-    log("validation: usage / code / size+qty+inner / duplicate / register-first", !!e["pack.0.usage"] && !!e["pack.1.asset"] && !!e["pack.2.size"] && !!e["pack.2.qty"] && !!e["pack.2.boxMaterial"] && !e["pack.3.asset"] && !!e["pack.4.asset"] && e["pack.5.asset"]?.includes("ลงทะเบียน"), Object.keys(e).join(","));
-    const pk = packLinesToPayload([L({ kind: "basket", usage: "reusable", assetId: "BSK-1" }), L({ kind: "plastic_film", usage: "single", w: "50", l: "70", h: "9", qty: "3" })]);
-    const back = packLinesFromBatch(pk.packagingItems, pk.innerMaterials);
-    log("payload round-trip", pk.packagingItems[0].quantity === 1 && pk.packagingItems[1].height === undefined && back[0].usage === "reusable" && back[0].assetId === "BSK-1" && back[1].qty === "3", JSON.stringify(pk.packagingItems));
-    const legacy = packLinesFromBatch([{ kind: "basket", quantity: 1, basketNo: "BSK-014" }, { kind: "corrugated_box", width: 1, length: 1, height: 1, quantity: 4 }]);
+    log("validation: code / qty / custom size / duplicate / register-first / อื่นๆ name / ไม่มี ok", !!e["pack.0.code"] && !!e["pack.1.qty"] && !!e["pack.2.size"] && !e["pack.3.code"] && !!e["pack.4.code"] && e["pack.5.code"]?.includes("ลงทะเบียน") && !!e["pack.6.otherName"] && !Object.keys(e).some((k) => k.startsWith("pack.7.")), Object.keys(e).join(","));
+    const pk = rowsToPayload([R("crate", { usage: "reusable", code: "PKG-1", qty: "3" }), R("carton", { qty: "4", inners: [{ kind: "ldpe", qty: "1", unit: "ใบ", otherName: "", otherMaterial: "mixed" }] })]);
+    const back = rowsFromBatch(pk.packagingItems, DEFAULT_CATALOG);
+    log("payload round-trip", pk.packagingItems[0].v === 2 && pk.packagingItems[0].assetId === "PKG-1" && pk.basketIds[0] === "PKG-1" && back[0].code === "PKG-1" && back[1].qty === "4" && back[1].inners[0].kind === "ldpe", JSON.stringify(pk.packagingItems).slice(0, 120));
+    const legacy = rowsFromBatch([{ kind: "basket", quantity: 1, basketNo: "BSK-014" }, { kind: "corrugated_box", width: 30, length: 40, height: 20, quantity: 4 }], DEFAULT_CATALOG);
     const mf = mergeFactors({ reuseLife: { basket: 80, corrugated_box: 0, plastic_film: "x" } });
     log("reuseLife saved + junk falls back", mf.reuseLife.basket === 80 && mf.reuseLife.corrugated_box === 5 && mf.reuseLife.plastic_film === 3, JSON.stringify(mf.reuseLife));
-    log("old rounds reload as reusable basket / single-use box", legacy[0].usage === "reusable" && legacy[0].assetId === "BSK-014" && legacy[1].usage === "single" && legacy[1].qty === "4");
+    log("old rounds reload as reusable basket / custom-size carton", legacy[0].usage === "reusable" && legacy[0].code === "BSK-014" && legacy[1].kind === "carton" && legacy[1].size === "custom" && legacy[1].dimW === "30" && legacy[1].qty === "4");
   } finally {
     if (assetIds.length) await sql`DELETE FROM packaging_assets WHERE id = ANY(${assetIds})`;
     if (supId) { await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }

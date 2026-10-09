@@ -13,10 +13,13 @@ export default function AccountButton({
   label,
   id,
   profileHref,
+  avatar,
 }: {
   label: string;
   id: string;
   profileHref?: string;
+  /** profile picture (data URL) — the user icon otherwise */
+  avatar?: string | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -31,8 +34,9 @@ export default function AccountButton({
 
   const cluster = (
     <div className="flex items-center gap-2">
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500">
-        <User size={18} />
+      <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-slate-100 text-slate-500">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : <User size={18} />}
       </span>
       <div className="leading-tight">
         <div className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</div>

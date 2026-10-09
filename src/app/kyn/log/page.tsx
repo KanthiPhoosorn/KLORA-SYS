@@ -82,7 +82,7 @@ export default async function KynActionLogPage() {
       </div>
 
       <Card className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="tbl w-full min-w-[760px] text-sm">
           <thead>
             <tr className="bg-brand-purple-head text-left font-semibold text-white">
               <th className="px-5 py-3">เวลาที่ทำ</th>
@@ -103,7 +103,7 @@ export default async function KynActionLogPage() {
                   <div className="font-mono text-xs text-slate-400">{r.actorSub}</div>
                 </td>
                 <td className="px-5 py-3 text-slate-700">{r.type}</td>
-                <td className="px-5 py-3 text-slate-600">{r.detail}</td>
+                <td className="px-5 py-3 text-slate-600 cell-clip" title={String(r.detail)}>{r.detail}</td>
                 <td className="px-5 py-3"><Badge tone={r.tone}>{r.status}</Badge></td>
               </tr>
             ))}

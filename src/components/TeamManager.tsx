@@ -241,7 +241,7 @@ export default function TeamManager({
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full min-w-[680px] text-sm">
+            <table className="tbl w-full min-w-[680px] text-sm">
               <thead><tr className="bg-emerald-500"><th className={`${th} text-left`}>ผู้ใช้งาน</th><th className={th}>ใช้งานล่าสุด</th><th className={th}>บทบาท</th><th className={th}>จัดการ</th></tr></thead>
               <tbody>
                 {filtered.length === 0 ? (
@@ -300,7 +300,7 @@ export default function TeamManager({
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="tbl w-full min-w-[820px] text-sm">
               <thead><tr className="bg-emerald-500"><th className={`${th} text-left`}>ผู้ได้รับคำเชิญ</th><th className={th}>บทบาท</th><th className={th}>ส่งคำเชิญเมื่อ</th><th className={th}>วันหมดอายุ</th><th className={th}>สถานะ</th><th className={th}>จัดการ</th></tr></thead>
               <tbody>
                 {filteredInv.length === 0 ? (
