@@ -6,11 +6,11 @@ import RatingBadge from "@/components/RatingBadge";
 import RateLot from "@/components/RateLot";
 import { thaiDateShort, thaiDateFull } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
-import { SavePassport, HighlightBar } from "@/components/TraceClient";
-import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, Truck, PackageCheck, Flower2, Apple, Carrot, Package, Leaf, CalendarDays, Clock, Scale, type LucideIcon } from "lucide-react";
+import { SavePassport, FarmSheet } from "@/components/TraceClient";
+import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, Truck, PackageCheck, Flower2, Apple, Carrot, Package, Leaf, CalendarDays, Clock, Cloud, type LucideIcon } from "lucide-react";
 import {
-  categoryOf, categoryLabel, quantityLabel, perUnitLabel, harvestLabel, ageLabel,
-  ripenessAtScan, shelfLifeLeft, coldChainWarning, isWeightBased, RIPENESS_LABEL,
+  categoryOf, categoryLabel, quantityLabel, perUnitLabel, harvestLabel, ageLabel, batchCo2e,
+  ripenessAtScan, shelfLifeLeft, coldChainWarning, RIPENESS_LABEL,
 } from "@/lib/produce";
 
 export const dynamic = "force-dynamic";
@@ -46,47 +46,56 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
 
   const category = categoryOf(batch);
   const isFlower = category === "flower";
-  const weightBased = isWeightBased(batch);
   const typeName = batch.productType || supplier.flowerType;
   const productName = batch.variety || typeName;
   const { stage, daysSinceHarvest, profile } = ripenessAtScan(batch);
   const left = shelfLifeLeft(batch);
   const chill = coldChainWarning(batch);
-  const weight = batch.shippedWeightKg ?? (weightBased ? batch.quantity ?? 0 : batch.weightKg ?? Math.round(batch.flowerCount * 0.052 * 10) / 10);
   const today = new Date().toISOString().slice(0, 10);
   const certs = (supplier.certifications ?? []).filter((c) => c.appliesTo.includes(category) && (!c.expiresAt || c.expiresAt >= today));
   const care = tipsOf(supplier.careTips).length ? tipsOf(supplier.careTips) : isFlower ? DEFAULT_CARE.flower
     : category === "fruit"
       ? [`เก็บที่ ${profile.storageMinC}–${profile.storageMaxC}°C${profile.chillSensitive ? " ไม่ควรแช่เย็นจัด" : ""}`, ...(profile.ripens ? ["วางไว้ที่อุณหภูมิห้องหากต้องการให้สุกต่อ"] : []), "ล้างให้สะอาดก่อนรับประทาน"]
       : ["ล้างให้สะอาดก่อนปรุง", `เก็บในตู้เย็นช่องผักที่ ${profile.storageMinC}–${profile.storageMaxC}°C`, `ควรบริโภคภายใน ${profile.shelfLifeDays} วัน`];
-  const story = supplier.description || supplier.highlights || "";
+  const story = supplier.description || (supplier.highlights !== "—" ? supplier.highlights : "") || "";
+  // photos (uploaded on ข้อมูลฟาร์ม); a farm without one shows the greenhouse picture
+  const farmPhoto = supplier.photoUrl || "/figma/greenhouse.webp";
+  const productPhoto = supplier.productPhotos?.[typeName] ?? supplier.productPhotos?.[batch.productType ?? ""];
+  const standards = certs.length
+    ? certs.map((c) => [c.kind === "other" ? c.name : c.kind, c.certNo, c.issuer].filter(Boolean).join(" · ")).join(" / ")
+    : "ยังไม่มีข้อมูลใบรับรองมาตรฐาน";
+  const carbonLine = `ติดตามคาร์บอนทุกรอบส่งออก · ล็อตนี้ ${batch.co2ePerFlower.toFixed(4)} kg CO₂e ${perUnitLabel(batch)} (ISO 14067, Tier-1)`;
   const steps = [
     { label: isFlower ? "ตัดดอก" : "เก็บเกี่ยว", date: thaiDateFull(batch.cutDate), done: true, Icon: Scissors },
     { label: "รับสินค้า", date: thaiDateFull(batch.entryDate), done: true, Icon: ClipboardCheck },
     { label: "กำลังขนส่ง", date: print ? thaiDateFull(print.printedAt.slice(0, 10)) : "รอดำเนินการ", done: !!print || batch.shipmentStatus !== "cutting", Icon: Truck },
     { label: "ถึงปลายทาง", date: batch.shipmentStatus === "delivered" ? "ส่งถึงแล้ว" : "รอดำเนินการ", done: batch.shipmentStatus === "delivered", Icon: PackageCheck },
   ];
+  // the 6 tiles keep our own content (product · quantity · CO₂e per unit · CO₂e รวม · cut date · age) in the
+  // mockup's card style — the lot's total CO₂e, not its weight (10 Oct 2026)
   const tiles: { v: string; l: string; Icon: LucideIcon }[] = [
-    { v: productName, l: isFlower ? "ประเภทดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower2 : category === "fruit" ? Apple : Carrot },
-    { v: quantityLabel(batch), l: isFlower ? "จำนวนดอกไม้" : "น้ำหนักสินค้า", Icon: Package },
+    { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower2 : category === "fruit" ? Apple : Carrot },
+    { v: quantityLabel(batch), l: isFlower ? "จำนวนดอก" : "น้ำหนักสินค้า", Icon: Package },
     { v: `${batch.co2ePerFlower.toFixed(4)} kg`, l: `CO₂e ${perUnitLabel(batch)}`, Icon: Leaf },
+    { v: `${batchCo2e(batch).toFixed(2)} kg`, l: "CO₂e รวม", Icon: Cloud },
     { v: thaiDateFull(batch.cutDate), l: harvestLabel(category), Icon: CalendarDays },
     { v: `${daysSinceHarvest} วัน`, l: ageLabel(category), Icon: Clock },
-    batch.grade ? { v: `เกรด${batch.grade}`, l: "คุณภาพสินค้า", Icon: Award } : { v: weight ? `${weight} kg.` : "—", l: "น้ำหนักรวม", Icon: Scale },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50 py-5">
       <div id="passport" className="mx-auto max-w-md space-y-5 bg-slate-50 px-4 pb-4">
-        {/* header: Corta + save */}
-        <div className="flex items-center justify-between pt-1">
+        {/* header: Corta + save, Thai Post red corner (Super App mockup) */}
+        <div className="relative -mx-4 flex items-center justify-between overflow-hidden px-4 pb-1 pt-5">
+          <span aria-hidden className="pointer-events-none absolute -left-1 -top-5 h-10 w-20 bg-[#EE2C34] [clip-path:polygon(0_0,100%_0,0_100%)]" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
+          <img src="/corta-logo.png" alt="Corta" className="relative h-7 w-auto" />
           <SavePassport targetId="passport" fileName={`Corta-${batch.id}`} />
         </div>
 
         {/* hero */}
-        <section className="rounded-2xl bg-gradient-to-br from-[#FDECEC] via-[#FFF6F6] to-white p-5 shadow-sm ring-1 ring-[#F7CDD0]">
+        <section className="flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-[#FDECEC] via-[#FFF6F6] to-white p-5 shadow-sm ring-1 ring-[#F7CDD0]">
+          <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-[#EE2C34]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#EE2C34]">Product Passport</span>
             <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">{categoryLabel(category)}</span>
@@ -95,38 +104,26 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <h1 className="mt-2 text-[22px] font-bold leading-tight text-[#EE2C34]">{productName}</h1>
           {/* one standard line for every product (§15) — the farm's own story lives behind the bar below */}
           <p className="mt-1 text-[13px] leading-relaxed text-slate-600">{STANDARD_LINE}</p>
+          </div>
+          {productPhoto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={productPhoto} alt={productName} className="size-28 shrink-0 rounded-2xl object-cover shadow-sm" />
+          ) : null}
         </section>
 
-        {/* farm — the bar that opens the farm's จุดเด่น (§15) */}
-        {(() => {
-          const card = <div className="flex items-center gap-3">
-          {supplier.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={supplier.photoUrl} alt="" className="size-16 shrink-0 rounded-full object-cover" />
-          ) : (
-            <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 text-2xl">{EMOJI[category]}</div>
-          )}
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-slate-800">{supplier.farmName}</p>
-            <RatingBadge kind="farm" initial={summary.farm} />
-            <p className="flex items-start gap-1 text-[12px] text-slate-500"><MapPin size={12} className="mt-0.5 shrink-0" /><span className="line-clamp-2">{supplier.address}</span></p>
-            {supplier.contact && supplier.contact !== "—" ? <p className="mt-0.5 flex items-center gap-1 text-[12px] text-[#EE2C34]"><Phone size={12} /> {supplier.contact}</p> : null}
-          </div>
-        
-          </div>;
-          return story
-            ? <HighlightBar title={supplier.farmName} text={story}>{card}</HighlightBar>
-            : <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E6E7E8]">{card}</section>;
-        })()}
-        {certs.length ? (
-          <div className="-mt-2 flex flex-wrap gap-2">
-            {certs.map((c, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                <Award size={12} /> {c.kind === "other" ? c.name : c.kind}{c.certNo ? ` · ${c.certNo}` : ""}
-              </span>
-            ))}
-          </div>
-        ) : null}
+        {/* farm card → sheet with the farm's details (§15, Super App mockup) */}
+        <FarmSheet name={supplier.farmName} address={supplier.address} photo={farmPhoto} story={story || undefined} standards={standards} carbon={carbonLine}>
+          <span className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={farmPhoto} alt="" className="size-[72px] shrink-0 rounded-xl object-cover object-[80%_60%]" />
+            <span className="min-w-0">
+              <span className="block truncate text-[16px] font-semibold text-slate-800">{supplier.farmName}</span>
+              <RatingBadge kind="farm" initial={summary.farm} />
+              <span className="mt-0.5 flex items-start gap-1 text-[12px] text-slate-500"><MapPin size={13} className="mt-0.5 shrink-0 text-[#EE2C34]" /><span className="line-clamp-2">{supplier.address}</span></span>
+              {supplier.contact && supplier.contact !== "—" ? <span className="mt-0.5 flex items-center gap-1 text-[12px] text-slate-600"><Phone size={13} className="shrink-0 text-[#EE2C34]" /><span className="truncate">{supplier.contact}</span></span> : null}
+            </span>
+          </span>
+        </FarmSheet>
 
         {/* product tiles */}
         <section>

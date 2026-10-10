@@ -72,6 +72,7 @@ export const suppliers = pgTable("suppliers", {
   carrierCompany: text("carrier_company"),
   carrierBranch: text("carrier_branch"),
   carrierLink: text("carrier_link"),
+  productPhotos: jsonb("product_photos").$type<Record<string, string>>(), // product type → "/api/media/<id>"
 });
 
 // Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน).
@@ -262,6 +263,17 @@ export const prints = pgTable("prints", {
   printedAt: text("printed_at").notNull(),
   cancelled: boolean("cancelled"),
   orgCode: text("org_code"), // the carrier org that printed the QR (scripts/add-ratings.ts)
+});
+
+// Public farm / product photos for the QR page (scripts/add-media.ts).
+export const media = pgTable("media", {
+  id: text("id").primaryKey(),
+  supplierId: text("supplier_id").notNull(),
+  kind: text("kind").notNull(), // farm | product
+  mime: text("mime").notNull(),
+  size: integer("size").notNull(),
+  data: text("data").notNull(),
+  createdAt: text("created_at").notNull(),
 });
 
 // Certificate attachments (scripts/add-cert-files.ts) — base64 body, farm + KYN only.

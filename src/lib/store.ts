@@ -7,7 +7,7 @@
 import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -228,6 +228,26 @@ const trailingNum = (id: string): number => {
 };
 
 // --- Suppliers ------------------------------------------------------------
+
+// --- Public farm / product photos (QR page) ------------------------------------------------------------
+export const mediaUrl = (id: string) => `/api/media/${id}`;
+export const mediaIdOf = (url?: string | null) => /^\/api\/media\/(MD-[A-Z0-9]+)$/.exec(url ?? "")?.[1];
+export async function addMedia(m: { supplierId: string; kind: "farm" | "product"; mime: string; size: number; data: string }): Promise<string> {
+  const id = `MD-${randomBytes(6).toString("hex").toUpperCase()}`;
+  await db.insert(media).values({ id, ...m, createdAt: new Date().toISOString() });
+  return id;
+}
+export async function getMedia(id: string) {
+  const [row] = await db.select().from(media).where(eq(media.id, id)).limit(1);
+  return row ?? null;
+}
+/** Remove a farm's images that its profile no longer points at. */
+export async function pruneMedia(supplierId: string, keepUrls: (string | undefined | null)[]): Promise<void> {
+  const keep = new Set(keepUrls.map(mediaIdOf).filter(Boolean) as string[]);
+  const owned = await db.select({ id: media.id }).from(media).where(eq(media.supplierId, supplierId));
+  const gone = owned.map((r) => r.id).filter((id) => !keep.has(id));
+  if (gone.length) await db.delete(media).where(inArray(media.id, gone));
+}
 
 // --- Certificate attachments (Thai Post doc §17) -------------------------------------------------------
 export async function addCertFile(f: { supplierId: string; name: string; mime: string; size: number; data: string; uploadedBy?: string }): Promise<{ id: string; name: string }> {
@@ -685,6 +705,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     const rest = await db.select({ id: users.id }).from(users).where(eq(users.supplierId, u.supplierId));
     if (rest.length === 0) {
       await db.delete(certFiles).where(eq(certFiles.supplierId, u.supplierId)); // personal documents go with the farm
+      await db.delete(media).where(eq(media.supplierId, u.supplierId));
+      await db.update(suppliers).set({ photoUrl: null, productPhotos: null }).where(eq(suppliers.id, u.supplierId));
       await db.update(suppliers).set({
         contactName: null, phone: null, lineId: null, contact: "—", gpsLat: 0, gpsLng: 0, status: "suspended",
       }).where(eq(suppliers.id, u.supplierId));

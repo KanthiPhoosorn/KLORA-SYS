@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVertical, Trash2, X } from "lucide-react";
+import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVertical, Trash2, X, Camera, ImagePlus } from "lucide-react";
+import { shrinkImage } from "@/lib/image-shrink";
 import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "@/lib/types";
 import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
 import { type SelectOption } from "@/components/SearchSelect";
@@ -107,7 +108,15 @@ function FlowerTypeCard({
   onAddVariety,
   onEditVariety,
   onRemoveVariety,
+  photo,
+  photoBusy,
+  onPhoto,
+  onRemovePhoto,
 }: {
+  photo?: string;
+  photoBusy?: boolean;
+  onPhoto: (f?: File | null) => void;
+  onRemovePhoto: () => void;
   entry: FlowerTypeEntry;
   open: boolean;
   onToggle: () => void;
@@ -145,6 +154,12 @@ function FlowerTypeCard({
           <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-medium">{CATEGORY_LABEL[category]} · {entry.varieties.length} พันธุ์</span>
           <ChevronDown size={17} className={`ml-auto shrink-0 transition ${open ? "rotate-180" : ""}`} />
         </button>
+        {/* product photo — the hero picture on the QR page of this product's lots */}
+        <label className="relative grid size-9 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-md bg-white/20 hover:bg-white/30" title="รูปสินค้า (แสดงบนหน้า QR)" aria-label={`รูปสินค้า ${entry.type}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {photoBusy ? <Loader2 size={15} className="animate-spin" /> : photo ? <img src={photo} alt="" className="size-full object-cover" /> : <ImagePlus size={16} />}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
         <div ref={menuRef} className="relative">
           <button type="button" onClick={() => setMenu((m) => !m)} className="grid size-7 place-items-center rounded-md hover:bg-white/20" title="ตัวเลือก">
             <MoreVertical size={16} />
@@ -158,6 +173,11 @@ function FlowerTypeCard({
               >
                 <Trash2 size={14} /> ลบรายการนี้
               </button>
+              {photo ? (
+                <button type="button" onClick={() => { setMenu(false); onRemovePhoto(); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-slate-50">
+                  <X size={14} /> ลบรูปสินค้า
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -249,6 +269,33 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   );
   const [certs, setCerts] = useState<CertDraft[]>(supplier.certifications ?? []);
   const [certErrs, setCertErrs] = useState<Record<number, string>>({});
+  // photos for the public QR page: the farm photo + one photo per product type (uploaded straight away)
+  const [farmPhoto, setFarmPhoto] = useState(supplier.photoUrl);
+  const [productPhotos, setProductPhotos] = useState<Record<string, string>>(supplier.productPhotos ?? {});
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null);
+  const [photoErr, setPhotoErr] = useState<string | null>(null);
+  async function uploadPhoto(kind: "farm" | "product", file?: File | null, type?: string) {
+    if (!file) return;
+    setPhotoErr(null); setPhotoBusy(type ?? kind);
+    try {
+      if (!file.type.startsWith("image/")) throw new Error("กรุณาเลือกไฟล์รูปภาพ");
+      const fd = new FormData();
+      fd.append("file", await shrinkImage(file), "photo.jpg"); fd.append("kind", kind); fd.append("supplierId", supplier.id);
+      if (type) fd.append("productType", type);
+      const r = await fetch("/api/media", { method: "POST", body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "อัปโหลดรูปไม่สำเร็จ");
+      if (kind === "farm") setFarmPhoto(d.url); else setProductPhotos((p) => ({ ...p, [type!]: d.url }));
+    } catch (e) { setPhotoErr((e as Error).message); }
+    setPhotoBusy(null);
+  }
+  async function removePhoto(kind: "farm" | "product", type?: string) {
+    setPhotoErr(null);
+    const q = new URLSearchParams({ kind, supplierId: supplier.id, ...(type ? { productType: type } : {}) });
+    const r = await fetch(`/api/media?${q}`, { method: "DELETE" });
+    if (!r.ok) { setPhotoErr("ลบรูปไม่สำเร็จ"); return; }
+    if (kind === "farm") setFarmPhoto(undefined); else setProductPhotos((p) => { const n = { ...p }; delete n[type!]; return n; });
+  }
   // "อื่นๆ" type: free text + which category it belongs to
   const [customType, setCustomType] = useState<{ name: string; category: ProductCategory } | null>(null);
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
@@ -335,12 +382,19 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
               <MapPin size={14} className="text-brand-pink" /> {supplier.address}
             </p>
           </div>
-          <div
-            className="h-28 w-full shrink-0 rounded-xl bg-cover bg-center sm:w-64"
-            style={{ backgroundImage: `url(${supplier.photoUrl || "/figma/greenhouse.webp"})` }}
-          />
+          <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl bg-cover bg-center sm:w-64" style={{ backgroundImage: `url(${farmPhoto || "/figma/greenhouse.webp"})` }}>
+            {/* farm photo — the farm card + pop-up on the QR page */}
+            <div className="absolute bottom-2 right-2 flex gap-1.5">
+              {farmPhoto ? <button type="button" onClick={() => removePhoto("farm")} className="rounded-md bg-white/90 px-2 py-1 text-[11px] text-slate-600 shadow-sm hover:bg-white">ลบรูป</button> : null}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-white/90 px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm hover:bg-white">
+                {photoBusy === "farm" ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />} {farmPhoto ? "เปลี่ยนรูปฟาร์ม" : "เพิ่มรูปฟาร์ม"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => { uploadPhoto("farm", e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+            </div>
+          </div>
         </div>
 
+        {photoErr ? <p className="mx-6 mb-3 rounded-[8px] bg-red-50 px-3 py-2 text-[12px] text-red-600">{photoErr}</p> : null}
         {/* Tabs */}
         <div className="flex gap-6 border-t border-slate-100 px-6">
           {[
@@ -408,6 +462,10 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
                     onAddVariety={(v) => mutVarieties(entry.type, (vs) => (vs.includes(v) ? vs : [...vs, v]))}
                     onEditVariety={(i, v) => mutVarieties(entry.type, (vs) => vs.map((x, j) => (j === i ? v : x)))}
                     onRemoveVariety={(i) => mutVarieties(entry.type, (vs) => vs.filter((_, j) => j !== i))}
+                    photo={productPhotos[entry.type]}
+                    photoBusy={photoBusy === entry.type}
+                    onPhoto={(f) => uploadPhoto("product", f, entry.type)}
+                    onRemovePhoto={() => removePhoto("product", entry.type)}
                   />
                 ))}
               </div>

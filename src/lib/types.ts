@@ -69,6 +69,7 @@ export interface Supplier {
   carrierCompany?: string;
   carrierBranch?: string;
   carrierLink?: string;
+  productPhotos?: Record<string, string>; // product type → "/api/media/<id>" (QR page hero photo)
 }
 
 /** A visitor's satisfaction rating from the QR page (Thai Post doc §15). */

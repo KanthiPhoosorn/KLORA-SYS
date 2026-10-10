@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import type React from "react";
-import { ChevronRight, Download, FileImage, FileText, Loader2, X } from "lucide-react";
+import { Award, ChevronRight, Download, FileImage, FileText, Loader2, MapPin, ShieldCheck, Sprout, X } from "lucide-react";
 
 // Consumer passport helpers (Thai Post doc 9 Oct 2026 §14):
 //  · SavePassport — the ⬇ button (top-right): saves what the visitor sees as a PNG or a one-page PDF.
-//  · HighlightBar — the farm's จุดเด่น opens from a tappable bar (§15, Super App) in a pop-up.
+//  · FarmSheet — the farm card opens the farm's details in a bottom sheet (Super App mockup) — was a pop-up.
 
 /** A minimal one-page PDF that embeds a JPEG (no PDF library needed). */
 function jpegToPdf(jpeg: Uint8Array, w: number, h: number): Blob {
@@ -93,25 +93,55 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
   );
 }
 
-export function HighlightBar({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
+/** The farm card on the QR page opens this sheet (Super App mockup): photo + pin, name, address, the
+ *  farm's story (ข้อมูลแหล่งผลิต) and three rows — standards, traceability, environment. Rendered with the
+ *  page (hidden until tapped) so its facts are in the page; left out of the saved image. */
+export function FarmSheet({ name, address, photo, story, standards, carbon, children }: {
+  name: string; address: string; photo: string; story?: string; standards: string; carbon: string; children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+  const rows = [
+    { Icon: Award, title: "มาตรฐานการผลิต", text: standards },
+    { Icon: ShieldCheck, title: "ตรวจสอบย้อนกลับ", text: "สแกน QR เพื่อดูแหล่งผลิต วันเก็บเกี่ยว และเส้นทางขนส่งของล็อตนี้" },
+    { Icon: Sprout, title: "การดูแลสิ่งแวดล้อม", text: carbon },
+  ];
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={`จุดเด่นของ ${title}`}
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={`จุดเด่นของ ${name}`}
         className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm ring-1 ring-[#E6E7E8] active:bg-[#FDECEC]">
         <span className="min-w-0 flex-1">{children}</span>
         <ChevronRight size={20} className="shrink-0 text-slate-500" />
       </button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5" onClick={() => setOpen(false)} data-no-capture>
-          <div role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()} className="relative max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl border-t-4 border-[#EE2C34] bg-white px-5 pb-4 pt-5 shadow-xl">
-            <button type="button" aria-label="ปิด" onClick={() => setOpen(false)} className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={18} /></button>
-            <p className="pr-6 text-center text-[15px] font-semibold text-[#193686]">{title}</p>
-            <p className="mt-3 whitespace-pre-line text-center text-[14px] leading-relaxed text-slate-600">{text}</p>
-            <button type="button" onClick={() => setOpen(false)} className="mx-auto mt-3 block rounded-full bg-[#E6E7E8] px-6 py-1.5 text-[13px] font-medium text-[#193686]">ปิด</button>
+      <div className={open ? "fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-5" : "hidden"} onClick={() => setOpen(false)} data-no-capture>
+        <div role="dialog" aria-modal="true" aria-label={name} onClick={(e) => e.stopPropagation()} className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-5 pb-5 pt-2 shadow-2xl sm:rounded-3xl">
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" aria-hidden />
+          <button type="button" aria-label="ปิด" onClick={() => setOpen(false)} className="absolute right-3 top-3 grid size-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><X size={20} /></button>
+          <div className="relative mx-auto mt-2 size-28">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="" className="size-28 rounded-full object-cover object-[80%_60%] shadow-md ring-4 ring-white" />
+            <span className="absolute bottom-1 right-0 grid size-8 place-items-center rounded-full bg-[#EE2C34] text-white ring-4 ring-white"><MapPin size={15} /></span>
           </div>
+          <p className="mt-3 text-center text-[20px] font-bold text-slate-900">{name}</p>
+          <p className="mt-1 flex items-start justify-center gap-1 text-center text-[13px] text-slate-500"><MapPin size={14} className="mt-0.5 shrink-0 text-[#EE2C34]" />{address}</p>
+          <p className="mt-5 text-[15px] font-bold text-slate-900">ข้อมูลแหล่งผลิต</p>
+          <p className="mt-1.5 whitespace-pre-line text-[14px] leading-relaxed text-slate-600">{story || "ฟาร์มยังไม่ได้เพิ่มข้อมูลแหล่งผลิต"}</p>
+          <ul className="mt-4 divide-y divide-[#E6E7E8] rounded-2xl bg-slate-50 px-4">
+            {rows.map((r) => (
+              <li key={r.title} className="flex items-start gap-3 py-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#E8ECF6] text-[#193686]"><r.Icon size={17} /></span>
+                <span className="min-w-0"><span className="block text-[14px] font-semibold text-slate-800">{r.title}</span><span className="block text-[12.5px] leading-relaxed text-slate-500">{r.text}</span></span>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => setOpen(false)} className="mt-5 w-full rounded-xl bg-[#EE2C34] py-3 text-[15px] font-semibold text-white active:opacity-90">ปิด</button>
         </div>
-      ) : null}
+      </div>
     </>
   );
 }
