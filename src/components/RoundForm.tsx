@@ -153,12 +153,17 @@ export default function RoundForm({
   const [destGps, setDestGps] = useState(edit?.destLat != null && edit?.destLng != null ? `${edit.destLat}, ${edit.destLng}` : ""); // "lat, lng"
   const [distanceKm, setDistanceKm] = useState(edit?.distanceKm ? String(edit.distanceKm) : "");
   // A farm that signed up through a carrier's link ships only with that carrier (KYN spec §1.2).
+  // A carrier's /c/<token> link also binds the org: its company is the provider and its branch the
+  // default origin branch (the server enforces the same — lib/carrier-lock).
   const lockedCarrier = supplier.signupVia;
-  const [carrier, setCarrier] = useState<CarrierKey>(CARRIERS.find((c) => c.label === edit?.carrier)?.key ?? lockedCarrier ?? "thaipost");
+  const boundCompany = lockedCarrier ? supplier.carrierCompany : undefined;
+  const lockedProvider = lockedCarrier && lockedCarrier !== "thaipost" ? boundCompany : undefined;
+  const [carrier, setCarrier] = useState<CarrierKey>(lockedCarrier ?? CARRIERS.find((c) => c.label === edit?.carrier)?.key ?? "thaipost");
   const [postalCode, setPostalCode] = useState(edit?.postalCode ?? "");
-  const [provider, setProvider] = useState(edit?.provider ?? "");
+  const [provider, setProvider] = useState(lockedProvider ?? edit?.provider ?? "");
   // the round stores the branch name; the select wants its id (a typed-in branch stays as text)
-  const [branch, setBranch] = useState(edit?.branch ? BRANCHES.find((b) => b.name === edit.branch)?.id ?? edit.branch : "");
+  const branchIdOf = (name?: string) => (name ? BRANCHES.find((b) => b.name === name)?.id ?? name : "");
+  const [branch, setBranch] = useState(branchIdOf(edit?.branch ?? (lockedCarrier ? supplier.carrierBranch : undefined)));
 
   const isThaipost = carrier === "thaipost";
   // Freemium: a free SUP account can only ship via ไปรษณีย์ไทย; other carriers unlock with Pro.
@@ -582,6 +587,7 @@ export default function RoundForm({
 
         <div>
           <label className={labelCls}>รูปแบบการขนส่ง</label>
+          {boundCompany ? <p className="mb-2 text-[12px] text-slate-500">ฟาร์มนี้สมัครผ่านลิงก์ของ <b className="text-slate-700">{boundCompany}</b> · ส่งได้กับผู้ขนส่งรายนี้เท่านั้น</p> : null}
           <div className="grid gap-2.5 sm:grid-cols-3">
             {CARRIERS.filter((c) => !lockedCarrier || c.key === lockedCarrier).map((c) => {
               const locked = showUpsell && c.key !== "thaipost" && c.key !== lockedCarrier;
@@ -623,7 +629,7 @@ export default function RoundForm({
           ) : (
             <div>
               <label className={labelCls}>เลือกผู้ให้บริการ{req}</label>
-              <SelectOther value={provider} onChange={(v) => { setProvider(v); setErrs((x) => ({ ...x, provider: "" })); }} options={PROVIDERS.map((p) => ({ value: p, label: p }))} placeholder="เลือกผู้ให้บริการ" className={inputCls} invalid={!!errs.provider} otherPlaceholder="ชื่อผู้ให้บริการ" />
+              <SelectOther value={provider} disabled={!!lockedProvider} onChange={(v) => { setProvider(v); setErrs((x) => ({ ...x, provider: "" })); }} options={[...(lockedProvider && !PROVIDERS.includes(lockedProvider) ? [lockedProvider] : []), ...PROVIDERS].map((p) => ({ value: p, label: p }))} placeholder="เลือกผู้ให้บริการ" className={inputCls} invalid={!!errs.provider} otherPlaceholder="ชื่อผู้ให้บริการ" />
               <Err msg={errs.provider} />
             </div>
           )}

@@ -6,6 +6,7 @@ import { guard } from "@/lib/api-guard";
 import type { BatchStatus } from "@/lib/types";
 import { parseRound } from "@/lib/round-parse";
 import { queueRoundOthers, queuePackagingOthers } from "@/lib/custom-queue";
+import { lockRound, withoutBound } from "@/lib/carrier-lock";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -38,11 +39,14 @@ export async function POST(req: Request) {
   // SUP logs a round for its own farm (supplierId from session). A logistic/Exporter
   // account logs an export on behalf of a farm, passing that farm's supplierId explicitly.
   let supplierId: string;
+  let sup: Awaited<ReturnType<typeof getSupplier>> = null;
   if (user.role === "supplier" && user.supplierId) {
     supplierId = user.supplierId;
+    sup = await getSupplier(supplierId);
   } else if (user.role === "logistic" && body.supplierId) {
-    const sup = await getSupplier(String(body.supplierId));
+    sup = await getSupplier(String(body.supplierId));
     if (!sup) return NextResponse.json({ error: "ไม่พบฟาร์มที่เลือก" }, { status: 400 });
+    if (sup.carrierOrg && sup.carrierOrg !== user.orgCode) return NextResponse.json({ error: "ฟาร์มนี้ส่งกับผู้ขนส่งรายอื่น" }, { status: 403 });
     supplierId = sup.id;
   } else {
     return NextResponse.json({ error: "เฉพาะบัญชีฟาร์มหรือผู้ส่งออกเท่านั้น" }, { status: 403 });
@@ -51,19 +55,22 @@ export async function POST(req: Request) {
   const parsed = parseRound(body);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { fields } = parsed;
-  const { productCategory, packagingItems, basketIds } = fields;
+  // a farm bound through a carrier's link ships only with that carrier
+  const locked = sup ? lockRound(sup, fields) : null;
+  if (locked) return NextResponse.json({ error: locked }, { status: 400 });
+  const { packagingItems } = fields;
   const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 
   try {
     const batch = await addBatch({ ...fields, supplierId, status });
     await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create" });
     // "อื่นๆ (ระบุ)" values → KYN review queue
-    await queueRoundOthers(batch, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
+    await queueRoundOthers(sup ? withoutBound(sup, batch) : batch, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
     await queuePackagingOthers(packagingItems, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
-    // Auto-compute on submit so the round is printable by the carrier right away (a flower
-    // round needs its packaging declared; anything incomplete stays "submitted" for KYN).
+    // Calculated as soon as it is submitted — no KYN confirm step (10 Oct 2026). A round without its
+    // packaging still gets the standard estimate; KYN can recalculate any lot from /kyn/incoming.
     let result = batch;
-    if (status === "submitted" && ((basketIds?.length ?? 0) > 0 || (packagingItems?.length ?? 0) > 0 || productCategory !== "flower")) {
+    if (status === "submitted") {
       const computed = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
       if (computed?.status === "computed") {
         result = computed;

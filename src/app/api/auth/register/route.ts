@@ -9,6 +9,7 @@ import { DEFAULT_PLAN } from "@/lib/plans";
 import { asCarrierKey } from "@/lib/carriers";
 import { parseResourceLines, linesToLegacy } from "@/lib/resource-types";
 import { queueResourceOthers, queueProductOthers } from "@/lib/custom-queue";
+import { getCarrierLink, useCarrierLink, bindingOf } from "@/lib/store";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -83,6 +84,14 @@ export async function POST(req: Request) {
   }
 
   const resLines = parseResourceLines(body.resourceLines);
+  // A carrier's sign-up link (/c/<token>): checked here, bound from the stored link — the request's own
+  // via / org values are ignored when a token is present.
+  const linkToken = body.carrierLink ? String(body.carrierLink) : "";
+  const link = linkToken ? await getCarrierLink(linkToken) : null;
+  if (linkToken && (!link || link.revokedAt)) {
+    return NextResponse.json({ error: "ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว — ขอลิงก์ใหม่จากผู้ขนส่ง หรือสมัครแบบปกติ" }, { status: 400 });
+  }
+
   const input: SupplierInput = {
     farmName,
     address,
@@ -113,10 +122,11 @@ export async function POST(req: Request) {
     ...(resLines ? { resourceLines: resLines, ...linesToLegacy(resLines) } : {}),
     yieldLines: parseYieldLines(body.yieldLines),
     plan: DEFAULT_PLAN,
-    signupVia: asCarrierKey(body.via),
+    ...(link ? bindingOf(link) : { signupVia: asCarrierKey(body.via) }),
   };
 
   const supplier = await addSupplier(input);
+  if (link) await useCarrierLink(link.token);
   await queueResourceOthers(resLines, { supplierId: supplier.id });
   await queueProductOthers(supplier.flowerTypes, { supplierId: supplier.id });
   const { hash, salt } = hashPassword(password);

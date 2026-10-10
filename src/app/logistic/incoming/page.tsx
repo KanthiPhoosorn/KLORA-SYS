@@ -11,7 +11,7 @@ import { categoryOf } from "@/lib/produce";
 
 export default async function LogisticIncomingPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const cat = parseCat((await searchParams).cat);
-  await requireRole("logistic");
+  const user = await requireRole("logistic");
   const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
   const mixed = new Set(allBatches.map(categoryOf)).size > 1;
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
@@ -42,7 +42,7 @@ export default async function LogisticIncomingPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       {mixed ? <CategoryFilter value={cat} basePath="/logistic/incoming" accent="blue" /> : null}
-      <LogisticIncoming rows={rows} />
+      <LogisticIncoming rows={rows} org={{ code: user.orgCode, company: user.company, branch: user.branch }} />
     </div>
   );
 }

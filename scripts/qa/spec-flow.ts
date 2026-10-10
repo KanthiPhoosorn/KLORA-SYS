@@ -68,7 +68,7 @@ let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fai
     log("KYN clears a farm's carrier lock", clr.status === 200 && sup2?.signup_via == null, `${clr.status} ${sup2?.signup_via}`);
   } finally {
     if (!hadSettings) await sql`DELETE FROM app_settings WHERE key = 'factors'`;
-    if (supId) { await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }
+    if (supId) { await sql`DELETE FROM custom_entries WHERE supplier_id = ${supId}`; await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }
     await sql`DELETE FROM users WHERE email = ${EMAIL}`; await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
   }
   console.log(fails ? `${fails} failed` : "all passed");

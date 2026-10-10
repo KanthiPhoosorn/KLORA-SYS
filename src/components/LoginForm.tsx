@@ -111,7 +111,8 @@ export default function LoginForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "เข้าสู่ระบบไม่สำเร็จ");
-      router.push(data.redirect || "/app");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && /^\/c\/[A-Za-z0-9_-]{4,32}$/.test(next) ? next : data.redirect || "/app");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);

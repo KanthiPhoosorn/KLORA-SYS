@@ -9,8 +9,9 @@ import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
 import { queueTransportOthers, queuePackagingOthers } from "@/lib/custom-queue";
 import { normalizeAwb } from "@/lib/tracking";
 import { guard, forbidden } from "@/lib/api-guard";
-import { isWeightBased, unitsOf, perUnitLabel } from "@/lib/produce";
+import { unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
+import { lockRound, withoutBound, carrierRefusal } from "@/lib/carrier-lock";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
 const SHIPMENT_TH: Record<ShipmentStatus, string> = { cutting: "รอจัดส่ง", in_transit: "กำลังขนส่ง", delivered: "ส่งถึงปลายทางแล้ว" };
@@ -77,6 +78,8 @@ export async function PATCH(
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
   const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType", "innerMaterials"];
   if (TRANSPORT.some((k) => k in body)) {
+    const refused = carrierRefusal(g.user, batch);
+    if (refused) return NextResponse.json({ error: refused }, { status: 403 });
     const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
     const patch: Record<string, unknown> = {};
     if ("shippedWeightKg" in body) patch.shippedWeightKg = num(body.shippedWeightKg);
@@ -139,13 +142,7 @@ export async function PATCH(
   }
 
   if (body.action === "compute") {
-    // A flower round needs its packaging (baskets or boxes) declared; produce is weighed.
-    if (!isWeightBased(batch) && !(batch.basketIds?.length) && !(batch.packagingItems?.length)) {
-      return NextResponse.json(
-        { error: "ขาดข้อมูลบรรจุภัณฑ์ — คำนวณไม่ได้" },
-        { status: 422 },
-      );
-    }
+    // KYN recalculates on demand (rounds are calculated automatically when submitted).
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
       await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
@@ -213,6 +210,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const parsed = parseRound(body);
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const f = parsed.fields;
+  const sup = await getSupplier(batch.supplierId);
+  const locked = sup ? lockRound(sup, f, batch.carrier) : null;
+  if (locked) return NextResponse.json({ error: locked }, { status: 400 });
 
   const changes = EDIT_LABELS
     .filter(([k]) => shown(f[k]) !== shown((batch as unknown as Record<string, unknown>)[k]))
@@ -223,7 +223,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const patch = Object.fromEntries(Object.entries({ ...f, ageDays: flowerAgeDays(f.cutDate, batch.entryDate) }).map(([k, v]) => [k, v === undefined ? null : v]));
   await updateBatch(batch.id, patch as Partial<Batch>);
   await addBatchEvent({ batchId: batch.id, actorId: g.user.id, actorName: g.user.username, action: "edit", detail: { changes } });
-  await queueRoundOthers(f, { supplierId: batch.supplierId, userId: g.user.id, batchId: batch.id }).catch(() => undefined);
+  await queueRoundOthers(sup ? withoutBound(sup, f) : f, { supplierId: batch.supplierId, userId: g.user.id, batchId: batch.id }).catch(() => undefined);
   const updated = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
   return NextResponse.json({ batch: updated ?? (await getBatch(batch.id)), changes });
 }

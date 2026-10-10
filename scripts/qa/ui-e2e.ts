@@ -274,6 +274,11 @@ window.qa = {
       const air = (await q.evaluate(`qa.opts(qa.find(document, "select", "ท่าอากาศยานต้นทาง")).includes("__other__")`)) as boolean;
       log("§4 carrier export form loads the farm's packaging rows (+ PKG code)", picked === true && JSON.stringify(lg1.rows) === JSON.stringify(["carton", "basket", "other"]) && lg1.code === code, JSON.stringify(lg1));
       log("§4 carrier form: อื่นๆ on จังหวัดปลายทาง + ท่าอากาศยานต้นทาง", lg1.prov === true && air === true, `${lg1.prov} ${air}`);
+      // carrier sign-up link: the button on รายการรับเข้าจากผู้ผลิต opens the panel (read-only here — no link is made)
+      await q.goto(BASE + "/logistic/incoming", { waitUntil: "networkidle0" });
+      await q.evaluate(`Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes("ชวนผู้ผลิต")).click()`); await sleep(900);
+      const panel = (await q.evaluate(`(() => { const d = document.querySelector('[role="dialog"]'); return !!d && d.innerText.includes("สร้างลิงก์"); })()`)) as boolean;
+      log("carrier link: + ชวนผู้ผลิต on the incoming page opens the link panel", panel);
       await ctx.close();
     }
 

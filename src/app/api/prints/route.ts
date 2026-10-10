@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrints, addPrint, getBatch, addBatchEvent } from "@/lib/store";
 import { guard } from "@/lib/api-guard";
+import { carrierRefusal } from "@/lib/carrier-lock";
 
 // Print logs are an operator concern (logistic / KYN) — never public.
 export async function GET() {
@@ -30,6 +31,8 @@ export async function POST(req: Request) {
   let destination = body.destination ? String(body.destination) : undefined;
   const lot = asked ? await getBatch(asked) : null;
   if (asked && !lot) return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
+  const refused = carrierRefusal(g.user, lot);
+  if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   // store the current LOT code even when an old BAT id was sent — print lookups and the history key on it
   const batchId = lot?.id;
   if (lot?.cancelledAt) return NextResponse.json({ error: `${lot.id} ถูกยกเลิกโดยฟาร์มแล้ว — พิมพ์ฉลากไม่ได้` }, { status: 409 });

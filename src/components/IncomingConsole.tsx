@@ -245,7 +245,7 @@ export default function IncomingConsole({
 
               {open.status === "submitted" ? (
                 <button onClick={() => compute(open.id)} disabled={busy} className="inline-flex w-full items-center justify-center gap-2 rounded-[8px] bg-brand-purple px-5 py-3 text-[14px] font-semibold text-white hover:opacity-90 disabled:opacity-60">
-                  {busy ? <Loader2 size={16} className="animate-spin" /> : null} ยืนยันและคำนวณ CO₂e
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : null} คำนวณ CO₂e อีกครั้ง
                 </button>
               ) : null}
             </div>

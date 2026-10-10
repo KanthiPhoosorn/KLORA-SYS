@@ -305,6 +305,7 @@ export default function SupManager({
                           <option value="">ทุกขนส่ง</option>
                           {CARRIERS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
                         </select>
+                        {s.carrierCompany ? <p className="mt-0.5 max-w-[160px] truncate text-[11px] text-slate-400" title={`ผูกกับ ${s.carrierCompany}${s.carrierBranch ? ` · ${s.carrierBranch}` : ""}`}>ผูกกับ {s.carrierCompany}</p> : null}
                       </td>
                       <td className="px-5 py-3.5">
                         <PillDropdown value={(s.plan ?? "free") as Plan} options={PLAN_OPTS} busy={busyId === s.id} onChange={(v) => setPlan(s, v)} />

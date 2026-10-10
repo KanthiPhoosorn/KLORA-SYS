@@ -65,6 +65,23 @@ export interface Supplier {
   yieldLines?: YieldLine[]; // ผลผลิตต่อเดือน แยกตามรายการสินค้าที่ลงไว้
   resourceLines?: import("./resource-types").ResourceLines; // several fuel/fertilizer/chemical types ("เพิ่มรายการ")
   signupVia?: CarrierKey; // สมัครผ่านลิงก์ของผู้ขนส่งรายนี้ → รูปแบบจัดส่งถูกจำกัดตามลิงก์
+  carrierOrg?: string; // bound through a carrier's link: that org (CID-…) is the only carrier
+  carrierCompany?: string;
+  carrierBranch?: string;
+  carrierLink?: string;
+}
+
+/** A carrier's sign-up link (/c/<token>), made on /logistic/incoming. */
+export interface CarrierLink {
+  token: string;
+  orgCode: string;
+  company?: string;
+  carrierKey: CarrierKey;
+  branch?: string;
+  createdBy?: string;
+  createdAt: string;
+  revokedAt?: string;
+  uses: number;
 }
 
 // รูปแบบการจัดส่ง (KYN spec §1.2) — also the "?via=" value of carrier-specific signup links
@@ -215,6 +232,7 @@ export interface Batch {
   flightNo?: string; // ส่งต่างประเทศ: หมายเลขเที่ยวบิน
   exportRecordedAt?: string; // ISO — เมื่อผู้ขนส่งบันทึกข้อมูลการจัดส่ง
   exportRecordedBy?: string; // User.id ของผู้บันทึก
+  carrierOrg?: string; // the carrier org this lot was created for (farm bound by a carrier link)
   innerMaterials?: InnerMaterialLine[]; // วัสดุภายในกล่อง/ห่อหุ้ม/ผูกยึด (KYN packaging master)
   originAirport?: string; // ส่งต่างประเทศ: สนามบินต้นทาง (IATA)
   destAirport?: string; // ส่งต่างประเทศ: สนามบินปลายทาง (IATA)
@@ -355,6 +373,7 @@ export type BatchInput = Pick<
   "supplierId" | "flowerCount" | "cutDate" | "distanceKm"
 > & {
   variety?: string;
+  carrierOrg?: string;
   shipDate?: string; // วันที่จัดส่ง the farm plans (YYYY-MM-DD); the carrier may correct it later
   destination?: string;
   destinationAddress?: string;

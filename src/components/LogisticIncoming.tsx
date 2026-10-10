@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Loader2, Ban, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui";
 import Modal from "@/components/Modal";
+import CarrierLinkPanel from "@/components/CarrierLinkPanel";
 
 export interface IncomingRow {
   id: string; // batch id
@@ -23,7 +24,7 @@ const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
 
 // Logistic "รายการรับเข้าจากผู้ผลิต" — Figma high-fi: lavender table header, plain คงเหลือ,
 // per-row pencil that opens a cancel-confirm.
-export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
+export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; org: { code?: string; company?: string; branch?: string } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
@@ -91,7 +92,10 @@ export default function LogisticIncoming({ rows }: { rows: IncomingRow[] }) {
 
       {/* Table */}
       <Card className="p-6">
-        <h2 className="text-xl font-bold text-slate-900">รายการรับเข้าจากผู้ผลิต</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-bold text-slate-900">รายการรับเข้าจากผู้ผลิต</h2>
+          <CarrierLinkPanel org={org} />
+        </div>
         <div className="mt-4 flex items-center justify-between">
           <span className="text-[13px] text-slate-500">Result {filtered.length} รายการ</span>
           <div className="flex items-center gap-3 text-xs text-slate-400">

@@ -67,6 +67,11 @@ export const suppliers = pgTable("suppliers", {
   yieldLines: jsonb("yield_lines").$type<YieldLine[]>(),
   resourceLines: jsonb("resource_lines").$type<import("../resource-types").ResourceLines>(),
   signupVia: text("signup_via").$type<CarrierKey>(),
+  // bound to one carrier org through its sign-up link (scripts/add-carrier-links.ts)
+  carrierOrg: text("carrier_org"),
+  carrierCompany: text("carrier_company"),
+  carrierBranch: text("carrier_branch"),
+  carrierLink: text("carrier_link"),
 });
 
 // Reusable packaging registry (บรรจุภัณฑ์หมุนเวียน).
@@ -85,6 +90,19 @@ export const packagingAssets = pgTable("packaging_assets", {
 });
 
 // Who changed what on a lot (ประวัติการแก้ไข) — create, edit (field diffs), cancel, print, tracking.
+// Carrier sign-up links: a carrier sends /c/<token> to its farms; farms joining through it ship only with it.
+export const carrierLinks = pgTable("carrier_links", {
+  token: text("token").primaryKey(),
+  orgCode: text("org_code").notNull(),
+  company: text("company"),
+  carrierKey: text("carrier_key").notNull().$type<CarrierKey>(),
+  branch: text("branch"),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+  revokedAt: text("revoked_at"),
+  uses: integer("uses").notNull().default(0),
+});
+
 export const batchEvents = pgTable("batch_events", {
   id: text("id").primaryKey(),
   // history goes with its lot (scripts/add-event-fk.ts): deleting a lot deletes its events, a rename follows
@@ -146,6 +164,7 @@ export const batches = pgTable("batches", {
   flightNo: text("flight_no"),
   exportRecordedAt: text("export_recorded_at"),
   exportRecordedBy: text("export_recorded_by"),
+  carrierOrg: text("carrier_org"), // the carrier org this lot was created for (bound farms)
   innerMaterials: jsonb("inner_materials").$type<InnerMaterialLine[]>(),
   originAirport: text("origin_airport"),
   destAirport: text("dest_airport"),

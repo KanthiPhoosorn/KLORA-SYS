@@ -25,7 +25,7 @@ export async function queueRoundOthers(b: { grade?: string; destination?: string
   await q("grade", b.grade, GRADE_OPTIONS);
   await q("destination", b.destination, [...DESTINATIONS.map((d) => d.name), "ต่างประเทศ"]);
   await q("provider", b.provider, PROVIDERS);
-  await q("branch", b.branch, BRANCHES.map((x) => x.id));
+  await q("branch", b.branch, BRANCHES.flatMap((x) => [x.id, x.name]));
 }
 
 /** Typed-in transport values the carrier entered on /logistic/new → KYN's review queue. */

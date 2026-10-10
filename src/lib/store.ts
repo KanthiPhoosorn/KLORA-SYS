@@ -7,7 +7,7 @@
 import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -27,6 +27,8 @@ import type {
   PackagingAsset,
   CustomEntry,
   BatchEvent,
+  CarrierLink,
+  CarrierKey,
 } from "./types";
 import {
   codeNumber,
@@ -225,6 +227,40 @@ const trailingNum = (id: string): number => {
 
 // --- Suppliers ------------------------------------------------------------
 
+// --- Carrier sign-up links ---------------------------------------------------------------------------
+type CarrierLinkRow = typeof carrierLinks.$inferSelect;
+const linkOf = (r: CarrierLinkRow): CarrierLink => clean<CarrierLink>(r);
+
+export async function createCarrierLink(input: { orgCode: string; company?: string; carrierKey: CarrierKey; branch?: string; createdBy: string }): Promise<CarrierLink> {
+  const [row] = await db.insert(carrierLinks).values({
+    token: randomBytes(6).toString("base64url"),
+    orgCode: input.orgCode, company: input.company ?? null, carrierKey: input.carrierKey, branch: input.branch ?? null,
+    createdBy: input.createdBy, createdAt: new Date().toISOString(),
+  }).returning();
+  return linkOf(row);
+}
+export async function getCarrierLink(token: string): Promise<CarrierLink | null> {
+  const [row] = await db.select().from(carrierLinks).where(eq(carrierLinks.token, token)).limit(1);
+  return row ? linkOf(row) : null;
+}
+/** The org's links (newest first) with the farms that joined through each. */
+export async function getCarrierLinks(orgCode: string): Promise<(CarrierLink & { farms: { id: string; code?: string; name: string }[] })[]> {
+  const rows = await db.select().from(carrierLinks).where(eq(carrierLinks.orgCode, orgCode)).orderBy(desc(carrierLinks.createdAt));
+  const farms = await db.select({ id: suppliers.id, code: suppliers.code, name: suppliers.farmName, link: suppliers.carrierLink }).from(suppliers).where(eq(suppliers.carrierOrg, orgCode));
+  return rows.map((r) => ({ ...linkOf(r), farms: farms.filter((f) => f.link === r.token).map((f) => ({ id: f.id, code: f.code ?? undefined, name: f.name })) }));
+}
+export async function revokeCarrierLink(token: string, orgCode: string): Promise<boolean> {
+  const r = await db.update(carrierLinks).set({ revokedAt: new Date().toISOString() }).where(and(eq(carrierLinks.token, token), eq(carrierLinks.orgCode, orgCode), isNull(carrierLinks.revokedAt))).returning();
+  return r.length > 0;
+}
+/** Use a link once: only an open link counts (one statement — checked and counted together). */
+export async function useCarrierLink(token: string): Promise<CarrierLink | null> {
+  const [row] = await db.update(carrierLinks).set({ uses: sql`${carrierLinks.uses} + 1` }).where(and(eq(carrierLinks.token, token), isNull(carrierLinks.revokedAt))).returning();
+  return row ? linkOf(row) : null;
+}
+/** The farm fields a link sets — always taken from the stored link, never from the request. */
+export const bindingOf = (l: CarrierLink) => ({ signupVia: l.carrierKey, carrierOrg: l.orgCode, carrierCompany: l.company ?? undefined, carrierBranch: l.branch ?? undefined, carrierLink: l.token });
+
 export async function getSuppliers(): Promise<Supplier[]> {
   const rows = await db.select().from(suppliers);
   return rows.map((r) => clean<Supplier>(r));
@@ -316,6 +352,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     variety: input.variety,
     cutDate: input.cutDate,
     shipDate: input.shipDate,
+    carrierOrg: input.carrierOrg,
     distanceKm: input.distanceKm,
     destination: input.destination,
     destinationAddress: input.destinationAddress,

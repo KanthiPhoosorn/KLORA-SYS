@@ -118,6 +118,8 @@ export async function PATCH(
   }
   if (isKyn && "signupVia" in body) {
     (patch as Record<string, unknown>).signupVia = asCarrierKey(body.signupVia) ?? null;
+    // a carrier-link binding belongs to one org — any change of type by KYN releases it
+    if (asCarrierKey(body.signupVia) !== supplier.signupVia) Object.assign(patch, { carrierOrg: null, carrierCompany: null, carrierBranch: null, carrierLink: null });
   }
 
   if (Object.keys(patch).length === 0) {
