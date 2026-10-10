@@ -86,7 +86,7 @@ export default function ShipmentsTable({
     if (open === id) { setOpen(null); return; }
     const b = el.getBoundingClientRect();
     const right = Math.max(8, window.innerWidth - b.right);
-    setMenuAt(b.bottom + 200 > window.innerHeight ? { bottom: window.innerHeight - b.top + 4, right } : { top: b.bottom + 4, right });
+    setMenuAt(b.bottom + 250 > window.innerHeight ? { bottom: window.innerHeight - b.top + 4, right } : { top: b.bottom + 4, right });
     setOpen(id);
   };
 
@@ -126,16 +126,20 @@ export default function ShipmentsTable({
 
   const menuFor = (r: ShipRow) => {
     const trackName = r.trackingNo ? "แก้เลขพัสดุ" : "ใส่เลขพัสดุ";
+    // คัดลอกรายการ: same product + packaging, new dates / destination → a new LOT (any status)
+    const copy = { name: "คัดลอกรายการ", go: () => router.push(`/app/new?copy=${encodeURIComponent(r.id)}`) };
     if (r.status === "cancelled") return [
-      { name: "แก้ไขข้อมูล", why: "รายการนี้ถูกยกเลิกแล้ว" }, { name: trackName, why: "รายการนี้ถูกยกเลิกแล้ว" }, { name: "ยกเลิกรายการ", why: "ยกเลิกแล้ว" },
+      { name: "แก้ไขข้อมูล", why: "รายการนี้ถูกยกเลิกแล้ว" }, copy, { name: trackName, why: "รายการนี้ถูกยกเลิกแล้ว" }, { name: "ยกเลิกรายการ", why: "ยกเลิกแล้ว" },
     ];
     if (r.status === "printed") return [
       { name: "แก้ไขข้อมูล", why: "พิมพ์ QR แล้ว · แก้ไขไม่ได้" },
+      copy,
       { name: trackName, go: () => openModal("track", r) },
       { name: "ยกเลิกรายการ", why: "พิมพ์ QR แล้ว · ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน" },
     ];
     return [
       { name: "แก้ไขข้อมูล", go: () => router.push(`/app/new?edit=${encodeURIComponent(r.id)}`) },
+      copy,
       { name: trackName, why: "ใส่ได้หลังพิมพ์ QR แล้ว" },
       { name: "ยกเลิกรายการ", go: () => openModal("cancel", r), red: true },
     ];

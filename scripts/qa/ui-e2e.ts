@@ -234,7 +234,7 @@ window.qa = {
     const urlBefore = p.url();
     await act(`qa.menu(${JSON.stringify(lot)})`, 300);
     const wait = await ev<{ name: string; off: boolean; why: string }[]>(`qa.menuItems()`);
-    log("5.3 waiting: แก้ไข ✓ · ใส่เลขพัสดุ ✗ (ใส่ได้หลังพิมพ์ QR แล้ว) · ยกเลิก ✓ — in place", JSON.stringify(wait.map((x) => [x.name, x.off, x.why])) === JSON.stringify([["แก้ไขข้อมูล", false, ""], ["ใส่เลขพัสดุ", true, "ใส่ได้หลังพิมพ์ QR แล้ว"], ["ยกเลิกรายการ", false, ""]]) && p.url() === urlBefore, JSON.stringify(wait));
+    log("5.3 waiting: แก้ไข ✓ · ใส่เลขพัสดุ ✗ (ใส่ได้หลังพิมพ์ QR แล้ว) · ยกเลิก ✓ — in place", JSON.stringify(wait.map((x) => [x.name, x.off, x.why])) === JSON.stringify([["แก้ไขข้อมูล", false, ""], ["คัดลอกรายการ", false, ""], ["ใส่เลขพัสดุ", true, "ใส่ได้หลังพิมพ์ QR แล้ว"], ["ยกเลิกรายการ", false, ""]]) && p.url() === urlBefore, JSON.stringify(wait));
     await shot("menu-waiting", false);
 
     // edit (§5.4)
@@ -287,7 +287,7 @@ window.qa = {
     await p.goto(BASE + "/app/history", { waitUntil: "networkidle0" });
     await act(`qa.menu(${JSON.stringify(lot)})`, 300);
     const printed = await ev<{ name: string; off: boolean; why: string }[]>(`qa.menuItems()`);
-    log("5.3 printed: แก้ไข ✗ · ใส่เลขพัสดุ ✓ · ยกเลิก ✗ (ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน)", JSON.stringify(printed.map((x) => [x.name, x.off, x.why])) === JSON.stringify([["แก้ไขข้อมูล", true, "พิมพ์ QR แล้ว · แก้ไขไม่ได้"], ["ใส่เลขพัสดุ", false, ""], ["ยกเลิกรายการ", true, "พิมพ์ QR แล้ว · ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน"]]) && (await ev(`qa.text(qa.tr(${JSON.stringify(lot)})).includes("พิมพ์แล้ว")`)) === true, JSON.stringify(printed));
+    log("5.3 printed: แก้ไข ✗ · ใส่เลขพัสดุ ✓ · ยกเลิก ✗ (ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน)", JSON.stringify(printed.map((x) => [x.name, x.off, x.why])) === JSON.stringify([["แก้ไขข้อมูล", true, "พิมพ์ QR แล้ว · แก้ไขไม่ได้"], ["คัดลอกรายการ", false, ""], ["ใส่เลขพัสดุ", false, ""], ["ยกเลิกรายการ", true, "พิมพ์ QR แล้ว · ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน"]]) && (await ev(`qa.text(qa.tr(${JSON.stringify(lot)})).includes("พิมพ์แล้ว")`)) === true, JSON.stringify(printed));
 
     // tracking number (§5.5)
     await act(`qa.click("ใส่เลขพัสดุ", document.querySelector('[role="menu"]'))`, 300);
@@ -325,7 +325,7 @@ window.qa = {
     await waitFor(`qa.text(qa.tr(${JSON.stringify(lot)})).includes("ยกเลิก") && !qa.text(qa.tr(${JSON.stringify(lot)})).includes("รอสั่งพิมพ์")`, 10000);
     const gone = await ev<Record<string, unknown>>(`(() => { const tr = qa.tr(${JSON.stringify(lot)}); return { grey: /bg-slate-50/.test(tr.className), struck: getComputedStyle(tr.children[1]).textDecorationLine }; })()`);
     await act(`qa.menu(${JSON.stringify(lot)})`, 300);
-    const dead = await ev<{ off: boolean; why: string }[]>(`qa.menuItems()`);
+    const dead = (await ev<{ name: string; off: boolean; why: string }[]>(`qa.menuItems()`)).filter((x) => x.name !== "คัดลอกรายการ");
     log("5.6 cancelled row is grey + ยกเลิก; every menu item off (ยกเลิกแล้ว)", gone.grey === true && String(gone.struck).includes("line-through") && dead.length === 3 && dead.every((x) => x.off && ["รายการนี้ถูกยกเลิกแล้ว", "ยกเลิกแล้ว"].includes(x.why)), JSON.stringify(gone));
     await shot("cancelled");
     const assets = await (await fetch(BASE + "/api/packaging-assets", { headers: { Cookie: `klora_session=${cookie}` } })).json();
@@ -334,6 +334,27 @@ window.qa = {
     await p.goto(BASE + "/app", { waitUntil: "networkidle0" });
     const kpi = await ev<string>(`qa.text()`);
     log("5.6 cancelled round left out of the overview totals", /จำนวนรอบการส่งออก\s*0/.test(kpi), (kpi.match(/จำนวนรอบการส่งออก\s*\S+/) || [""])[0]);
+
+    // ---- คัดลอกรายการ: same product + packaging, new dates + destination → a new LOT ----------------------
+    await p.goto(BASE + "/app/history", { waitUntil: "networkidle0" });
+    await act(`qa.menu(${JSON.stringify(lot)})`, 300);
+    await act(`qa.click("คัดลอกรายการ", document.querySelector('[role="menu"]'))`);
+    await waitFor(`location.search.includes("copy=") && document.body.innerText.includes("คัดลอกจาก")`, 15000);
+    const cp = await ev<Record<string, unknown>>(`({ qty: qa.find(document, "input", "จำนวนดอกไม้")?.value, rows: qa.rows().length, code: qa.find(qa.row(1), "select", "หมายเลขบรรจุภัณฑ์")?.value, other: qa.find(qa.row(2), "input", "ชื่อบรรจุภัณฑ์")?.value, addr: qa.find(document, "input", "ที่อยู่ปลายทาง")?.value, cut: qa.find(document, "input", "วันที่ตัด")?.value, prov: qa.find(document, "select", "จังหวัดปลายทาง")?.value })`);
+    log("คัดลอกรายการ: product + packaging kept, dates + destination blank", cp.qty === "600" && cp.rows === 3 && cp.code === code && cp.other === OTHER_NAME && cp.addr === "" && cp.cut === "" && cp.prov === "", JSON.stringify(cp));
+    await act(`qa.date(document, "วันที่ตัด", "2026-10-10")`);
+    await act(`qa.date(document, "วันที่จัดส่ง", "2026-10-11")`);
+    await act(`qa.sel(document, "จังหวัดปลายทาง", "เชียงใหม่")`);
+    await act(`qa.inp(document, "ที่อยู่ปลายทาง", "99 ถนนนิมมานเหมินท์ ตำบลสุเทพ อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200")`, 400);
+    await waitFor(`Number(qa.find(document, "input", "ระยะทางขนส่ง")?.value) > 0`, 25000);
+    await act(`qa.click("ถัดไป", null, true)`, 500);
+    await waitFor(`document.body.innerText.includes("ตรวจสอบและยืนยันข้อมูล")`, 8000);
+    await act(`qa.click("บันทึก", null, true)`, 400);
+    await act(`qa.click("ยืนยัน", document.querySelector('[role="dialog"]') || document, true)`);
+    await waitFor(`location.pathname === "/app/history"`, 20000);
+    const [nl] = await sql`SELECT id, quantity, packaging_items, product_type, destination_address FROM batches WHERE supplier_id = ${supId} AND id <> ${lot}`;
+    const [ev2] = nl ? await sql`SELECT detail FROM batch_events WHERE batch_id = ${nl.id} AND action = 'create'` : [];
+    log("saved as a new LOT with the copied product + packaging and the new address", !!nl && nl.id !== lot && Number(nl.quantity) === 600 && (nl.packaging_items as unknown[]).length === 3 && String(nl.destination_address).includes("นิมมานเหมินท์") && (ev2?.detail as { copiedFrom?: string })?.copiedFrom === lot, JSON.stringify({ id: nl?.id, from: (ev2?.detail as { copiedFrom?: string })?.copiedFrom }));
 
     // ---- §S3 farm resources: several fuel / fertilizer / chemical lines, each with อื่นๆ --------------
     await p.goto(BASE + "/app/farm", { waitUntil: "networkidle0" });

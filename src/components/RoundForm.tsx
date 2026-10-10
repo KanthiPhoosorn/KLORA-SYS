@@ -62,10 +62,13 @@ export default function RoundForm({
   accent = "pink",
   catalog = DEFAULT_CATALOG,
   edit,
+  copyFrom,
 }: {
   supplier: Supplier;
   /** แก้ไขรอบส่งออก: the lot to edit (form prefilled, saved with PUT under the same LOT code) */
   edit?: Batch;
+  /** คัดลอกรายการ: a new round starting from this lot (product + packaging kept; dates + destination blank) */
+  copyFrom?: Batch;
   varietyOptions?: string[];
   /** KYN central packaging table (standard sizes/weights, materials) */
   catalog?: PackCatalog;
@@ -101,6 +104,7 @@ export default function RoundForm({
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toast, setToast] = useState(false);
+  const src = edit ?? copyFrom; // what the form starts from
   const [distEdited, setDistEdited] = useState(!!edit); // an edit keeps its saved distance until asked to recompute
   const [errs, setErrs] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -110,19 +114,19 @@ export default function RoundForm({
   // type stays available. Flowers are counted (ดอก/ช่อ), produce is weighed (กก./ตัน).
   const farmGroups = (supplier.flowerTypes ?? []).map((g) => ({ ...g, category: g.category ?? categoryOfType(g.type) ?? ("flower" as ProductCategory) }));
   const firstCat: ProductCategory = farmGroups[0]?.category ?? categoryOfType(supplier.flowerType) ?? "flower";
-  const [category, setCategory] = useState<ProductCategory>(edit?.productCategory ?? firstCat);
+  const [category, setCategory] = useState<ProductCategory>(src?.productCategory ?? firstCat);
   const isFlower = category === "flower";
-  const [flowerType, setFlowerType] = useState(edit?.productType ?? farmGroups.find((g) => g.category === firstCat)?.type ?? supplier.flowerType ?? "");
-  const [variety, setVariety] = useState(edit?.variety ?? "");
-  const [flowerCount, setFlowerCount] = useState(edit ? String(edit.quantity ?? edit.flowerCount ?? "") : ""); // quantity in `unit`
-  const [unit, setUnit] = useState<QuantityUnit>(edit?.unit ?? (firstCat === "flower" ? "stem" : "kg"));
+  const [flowerType, setFlowerType] = useState(src?.productType ?? farmGroups.find((g) => g.category === firstCat)?.type ?? supplier.flowerType ?? "");
+  const [variety, setVariety] = useState(src?.variety ?? "");
+  const [flowerCount, setFlowerCount] = useState(src ? String(src.quantity ?? src.flowerCount ?? "") : ""); // quantity in `unit`
+  const [unit, setUnit] = useState<QuantityUnit>(src?.unit ?? (firstCat === "flower" ? "stem" : "kg"));
   const [cutDate, setCutDate] = useState(edit?.cutDate ?? "");
-  const [ageDays, setAgeDays] = useState(edit?.expectedAgeDays ? String(edit.expectedAgeDays) : "");
-  const [plantingDate, setPlantingDate] = useState(edit?.plantingDate ?? "");
-  const [ripeness, setRipeness] = useState<Ripeness | "">(edit?.ripenessAtHarvest ?? "");
-  const [grade, setGrade] = useState(edit?.grade ?? "");
-  const [ethylene, setEthylene] = useState(!!edit?.ethyleneUsed);
-  const [ethyleneNote, setEthyleneNote] = useState(edit?.ethyleneNote ?? "");
+  const [ageDays, setAgeDays] = useState(src?.expectedAgeDays ? String(src.expectedAgeDays) : "");
+  const [plantingDate, setPlantingDate] = useState(src?.plantingDate ?? "");
+  const [ripeness, setRipeness] = useState<Ripeness | "">(src?.ripenessAtHarvest ?? "");
+  const [grade, setGrade] = useState(src?.grade ?? "");
+  const [ethylene, setEthylene] = useState(!!src?.ethyleneUsed);
+  const [ethyleneNote, setEthyleneNote] = useState(src?.ethyleneNote ?? "");
   const farmTypes = farmGroups.filter((g) => g.category === category).map((g) => g.type);
   const typeOptions = Array.from(new Set([...farmTypes, ...typesFor(category)]));
   function pickCategory(c: ProductCategory) {
@@ -134,9 +138,9 @@ export default function RoundForm({
     setErrs((x) => ({ ...x, flowerType: "", variety: "", flowerCount: "", ageDays: "" }));
   }
   // Packaging
-  const [packs, setPacks] = useState<PackRowState[]>(() => (edit?.packagingItems?.length ? rowsFromBatch(edit.packagingItems, catalog) : [firstRow(catalog, edit?.productCategory ?? firstCat)]));
+  const [packs, setPacks] = useState<PackRowState[]>(() => (src?.packagingItems?.length ? rowsFromBatch(src.packagingItems, catalog) : [firstRow(catalog, src?.productCategory ?? firstCat)]));
   // น้ำหนักรวมหลังแพ็ก (§4.8) — weighed before shipping; drives transport CO₂e and checks the packaging
-  const [packedWeight, setPackedWeight] = useState(edit?.shippedWeightKg ? String(edit.shippedWeightKg) : "");
+  const [packedWeight, setPackedWeight] = useState(src?.shippedWeightKg ? String(src.shippedWeightKg) : "");
   const [packedUnit, setPackedUnit] = useState<"กก." | "กรัม">("กก.");
   const packedKg = (Number(packedWeight) || 0) / (packedUnit === "กรัม" ? 1000 : 1);
   const packagingKg = rowsWeightKg(packs, catalog);
@@ -158,12 +162,12 @@ export default function RoundForm({
   const lockedCarrier = supplier.signupVia;
   const boundCompany = lockedCarrier ? supplier.carrierCompany : undefined;
   const lockedProvider = lockedCarrier && lockedCarrier !== "thaipost" ? boundCompany : undefined;
-  const [carrier, setCarrier] = useState<CarrierKey>(lockedCarrier ?? CARRIERS.find((c) => c.label === edit?.carrier)?.key ?? "thaipost");
-  const [postalCode, setPostalCode] = useState(edit?.postalCode ?? "");
-  const [provider, setProvider] = useState(lockedProvider ?? edit?.provider ?? "");
+  const [carrier, setCarrier] = useState<CarrierKey>(lockedCarrier ?? CARRIERS.find((c) => c.label === src?.carrier)?.key ?? "thaipost");
+  const [postalCode, setPostalCode] = useState(src?.postalCode ?? "");
+  const [provider, setProvider] = useState(lockedProvider ?? src?.provider ?? "");
   // the round stores the branch name; the select wants its id (a typed-in branch stays as text)
   const branchIdOf = (name?: string) => (name ? BRANCHES.find((b) => b.name === name)?.id ?? name : "");
-  const [branch, setBranch] = useState(branchIdOf(edit?.branch ?? (lockedCarrier ? supplier.carrierBranch : undefined)));
+  const [branch, setBranch] = useState(branchIdOf(src?.branch ?? (lockedCarrier ? supplier.carrierBranch : undefined)));
 
   const isThaipost = carrier === "thaipost";
   // Freemium: a free SUP account can only ship via ไปรษณีย์ไทย; other carriers unlock with Pro.
@@ -292,6 +296,7 @@ export default function RoundForm({
           variety: variety || flowerType,
           cutDate,
           shipDate,
+          copiedFrom: copyFrom?.id,
           plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
           ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
           grade: !isFlower && grade ? grade : undefined,
@@ -440,6 +445,7 @@ export default function RoundForm({
   return (
     <div className="max-w-3xl space-y-5">
       <Toast show={toast} />
+      {copyFrom ? <p className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] text-sky-800">คัดลอกสินค้าและบรรจุภัณฑ์จาก <b>{copyFrom.id}</b> แล้ว — กรอกวันที่ตัด วันที่จัดส่ง และที่อยู่ผู้รับของรอบนี้ แล้วบันทึกเป็นล็อตใหม่</p> : null}
 
       {/* Product (ดอกไม้ / ผลไม้ / ผัก) */}
       <Section title="ข้อมูลสินค้า" sub="ระบุประเภทสินค้าและรายละเอียดของรอบการจัดส่งนี้">

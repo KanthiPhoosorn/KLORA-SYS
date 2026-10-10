@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBatches, getBatchesBySupplier, addBatch, getSupplier, computeBatch, addNotification, addBatchEvent } from "@/lib/store";
+import { getBatches, getBatchesBySupplier, getBatch, addBatch, getSupplier, computeBatch, addNotification, addBatchEvent } from "@/lib/store";
 import { unitsOf, perUnitLabel } from "@/lib/produce";
 import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
@@ -63,7 +63,8 @@ export async function POST(req: Request) {
 
   try {
     const batch = await addBatch({ ...fields, supplierId, status });
-    await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create" });
+    const from = body.copiedFrom ? await getBatch(String(body.copiedFrom)) : null; // คัดลอกรายการ
+    await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create", detail: from && from.supplierId === supplierId ? { copiedFrom: from.id } : undefined });
     // "อื่นๆ (ระบุ)" values → KYN review queue
     await queueRoundOthers(sup ? withoutBound(sup, batch) : batch, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
     await queuePackagingOthers(packagingItems, { supplierId, userId: user.id, batchId: batch.id }).catch(() => undefined);
