@@ -7,7 +7,7 @@
 import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -228,6 +228,41 @@ const trailingNum = (id: string): number => {
 };
 
 // --- Suppliers ------------------------------------------------------------
+
+// --- Certificate attachments (Thai Post doc §17) -------------------------------------------------------
+export async function addCertFile(f: { supplierId: string; name: string; mime: string; size: number; data: string; uploadedBy?: string }): Promise<{ id: string; name: string }> {
+  const id = `CF-${randomBytes(6).toString("hex").toUpperCase()}`;
+  await db.insert(certFiles).values({ id, ...f, createdAt: new Date().toISOString() });
+  return { id, name: f.name };
+}
+export async function getCertFile(id: string) {
+  const [row] = await db.select().from(certFiles).where(eq(certFiles.id, id)).limit(1);
+  return row ?? null;
+}
+/** The farm's own file ids (to accept only those on a save). */
+export async function certFileIdsOf(supplierId: string): Promise<Set<string>> {
+  return new Set((await db.select({ id: certFiles.id }).from(certFiles).where(eq(certFiles.supplierId, supplierId))).map((r) => r.id));
+}
+/** Files no certificate points at any more are removed (a replaced or deleted certificate). */
+export async function pruneCertFiles(supplierId: string, keep: string[]): Promise<void> {
+  const owned = await certFileIdsOf(supplierId);
+  const gone = [...owned].filter((id) => !keep.includes(id));
+  if (gone.length) await db.delete(certFiles).where(inArray(certFiles.id, gone));
+}
+/** The 30-day reminder: one bell notification per certificate + expiry date. */
+export async function remindExpiringCerts(s: Supplier): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const soon = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+  const due = (s.certifications ?? []).filter((c) => c.expiresAt && c.expiresAt >= today && c.expiresAt <= soon);
+  if (!due.length) return;
+  const have = new Set((await db.select({ t: notifications.title }).from(notifications).where(eq(notifications.supplierId, s.id))).map((r) => r.t));
+  for (const c of due) {
+    const name = c.kind === "other" ? c.name ?? "ใบรับรอง" : c.kind;
+    const title = `ใบรับรอง ${name} จะหมดอายุ ${c.expiresAt}`;
+    if (have.has(title)) continue;
+    await addNotification({ supplierId: s.id, kind: "warning", title, body: `ใบรับรอง ${name}${c.certNo ? ` เลขที่ ${c.certNo}` : ""} จะหมดอายุในอีกไม่เกิน 30 วัน — ต่ออายุแล้วอัปเดตที่หน้า "ข้อมูลฟาร์ม"` });
+  }
+}
 
 // --- Satisfaction ratings (QR page, Thai Post doc §15) -------------------------------------------------
 /** Who handles a lot, for its การขนส่ง rating: the bound carrier org, else the org that printed its QR,
@@ -649,6 +684,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   if (u.supplierId) {
     const rest = await db.select({ id: users.id }).from(users).where(eq(users.supplierId, u.supplierId));
     if (rest.length === 0) {
+      await db.delete(certFiles).where(eq(certFiles.supplierId, u.supplierId)); // personal documents go with the farm
       await db.update(suppliers).set({
         contactName: null, phone: null, lineId: null, contact: "—", gpsLat: 0, gpsLng: 0, status: "suspended",
       }).where(eq(suppliers.id, u.supplierId));

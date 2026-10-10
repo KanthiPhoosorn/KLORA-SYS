@@ -74,7 +74,11 @@ export function parseCertifications(raw: unknown): Certification[] | undefined {
         name: name || undefined,
         appliesTo: appliesTo.length ? appliesTo : (["flower", "fruit", "vegetable"] as ProductCategory[]),
         certNo: String(c.certNo ?? "").trim() || undefined,
-        expiresAt: String(c.expiresAt ?? "").trim() || undefined,
+        issuer: String(c.issuer ?? "").trim().slice(0, 120) || undefined,
+        expiresAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.expiresAt ?? "")) ? String(c.expiresAt) : undefined,
+        // ownership of the file id is checked by the route that saves it
+        fileId: /^CF-[A-Z0-9]{8,20}$/.test(String(c.fileId ?? "")) ? String(c.fileId) : undefined,
+        fileName: c.fileId ? String(c.fileName ?? "").trim().slice(0, 120) || undefined : undefined,
       };
     })
     .filter((c) => c.kind !== "other" || c.name);

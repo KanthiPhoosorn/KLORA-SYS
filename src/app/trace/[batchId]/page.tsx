@@ -53,7 +53,8 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   const left = shelfLifeLeft(batch);
   const chill = coldChainWarning(batch);
   const weight = batch.shippedWeightKg ?? (weightBased ? batch.quantity ?? 0 : batch.weightKg ?? Math.round(batch.flowerCount * 0.052 * 10) / 10);
-  const certs = (supplier.certifications ?? []).filter((c) => c.appliesTo.includes(category));
+  const today = new Date().toISOString().slice(0, 10);
+  const certs = (supplier.certifications ?? []).filter((c) => c.appliesTo.includes(category) && (!c.expiresAt || c.expiresAt >= today));
   const care = tipsOf(supplier.careTips).length ? tipsOf(supplier.careTips) : isFlower ? DEFAULT_CARE.flower
     : category === "fruit"
       ? [`เก็บที่ ${profile.storageMinC}–${profile.storageMaxC}°C${profile.chillSensitive ? " ไม่ควรแช่เย็นจัด" : ""}`, ...(profile.ripens ? ["วางไว้ที่อุณหภูมิห้องหากต้องการให้สุกต่อ"] : []), "ล้างให้สะอาดก่อนรับประทาน"]

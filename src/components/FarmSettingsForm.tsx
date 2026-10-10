@@ -6,7 +6,7 @@ import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVe
 import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "@/lib/types";
 import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
 import { type SelectOption } from "@/components/SearchSelect";
-import { CertificationsEditor } from "@/components/ProduceGroupsEditor";
+import { CertificationsEditor, certErrors, certPayload, type CertDraft } from "@/components/ProduceGroupsEditor";
 import ResourceUsageFields, { resourcePayload, resourceStateFrom, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
 import { farmResourceLines } from "@/lib/resource-types";
 
@@ -247,7 +247,8 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
         ? [{ category: categoryOfType(supplier.flowerType) ?? "flower", type: supplier.flowerType, varieties: supplier.varieties ? [...supplier.varieties] : [] }]
         : [],
   );
-  const [certs, setCerts] = useState<Certification[]>(supplier.certifications ?? []);
+  const [certs, setCerts] = useState<CertDraft[]>(supplier.certifications ?? []);
+  const [certErrs, setCertErrs] = useState<Record<number, string>>({});
   // "อื่นๆ" type: free text + which category it belongs to
   const [customType, setCustomType] = useState<{ name: string; category: ProductCategory } | null>(null);
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
@@ -283,6 +284,9 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
   function saveProducer(e: React.FormEvent) {
     e.preventDefault();
+    const ce = certErrors(certs);
+    setCertErrs(ce);
+    if (Object.keys(ce).length) return;
     const [la, ln] = p.gps.split(",").map((x) => x.trim());
     // contact: สร้างจากเบอร์โทร + Line ID เดิม (ฟอร์มนี้ไม่ได้โชว์ Line ID) — ไม่ส่งถ้าว่างเพื่อไม่ล้างของเดิม
     const contactParts = [p.phone && `โทร ${p.phone}`, supplier.lineId && `LINE ${supplier.lineId}`].filter(Boolean);
@@ -297,7 +301,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
       gpsLng: ln ? Number(ln) : undefined,
       highlights: p.highlights,
       flowerTypes: cleanFts,
-      certifications: certs,
+      certifications: certPayload(certs),
       ...(contactParts.length ? { contact: contactParts.join(" / ") } : {}),
     });
   }
@@ -455,7 +459,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
           {/* ใบรับรองมาตรฐานสินค้าเกษตร */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="green" />
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="green" mode="settings" errors={certErrs} supplierId={supplier.id} />
           </div>
 
           {profile.error ? <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{profile.error}</p> : null}

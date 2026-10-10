@@ -264,6 +264,18 @@ export const prints = pgTable("prints", {
   orgCode: text("org_code"), // the carrier org that printed the QR (scripts/add-ratings.ts)
 });
 
+// Certificate attachments (scripts/add-cert-files.ts) — base64 body, farm + KYN only.
+export const certFiles = pgTable("cert_files", {
+  id: text("id").primaryKey(),
+  supplierId: text("supplier_id").notNull(),
+  name: text("name").notNull(),
+  mime: text("mime").notNull(),
+  size: integer("size").notNull(),
+  data: text("data").notNull(),
+  uploadedBy: text("uploaded_by"),
+  createdAt: text("created_at").notNull(),
+});
+
 // Satisfaction ratings from the QR page (scripts/add-ratings.ts): one row per (lot, device).
 export const ratings = pgTable("ratings", {
   id: text("id").primaryKey(),

@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Bell, FileText, Loader2, Plus, Trash2 } from "lucide-react";
 import { PRODUCT_CATEGORIES, typesFor, variantsFor } from "@/lib/master-data";
 import type { Certification, ProductCategory } from "@/lib/types";
 
@@ -131,70 +132,145 @@ export default function ProduceGroupsEditor({
   );
 }
 
-// ---- ใบรับรองมาตรฐานสินค้าเกษตร ----
+// ---- ใบรับรองมาตรฐานสินค้าเกษตร (meeting 11-09-2026 mockup; Thai Post doc §17) ----
 const CERT_KINDS: Certification["kind"][] = ["GAP", "GlobalGAP", "Organic Thailand", "other"];
-export const emptyCert = (): Certification => ({ kind: "GAP", appliesTo: ["fruit", "vegetable"] });
+const ISSUERS = ["กรมวิชาการเกษตร", "สำนักงานมาตรฐานสินค้าเกษตรและอาหารแห่งชาติ (มกอช.)", "กรมพัฒนาที่ดิน", "Control Union", "SGS", "Bureau Veritas"];
+const FILE_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+/** A certificate being edited; at sign-up the picked file waits here until the account exists. */
+export type CertDraft = Certification & { _file?: File };
+export const emptyCert = (): CertDraft => ({ kind: "GAP", appliesTo: [] });
+/** Per-certificate problems (index → message): type name for อื่นๆ, product types, expiry date. */
+export function certErrors(certs: Certification[]): Record<number, string> {
+  const e: Record<number, string> = {};
+  certs.forEach((c, i) => {
+    if (c.kind === "other" && !c.name?.trim()) e[i] = "กรุณาระบุชื่อใบรับรอง";
+    else if (!c.appliesTo.length) e[i] = "กรุณาเลือกประเภทสินค้าที่ใช้ใบรับรองนี้";
+    else if (!c.expiresAt) e[i] = "กรุณาระบุวันหมดอายุ";
+  });
+  return e;
+}
+/** Strip what must not be sent as JSON (the waiting file). */
+export const certPayload = (certs: CertDraft[]): Certification[] => certs.map(({ _file, ...rest }) => { void _file; return rest; });
 
 export function CertificationsEditor({
-  certs, onChange, inputCls, accent = "blue",
+  certs, onChange, inputCls, accent = "blue", mode = "settings", skip, onSkip, errors = {}, supplierId,
 }: {
-  certs: Certification[]; onChange: (c: Certification[]) => void; inputCls: string; accent?: EditorAccent;
+  certs: CertDraft[]; onChange: (c: CertDraft[]) => void; inputCls: string; accent?: EditorAccent;
+  /** "register": the file uploads after the account is made · "settings": it uploads at once */
+  mode?: "register" | "settings";
+  skip?: boolean; onSkip?: (v: boolean) => void;
+  errors?: Record<number, string>;
+  /** set when KYN edits a farm: uploads go to that farm */
+  supplierId?: string;
 }) {
   const ac = ACCENT[accent];
-  const update = (i: number, patch: Partial<Certification>) => onChange(certs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const [busy, setBusy] = useState<number | null>(null);
+  const [fileErr, setFileErr] = useState<Record<number, string>>({});
+  const update = (i: number, patch: Partial<CertDraft>) => onChange(certs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const toggle = (i: number, cat: ProductCategory) => {
     const cur = certs[i].appliesTo;
     update(i, { appliesTo: cur.includes(cat) ? cur.filter((x) => x !== cat) : [...cur, cat] });
   };
+  async function pick(i: number, f?: File | null) {
+    setFileErr((x) => ({ ...x, [i]: "" }));
+    if (!f) return;
+    if (!FILE_TYPES.includes(f.type)) { setFileErr((x) => ({ ...x, [i]: "รองรับเฉพาะไฟล์ PDF, JPG หรือ PNG" })); return; }
+    if (f.size > 2 * 1024 * 1024) { setFileErr((x) => ({ ...x, [i]: "ไฟล์ต้องไม่เกิน 2 MB" })); return; }
+    if (mode === "register") { update(i, { _file: f, fileId: undefined, fileName: f.name }); return; }
+    setBusy(i);
+    const fd = new FormData(); fd.append("file", f);
+    if (supplierId) fd.append("supplierId", supplierId);
+    const r = await fetch("/api/cert-files", { method: "POST", body: fd });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) update(i, { fileId: d.id, fileName: d.name }); else setFileErr((x) => ({ ...x, [i]: d.error || "อัปโหลดไม่สำเร็จ" }));
+    setBusy(null);
+  }
+  const lbl = "block text-[12px] text-black";
+  const req = <span className="text-[#ee443f]"> *</span>;
   return (
     <div className="space-y-[14px]">
-      <div>
-        <p className="text-[14px] font-semibold text-black">ใบรับรองมาตรฐาน</p>
-        <p className="text-[11px] text-slate-500">GAP / GlobalGAP / Organic — แสดงเป็นป้ายรับรองบนหน้าตรวจสอบสินค้าของผู้บริโภค (ไม่บังคับ)</p>
+      <div className="border-b border-gray-200 pb-2">
+        <p className="text-[16px] font-semibold text-black">ใบรับรองมาตรฐาน <span className="text-[12px] font-normal text-slate-500">(ไม่บังคับ)</span></p>
       </div>
-      {certs.map((c, i) => (
-        <div key={i} className="space-y-[10px] rounded-[8px] border border-gray-200 p-[12px]">
-          <div className="grid grid-cols-2 gap-[12px]">
-            <label className="block space-y-[5px]">
-              <span className="block text-[12px] text-black">ประเภทใบรับรอง</span>
-              <select value={c.kind} onChange={(e) => update(i, { kind: e.target.value as Certification["kind"] })} className={inputCls}>
-                {CERT_KINDS.map((k) => <option key={k} value={k}>{k === "other" ? "อื่นๆ ระบุ" : k}</option>)}
-              </select>
-            </label>
-            {c.kind === "other" ? (
-              <label className="block space-y-[5px]">
-                <span className="block text-[12px] text-black">ชื่อใบรับรอง</span>
-                <input value={c.name ?? ""} onChange={(e) => update(i, { name: e.target.value })} placeholder="เช่น PGS, Q Mark" className={inputCls} />
-              </label>
-            ) : (
-              <label className="block space-y-[5px]">
-                <span className="block text-[12px] text-black">เลขที่ใบรับรอง</span>
-                <input value={c.certNo ?? ""} onChange={(e) => update(i, { certNo: e.target.value })} placeholder="เช่น GAP-XXXX-XXXX" className={inputCls} />
-              </label>
-            )}
-            <label className="block space-y-[5px]">
-              <span className="block text-[12px] text-black">วันหมดอายุ</span>
-              <input type="date" value={c.expiresAt ?? ""} onChange={(e) => update(i, { expiresAt: e.target.value })} className={inputCls} />
-            </label>
-            <div className="space-y-[5px]">
-              <span className="block text-[12px] text-black">ใช้กับประเภทสินค้า</span>
-              <div className="flex gap-3 pt-[6px]">
-                {PRODUCT_CATEGORIES.map((cat) => (
-                  <label key={cat.key} className="flex items-center gap-1.5 text-[12px] text-slate-700">
-                    <input type="checkbox" checked={c.appliesTo.includes(cat.key)} onChange={() => toggle(i, cat.key)} className={ac.check} /> {cat.label}
-                  </label>
-                ))}
+      {!skip ? (
+        <>
+          <p className="rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+            ระบุเลขที่ใบรับรองไว้ก่อนได้ — แนบไฟล์ทีหลังได้ที่หน้า &quot;ข้อมูลฟาร์ม&quot; และระบบจะแจ้งเตือนล่วงหน้าก่อนใบรับรองหมดอายุให้อัตโนมัติ
+          </p>
+          <datalist id="cert-issuers">{ISSUERS.map((x) => <option key={x} value={x} />)}</datalist>
+          {certs.map((c, i) => (
+            <div key={i} className={`space-y-[12px] rounded-[10px] border p-[14px] ${errors[i] ? "border-[#ee443f]" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-[12px] font-medium text-slate-500">ใบรับรองที่ {i + 1}</p>
+                <button type="button" onClick={() => onChange(certs.filter((_, j) => j !== i))} className="inline-flex items-center gap-1 text-[12px] text-slate-500 hover:text-[#ee443f]">
+                  <Trash2 size={13} /> ลบใบรับรองนี้
+                </button>
               </div>
+              <div className="grid gap-[12px] sm:grid-cols-2">
+                <label className="block space-y-[5px]">
+                  <span className={lbl}>ประเภทใบรับรอง{req}</span>
+                  <select value={c.kind} onChange={(e) => update(i, { kind: e.target.value as Certification["kind"] })} className={inputCls}>
+                    {CERT_KINDS.map((k) => <option key={k} value={k}>{k === "other" ? "อื่นๆ (ระบุ)" : k}</option>)}
+                  </select>
+                  {c.kind === "other" ? <input value={c.name ?? ""} onChange={(e) => update(i, { name: e.target.value })} placeholder="ชื่อใบรับรอง เช่น PGS, Q Mark" className={inputCls} /> : null}
+                </label>
+                <label className="block space-y-[5px]">
+                  <span className={lbl}>เลขที่ใบรับรอง</span>
+                  <input value={c.certNo ?? ""} onChange={(e) => update(i, { certNo: e.target.value })} placeholder="ถ้ามี" className={inputCls} />
+                </label>
+              </div>
+              <div className="space-y-[5px]">
+                <span className={lbl}>ใช้กับประเภทสินค้า{req}</span>
+                <div className="flex flex-wrap gap-2">
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <label key={cat.key} className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] text-slate-700">
+                      <input type="checkbox" checked={c.appliesTo.includes(cat.key)} onChange={() => toggle(i, cat.key)} className={ac.check} /> {cat.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-[12px] sm:grid-cols-2">
+                <label className="block space-y-[5px]">
+                  <span className={lbl}>หน่วยงานที่ออก</span>
+                  <input list="cert-issuers" value={c.issuer ?? ""} onChange={(e) => update(i, { issuer: e.target.value })} placeholder="เช่น กรมวิชาการเกษตร" className={inputCls} />
+                </label>
+                <label className="block space-y-[5px]">
+                  <span className={lbl}>วันหมดอายุ{req}</span>
+                  <input type="date" value={c.expiresAt ?? ""} onChange={(e) => update(i, { expiresAt: e.target.value })} className={inputCls} />
+                </label>
+              </div>
+              <div className="space-y-[5px]">
+                <span className={lbl}>แนบไฟล์ <span className="text-slate-500">(ไม่บังคับตอนนี้)</span></span>
+                <div className="flex flex-wrap items-center gap-3 rounded-[8px] border border-dashed border-gray-300 px-3 py-2.5">
+                  <label className="cursor-pointer rounded-[6px] border border-gray-300 bg-white px-3 py-1.5 text-[12px] text-slate-700 hover:bg-gray-50">
+                    {busy === i ? <Loader2 size={13} className="inline animate-spin" /> : c.fileName ? "เปลี่ยนไฟล์" : "เลือกไฟล์"}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" className="hidden" onChange={(e) => { pick(i, e.target.files?.[0]); e.target.value = ""; }} />
+                  </label>
+                  {c.fileName ? (
+                    <span className="flex min-w-0 items-center gap-2 text-[12px] text-slate-700">
+                      <FileText size={14} className="shrink-0 text-slate-400" />
+                      {c.fileId ? <a href={`/api/cert-files/${c.fileId}`} target="_blank" rel="noreferrer" className={`truncate underline ${ac.link}`}>{c.fileName}</a> : <span className="truncate">{c.fileName}</span>}
+                      {c._file ? <span className="shrink-0 text-slate-400">· อัปโหลดหลังสมัครเสร็จ</span> : null}
+                      <button type="button" onClick={() => update(i, { fileId: undefined, fileName: undefined, _file: undefined })} className="shrink-0 text-[#ee443f] underline">ลบไฟล์</button>
+                    </span>
+                  ) : <span className="text-[12px] text-slate-400">ยังไม่ได้แนบไฟล์ — แนบทีหลังได้</span>}
+                </div>
+                {fileErr[i] ? <p className="text-[12px] text-[#ee443f]">{fileErr[i]}</p> : null}
+                <p className="flex items-center gap-1.5 text-[11px] text-slate-500"><Bell size={12} className="text-amber-500" /> ระบบจะแจ้งเตือนอัตโนมัติล่วงหน้า 30 วันก่อนใบรับรองนี้หมดอายุ</p>
+              </div>
+              {errors[i] ? <p className="text-[12px] text-[#ee443f]">{errors[i]}</p> : null}
             </div>
-          </div>
-          <div className="text-right">
-            <button type="button" onClick={() => onChange(certs.filter((_, j) => j !== i))} className="text-[12px] text-[#ee443f] underline">ลบใบรับรอง</button>
-          </div>
-        </div>
-      ))}
-      <button type="button" onClick={() => onChange([...certs, emptyCert()])} className={`inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline ${ac.link}`}>
-        <Plus size={15} /> เพิ่มใบรับรอง
-      </button>
+          ))}
+          <button type="button" onClick={() => onChange([...certs, emptyCert()])} className={`inline-flex items-center gap-1.5 text-[13px] font-medium hover:underline ${ac.link}`}>
+            <Plus size={15} /> เพิ่มใบรับรอง
+          </button>
+        </>
+      ) : null}
+      {onSkip ? (
+        <label className="flex items-center gap-2 text-[13px] text-slate-700">
+          <input type="checkbox" checked={!!skip} onChange={(e) => onSkip(e.target.checked)} className={ac.check} /> ยังไม่มีใบรับรองมาตรฐาน — ข้ามขั้นตอนนี้ไปก่อน
+        </label>
+      ) : null}
     </div>
   );
 }

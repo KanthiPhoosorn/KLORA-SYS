@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     varieties,
     flowerTypes: parseProduceGroups(body.flowerTypes),
     productCategories: categoriesOf(parseProduceGroups(body.flowerTypes)),
-    certifications: parseCertifications(body.certifications),
+    certifications: parseCertifications(body.certifications)?.map((c) => ({ ...c, fileId: undefined, fileName: undefined })),
     highlights: highlights || "—",
     contact: contact || "—",
     fuelLitres: n("fuelLitres"),

@@ -130,7 +130,10 @@ export interface Certification {
   name?: string; // ชื่อใบรับรอง (เมื่อ kind = other)
   appliesTo: ProductCategory[]; // ใช้กับประเภทสินค้า
   certNo?: string; // เลขที่ใบรับรอง
+  issuer?: string; // หน่วยงานที่ออก (Thai Post doc §17)
   expiresAt?: string; // YYYY-MM-DD
+  fileId?: string; // แนบไฟล์ — cert_files.id (opened by the farm + KYN only)
+  fileName?: string;
 }
 
 // บรรจุภัณฑ์ 1 รายการ. Rounds from 9 Oct 2026 store catalog rows (v: 2 — kind = KYN catalog id, size

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2, MapPin, Check } from "lucide-react";
-import ProduceGroupsEditor, { CertificationsEditor, emptyGroup, type ProduceGroup } from "@/components/ProduceGroupsEditor";
+import ProduceGroupsEditor, { CertificationsEditor, emptyGroup, emptyCert, certErrors, certPayload, type CertDraft, type ProduceGroup } from "@/components/ProduceGroupsEditor";
 import type { Certification } from "@/lib/types";
 import ResourceUsageFields, { emptyResourceState, resourcePayload, yieldTargets, type ResourceState } from "@/components/ResourceUsageFields";
 
@@ -59,7 +59,9 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
   });
   // ผลผลิตและพันธุ์ที่ปลูก — one group per ชนิด (ดอกไม้ / ผลไม้ / ผัก), each holding many varieties.
   const [groups, setGroups] = useState<ProduceGroup[]>([emptyGroup()]);
-  const [certs, setCerts] = useState<Certification[]>([]);
+  const [certs, setCerts] = useState<CertDraft[]>([emptyCert()]);
+  const [skipCerts, setSkipCerts] = useState(false);
+  const [certErrs, setCertErrs] = useState<Record<number, string>>({});
   const [resUse, setResUse] = useState<ResourceState>(emptyResourceState());
   // flattened for the API (Supplier keeps a primary flowerType + a flat variety list)
   const cleanGroups = groups.map((g) => ({ ...g, type: g.type.trim(), varieties: g.varieties.map((v) => v.trim()).filter(Boolean) })).filter((g) => g.type);
@@ -101,8 +103,10 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
       if (!f.gps.trim()) e.gps = "กรุณาระบุพิกัด GPS";
       if (cleanGroups.length === 0) e.flowerType = "กรุณาเลือกผลผลิตที่ปลูกอย่างน้อย 1 ชนิด";
     }
+    const ce = step === 1 && !skipCerts ? certErrors(certs) : {};
+    setCertErrs(ce);
     setErrs(e);
-    if (Object.keys(e).length > 0) return;
+    if (Object.keys(e).length > 0 || Object.keys(ce).length > 0) return;
     setStep((s) => s + 1);
   }
 
@@ -111,10 +115,16 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...f, ...resourcePayload(resUse, yieldTargets(cleanGroups)), flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: certs, via, carrierLink: linkToken }),
+        body: JSON.stringify({ ...f, ...resourcePayload(resUse, yieldTargets(cleanGroups)), flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: skipCerts ? [] : certPayload(certs), via, carrierLink: linkToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "สมัครไม่สำเร็จ");
+      // certificate files picked during sign-up go up now that the account exists (it can be redone later)
+      if (!skipCerts) for (const [i, c] of certs.entries()) {
+        if (!c._file) continue;
+        const fd = new FormData(); fd.append("file", c._file); fd.append("certIndex", String(i));
+        await fetch("/api/cert-files", { method: "POST", body: fd }).catch(() => undefined);
+      }
       router.push("/app");
       router.refresh();
     } catch (err) { setError((err as Error).message); setBusy(false); }
@@ -192,7 +202,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
               <textarea value={f.details} onChange={set("details")} rows={2} placeholder="จุดเด่น : ผลผลิตดี ดอกสวยงาม" className={inputCls} />
             </Field>
             <ProduceGroupsEditor groups={groups} onChange={setGroups} inputCls={inputCls} error={errs.flowerType} accent="pink" />
-            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="pink" />
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="pink" mode="register" skip={skipCerts} onSkip={setSkipCerts} errors={certErrs} />
           </div>
         )}
 
@@ -223,7 +233,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
             )}
           </div>
           <p className="text-center text-[10px] text-black">
-            Already have an account? <Link href="/login" className="text-brand-pink underline">Login</Link>
+            มีบัญชีอยู่แล้ว? <Link href="/login" className="text-brand-pink underline">เข้าสู่ระบบ</Link>
           </p>
         </div>
       </div>

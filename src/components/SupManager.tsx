@@ -377,7 +377,7 @@ export default function SupManager({
         </>
       )}
 
-      <Modal open={!!editSup} onClose={() => setEditSup(null)} title={editSup ? `แก้ไขข้อมูล ${editSup.id}` : ""} wide>
+      <Modal open={!!editSup} onClose={() => setEditSup(null)} title={editSup ? `แก้ไขข้อมูล ${editSup.code ?? editSup.id}` : ""} wide>
         {editSup ? <FarmSettingsForm supplier={editSup} /> : null}
       </Modal>
     </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification } from "@/lib/store";
+import { getSupplier, getBatchesBySupplier, updateSupplier, addNotification, certFileIdsOf, pruneCertFiles } from "@/lib/store";
 import { guard, forbidden } from "@/lib/api-guard";
 import { provinceFromAddress } from "@/lib/geo";
 import { asCarrierKey } from "@/lib/carriers";
@@ -86,7 +86,11 @@ export async function PATCH(
     patch.varieties = (body.varieties as unknown[]).map((x) => String(x).trim()).filter(Boolean);
   }
   const certs = parseCertifications(body.certifications);
-  if (certs) patch.certifications = certs;
+  if (certs) {
+    // a certificate may only point at this farm's own attachments (§17)
+    const own = await certFileIdsOf(id);
+    patch.certifications = certs.map((x) => (x.fileId && !own.has(x.fileId) ? { ...x, fileId: undefined, fileName: undefined } : x));
+  }
   // Several types per input ("เพิ่มรายการ"): the lines win over the single-type fields.
   const resLines = parseResourceLines(body.resourceLines);
   if (resLines) { patch.resourceLines = resLines; Object.assign(patch, linesToLegacy(resLines)); }
@@ -127,6 +131,7 @@ export async function PATCH(
   }
 
   const updated = await updateSupplier(id, patch);
+  if (patch.certifications) await pruneCertFiles(id, patch.certifications.map((x) => x.fileId).filter((x): x is string => !!x));
   await queueResourceOthers(resLines, { supplierId: id, userId: g.user.id });
   await queueProductOthers(patch.flowerTypes, { supplierId: id, userId: g.user.id });
   if (patch.plan && patch.plan !== supplier.plan) {
