@@ -210,11 +210,11 @@ window.qa = {
       const tp = await ctx.newPage(); await tp.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
       tp.on("pageerror", (e) => errs.push("passport: " + String(e).slice(0, 160)));
       await tp.goto(BASE + "/t/" + lot, { waitUntil: "networkidle0" });
-      const btn = (await tp.evaluate(`(() => { const bt = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes("จุดเด่นของฟาร์ม")); if (bt) bt.click(); return !!bt; })()`)) as boolean;
+      const btn = (await tp.evaluate(`(() => { const bt = document.querySelector('button[aria-haspopup="dialog"][aria-label^="จุดเด่นของ"]'); if (bt) bt.click(); return !!bt; })()`)) as boolean;
       await sleep(300);
       const pop = (await tp.evaluate(`(() => { const d = document.querySelector('[role="dialog"]'); return { open: !!d, full: !!d && d.innerText.includes("ปิดท้ายเรื่องราวของฟาร์ม QA") }; })()`)) as { open: boolean; full: boolean };
       const save = (await tp.evaluate(`(() => { const x = Array.from(document.querySelectorAll("button, a")).find((e) => /บันทึก/.test((e.getAttribute("aria-label") || "") + (e.textContent || ""))); if (!x) return null; const r = x.getBoundingClientRect(); return { fromRight: Math.round(innerWidth - r.right), top: Math.round(r.top) }; })()`)) as { fromRight: number; top: number } | null;
-      log("§15 จุดเด่นของฟาร์ม bar opens the full farm story", btn && pop.open && pop.full, JSON.stringify({ btn, ...pop }));
+      log("§15 tapping the farm card opens the farm's จุดเด่น", btn && pop.open && pop.full, JSON.stringify({ btn, ...pop }));
       log("§14 save as image / PDF sits top-right", !!save && save.fromRight < 80 && save.top < 140, JSON.stringify(save));
       await ctx.close();
     }

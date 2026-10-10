@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Download, FileImage, FileText, Loader2, Sparkles, X } from "lucide-react";
+import type React from "react";
+import { ChevronRight, Download, FileImage, FileText, Loader2, X } from "lucide-react";
 
 // Consumer passport helpers (Thai Post doc 9 Oct 2026 §14):
 //  · SavePassport — the ⬇ button (top-right): saves what the visitor sees as a PNG or a one-page PDF.
@@ -79,7 +80,7 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
   return (
     <div className="relative" ref={ref} data-no-capture>
       <button type="button" aria-label="บันทึกหน้านี้" onClick={() => setOpen((o) => !o)} className="grid size-10 place-items-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
-        {busy ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+        {busy ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} className="text-[#EE2C34]" />}
       </button>
       {open ? (
         <div role="menu" className="absolute right-0 top-full z-30 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
@@ -92,20 +93,14 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
   );
 }
 
-export function HighlightBar({ title, text }: { title: string; text: string }) {
+export function HighlightBar({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" data-no-capture onClick={() => setOpen(true)} aria-haspopup="dialog"
-        className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-[#E6E7E8] active:bg-[#FDECEC]">
-        <span className="flex min-w-0 items-center gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#FDECEC] text-[#EE2C34]"><Sparkles size={16} /></span>
-          <span className="min-w-0">
-            <span className="block text-[14px] font-semibold text-slate-800">จุดเด่นของฟาร์ม</span>
-            <span className="block truncate text-[12px] text-slate-500">{text}</span>
-          </span>
-        </span>
-        <ChevronRight size={18} className="shrink-0 text-[#193686]" />
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={`จุดเด่นของ ${title}`}
+        className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm ring-1 ring-[#E6E7E8] active:bg-[#FDECEC]">
+        <span className="min-w-0 flex-1">{children}</span>
+        <ChevronRight size={20} className="shrink-0 text-slate-500" />
       </button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5" onClick={() => setOpen(false)} data-no-capture>
