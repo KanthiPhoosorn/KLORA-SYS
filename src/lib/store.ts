@@ -7,7 +7,7 @@
 import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -29,6 +29,8 @@ import type {
   BatchEvent,
   CarrierLink,
   CarrierKey,
+  Rating,
+  RatingSummary,
 } from "./types";
 import {
   codeNumber,
@@ -226,6 +228,44 @@ const trailingNum = (id: string): number => {
 };
 
 // --- Suppliers ------------------------------------------------------------
+
+// --- Satisfaction ratings (QR page, Thai Post doc §15) -------------------------------------------------
+/** Who handles a lot, for its การขนส่ง rating: the bound carrier org, else the org that printed its QR,
+ *  else the carrier's name on the round. */
+export async function carrierOfLot(b: Batch, print?: PrintLog | null): Promise<{ key: string; name: string } | null> {
+  const org = b.carrierOrg ?? print?.orgCode;
+  if (org) {
+    const [u] = await db.select({ company: users.company }).from(users).where(eq(users.orgCode, org)).limit(1);
+    return { key: org, name: u?.company ?? org };
+  }
+  const label = b.provider || b.carrier;
+  return label ? { key: label, name: label } : null;
+}
+/** One rating per (lot, device); sending again replaces it. */
+export async function upsertRating(r: { batchId: string; supplierId: string; carrierKey?: string; carrierName?: string; farmStars?: number; transportStars?: number; comment?: string; rater: string }): Promise<Rating> {
+  const now = new Date().toISOString();
+  const [row] = await db.insert(ratings).values({ id: `RAT-${randomBytes(6).toString("hex").toUpperCase()}`, ...r, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({ target: [ratings.batchId, ratings.rater], set: { farmStars: r.farmStars ?? null, transportStars: r.transportStars ?? null, comment: r.comment ?? null, carrierKey: r.carrierKey ?? null, carrierName: r.carrierName ?? null, updatedAt: now } })
+    .returning();
+  return clean<Rating>(row);
+}
+export async function getMyRating(batchId: string, rater: string): Promise<Rating | null> {
+  const [row] = await db.select().from(ratings).where(and(eq(ratings.batchId, batchId), eq(ratings.rater, rater))).limit(1);
+  return row ? clean<Rating>(row) : null;
+}
+const summaryOf = (xs: (number | null)[]): RatingSummary => { const v = xs.filter((x): x is number => x != null); return { n: v.length, avg: v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0 }; };
+/** The averages shown on the QR page: this farm (over all its lots) and this carrier. */
+export async function ratingSummary(supplierId: string, carrierKey?: string | null): Promise<{ farm: RatingSummary; transport: RatingSummary }> {
+  const farm = await db.select({ s: ratings.farmStars }).from(ratings).where(eq(ratings.supplierId, supplierId));
+  const tr = carrierKey ? await db.select({ s: ratings.transportStars }).from(ratings).where(eq(ratings.carrierKey, carrierKey)) : [];
+  return { farm: summaryOf(farm.map((x) => x.s)), transport: summaryOf(tr.map((x) => x.s)) };
+}
+/** Ratings for a back office: a farm's, a carrier's (org code / names), or all (KYN). Newest first. */
+export async function getRatings(f: { supplierId?: string; carrierKeys?: string[] } = {}): Promise<Rating[]> {
+  const where = f.supplierId ? eq(ratings.supplierId, f.supplierId) : f.carrierKeys ? inArray(ratings.carrierKey, f.carrierKeys.length ? f.carrierKeys : ["—"]) : undefined;
+  const rows = await db.select().from(ratings).where(where).orderBy(desc(ratings.updatedAt));
+  return rows.map((r) => clean<Rating>(r));
+}
 
 // --- Carrier sign-up links ---------------------------------------------------------------------------
 type CarrierLinkRow = typeof carrierLinks.$inferSelect;

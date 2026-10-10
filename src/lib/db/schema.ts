@@ -261,6 +261,22 @@ export const prints = pgTable("prints", {
   sortingPoint: text("sorting_point"),
   printedAt: text("printed_at").notNull(),
   cancelled: boolean("cancelled"),
+  orgCode: text("org_code"), // the carrier org that printed the QR (scripts/add-ratings.ts)
+});
+
+// Satisfaction ratings from the QR page (scripts/add-ratings.ts): one row per (lot, device).
+export const ratings = pgTable("ratings", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id").notNull(),
+  supplierId: text("supplier_id").notNull(),
+  carrierKey: text("carrier_key"),
+  carrierName: text("carrier_name"),
+  farmStars: integer("farm_stars"),
+  transportStars: integer("transport_stars"),
+  comment: text("comment"),
+  rater: text("rater").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });
 
 export const otp = pgTable("otp", {

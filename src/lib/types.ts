@@ -71,6 +71,22 @@ export interface Supplier {
   carrierLink?: string;
 }
 
+/** A visitor's satisfaction rating from the QR page (Thai Post doc §15). */
+export interface Rating {
+  id: string;
+  batchId: string;
+  supplierId: string;
+  carrierKey?: string; // carrier org (CID-…) handling the lot, else the carrier's name
+  carrierName?: string;
+  farmStars?: number; // 1–5 · สวน
+  transportStars?: number; // 1–5 · การขนส่ง
+  comment?: string;
+  rater: string; // anonymous device id (cookie)
+  createdAt: string;
+  updatedAt: string;
+}
+export interface RatingSummary { avg: number; n: number }
+
 /** A carrier's sign-up link (/c/<token>), made on /logistic/incoming. */
 export interface CarrierLink {
   token: string;
@@ -356,6 +372,7 @@ export interface Notification {
 // A record that a QR label was printed (Thai Post → KYN Shipment/QR log).
 export interface PrintLog {
   id: string; // PRT-NNNN
+  orgCode?: string; // the carrier org that printed it
   supplierId: string;
   supplierCode?: string; // CID of the farm (read-only, filled on read)
   batchId?: string;

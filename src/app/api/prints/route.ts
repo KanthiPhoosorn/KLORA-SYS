@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     batchId,
     destination,
     printedBy: body.printedBy ? String(body.printedBy) : "Thaipost",
+    orgCode: g.user.orgCode, // the carrier handling this lot (its การขนส่ง rating)
     sortingPoint: body.sortingPoint ? String(body.sortingPoint) : undefined,
   });
   if (log.batchId) await addBatchEvent({ batchId: log.batchId, actorId: g.user.id, actorName: g.user.username, action: "print" });

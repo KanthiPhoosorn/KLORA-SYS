@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth";
-import { getSupplier, getBatchesBySupplier, getPrints } from "@/lib/store";
+import { getSupplier, getBatchesBySupplier, getPrints, getRatings } from "@/lib/store";
+import RatingsCard from "@/components/RatingsCard";
 import { MetricCard, BarChart, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
 import ShipmentStepper from "@/components/ShipmentStepper";
@@ -104,6 +105,9 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
         <h2 className="text-lg font-bold text-slate-800">รายการจัดส่งล่าสุด</h2>
         <ShipmentsTable rows={toShipRows(inCat, prints).slice(0, 8)} />
       </div>
+
+      {/* buyers' ratings from the QR page (Thai Post doc §15) */}
+      <RatingsCard ratings={await getRatings({ supplierId: user.supplierId! })} show="farm" />
     </div>
   );
 }

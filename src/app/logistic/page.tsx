@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
-import { getSuppliers, getBatches, getPrints } from "@/lib/store";
+import { getSuppliers, getBatches, getPrints, getRatings } from "@/lib/store";
+import RatingsCard from "@/components/RatingsCard";
 import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
 import BranchTable, { type BranchRow } from "@/components/BranchTable";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
@@ -22,7 +23,7 @@ const fuelLabel = (k?: string) => (k && FUEL_EF[k]?.label) || "—";
 const transportOf = (b: Batch) => b.carbonBreakdown?.transport ?? 0;
 
 export default async function LogisticDashboard({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
-  await requireRole("logistic");
+  const user = await requireRole("logistic");
   const cat = parseCat((await searchParams).cat);
   const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
   // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every figure; units never mix — a single
@@ -246,6 +247,9 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
         </Card>
         <Co2eDisclosure />
       </div>
+
+      {/* buyers' ratings of this carrier from the QR page (Thai Post doc §15) */}
+      <RatingsCard ratings={user.orgCode ? await getRatings({ carrierKeys: [user.orgCode] }) : []} show="transport" />
 
       {/* ข้อมูลรายสาขา (head-office view) */}
       <div className="space-y-3 pt-2">

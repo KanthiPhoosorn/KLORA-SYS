@@ -1,5 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { getBatch, getSupplier, activePrintOf } from "@/lib/store";
+import { cookies } from "next/headers";
+import { getBatch, getSupplier, activePrintOf, carrierOfLot, ratingSummary, getMyRating } from "@/lib/store";
+import { RATER_COOKIE } from "@/lib/rating";
+import RatingBadge from "@/components/RatingBadge";
+import RateLot from "@/components/RateLot";
 import { thaiDateShort, thaiDateFull } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { SavePassport, HighlightBar } from "@/components/TraceClient";
@@ -35,6 +39,10 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   if (batch.id !== batchId) redirect(`/t/${batch.id}`);
   const [supplier, print] = await Promise.all([getSupplier(batch.supplierId), activePrintOf(batch.id)]);
   if (!supplier) notFound();
+  // §15 ratings: the averages of THIS farm and THIS carrier; this device's own rating (to edit)
+  const carrier = await carrierOfLot(batch, print);
+  const rater = (await cookies()).get(RATER_COOKIE)?.value;
+  const [summary, mine] = await Promise.all([ratingSummary(supplier.id, carrier?.key), rater ? getMyRating(batch.id, rater) : null]);
 
   const category = categoryOf(batch);
   const isFlower = category === "flower";
@@ -99,6 +107,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           )}
           <div className="min-w-0">
             <p className="truncate font-semibold text-slate-800">{supplier.farmName}</p>
+            <RatingBadge kind="farm" initial={summary.farm} />
             <p className="flex items-start gap-1 text-[12px] text-slate-500"><MapPin size={12} className="mt-0.5 shrink-0" /><span className="line-clamp-2">{supplier.address}</span></p>
             {supplier.contact && supplier.contact !== "—" ? <p className="mt-0.5 flex items-center gap-1 text-[12px] text-[#EE2C34]"><Phone size={12} /> {supplier.contact}</p> : null}
           </div>
@@ -151,7 +160,10 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
 
         {/* shipping steps */}
         <section>
-          <h2 className="mb-2 text-[14px] font-semibold text-slate-700">สถานะขนส่ง</h2>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="shrink-0 text-[14px] font-semibold text-slate-700">สถานะขนส่ง</h2>
+            {carrier ? <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-slate-500"><span className="truncate">{carrier.name}</span><RatingBadge kind="transport" initial={summary.transport} /></span> : null}
+          </div>
           <div className="rounded-2xl bg-white px-3 py-4 shadow-sm ring-1 ring-slate-100">
             <div className="relative grid grid-cols-4">
               <div className="absolute left-[12.5%] right-[12.5%] top-[22px] h-0.5 bg-slate-200" />
@@ -178,6 +190,11 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
             ))}
           </ol>
         </section>
+
+        {/* §15 ให้คะแนนความพึงพอใจ — once the QR has been printed */}
+        {print && !batch.cancelledAt ? (
+          <RateLot batchId={batch.id} farmName={supplier.farmName} carrierName={carrier?.name} mine={mine ? { farm: mine.farmStars, transport: mine.transportStars, comment: mine.comment } : null} />
+        ) : null}
 
         <div className="flex items-center justify-center gap-1.5 text-center text-[11px] text-slate-400">
           <ShieldCheck size={13} /> ข้อมูลยืนยันโดย Corta · {supplier.code ?? supplier.id} · {batch.id}{batch.destination ? ` · ปลายทาง ${batch.destination}` : ""}
