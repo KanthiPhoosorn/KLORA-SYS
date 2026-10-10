@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getBatch, getSupplier, activePrintOf } from "@/lib/store";
 import { thaiDateShort, thaiDateFull } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
-import { SavePassport, ReadMore } from "@/components/TraceClient";
+import { SavePassport, HighlightBar } from "@/components/TraceClient";
 import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, QrCode } from "lucide-react";
 import {
   categoryOf, categoryLabel, quantityLabel, perUnitLabel, harvestLabel, ageLabel,
@@ -73,15 +73,16 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
         </div>
 
         {/* hero */}
-        <section className="rounded-2xl bg-gradient-to-br from-[#fde7f0] via-[#fdf2f7] to-white p-5 shadow-sm ring-1 ring-pink-100">
+        <section className="rounded-2xl bg-gradient-to-br from-[#FDECEC] via-[#FFF6F6] to-white p-5 shadow-sm ring-1 ring-[#F7CDD0]">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-brand-pink">{categoryLabel(category)}</span>
+            <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#EE2C34]">{categoryLabel(category)}</span>
             {batch.grade ? <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-semibold text-white">เกรด {batch.grade}</span> : null}
           </div>
-          <h1 className="mt-2 text-[22px] font-bold leading-tight text-[#c1006e]">{productName}</h1>
-          {batch.variety && typeName && batch.variety !== typeName ? <p className="text-[13px] text-slate-500">{typeName}</p> : null}
-          {story ? <ReadMore title={supplier.farmName} text={story} /> : null}
+          <h1 className="mt-2 text-[22px] font-bold leading-tight text-[#EE2C34]">{productName}</h1>
+          {/* one standard line for every product (§15) — the farm's own story lives behind the bar below */}
+          <p className="mt-1 text-[13px] text-slate-600">{typeName || categoryLabel(category)} · {quantityLabel(batch)} · {harvestLabel(category)} {thaiDateFull(batch.cutDate)}</p>
         </section>
+        {story ? <HighlightBar title={supplier.farmName} text={story} /> : null}
 
         {/* farm */}
         <section className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100">
@@ -112,7 +113,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <h2 className="mb-2 text-[14px] font-semibold text-slate-700">รายละเอียดสินค้า</h2>
           <div className="grid grid-cols-3 gap-2">
             {tiles.map((t) => (
-              <div key={t.l} className="min-w-0 rounded-xl bg-[#fdf2f7] px-2 py-3 text-center">
+              <div key={t.l} className="min-w-0 rounded-xl bg-[#E6E7E8]/60 px-2 py-3 text-center">
                 <p className="truncate text-[13px] font-semibold text-slate-800" title={t.v}>{t.v}</p>
                 <p className="mt-0.5 truncate text-[11px] text-slate-500">{t.l}</p>
               </div>
@@ -143,11 +144,11 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <div className="rounded-2xl bg-white px-3 py-4 shadow-sm ring-1 ring-slate-100">
             <div className="relative grid grid-cols-3">
               <div className="absolute left-[16.6%] right-[16.6%] top-[7px] h-0.5 bg-slate-200" />
-              <div className="absolute left-[16.6%] top-[7px] h-0.5 bg-emerald-500" style={{ width: `${(steps.filter((s) => s.done).length - 1) * 33.3}%` }} />
+              <div className="absolute left-[16.6%] top-[7px] h-0.5 bg-[#193686]" style={{ width: `${(steps.filter((s) => s.done).length - 1) * 33.3}%` }} />
               {steps.map((s) => (
                 <div key={s.label} className="relative flex flex-col items-center text-center">
-                  <span className={`size-4 rounded-full ring-4 ring-white ${s.done ? "bg-emerald-500" : "bg-slate-300"}`} />
-                  <span className={`mt-3 grid size-11 place-items-center rounded-full ${s.done ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400"}`}><s.Icon size={20} /></span>
+                  <span className={`size-4 rounded-full ring-4 ring-white ${s.done ? "bg-[#193686]" : "bg-slate-300"}`} />
+                  <span className={`mt-3 grid size-11 place-items-center rounded-full ${s.done ? "bg-[#E8ECF6] text-[#193686]" : "bg-slate-50 text-slate-400"}`}><s.Icon size={20} /></span>
                   <p className="mt-1.5 text-[12px] font-semibold text-slate-800">{s.label}</p>
                   <p className="text-[11px] text-slate-500">{s.date}</p>
                 </div>
@@ -162,7 +163,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <ol className="space-y-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
             {care.map((t, i) => (
               <li key={i} className="flex items-start gap-2.5 text-[13px] text-slate-700">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-pink text-[11px] font-semibold text-white">{i + 1}</span>{t}
+                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#EE2C34] text-[11px] font-semibold text-white">{i + 1}</span>{t}
               </li>
             ))}
           </ol>

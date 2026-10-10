@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, FileImage, FileText, Loader2, X } from "lucide-react";
+import { ChevronRight, Download, FileImage, FileText, Loader2, Sparkles, X } from "lucide-react";
 
 // Consumer passport helpers (Thai Post doc 9 Oct 2026 §14):
 //  · SavePassport — the ⬇ button (top-right): saves what the visitor sees as a PNG or a one-page PDF.
-//  · ReadMore — a long farm story is clamped; "ดูเพิ่มเติม" opens it in full in a pop-up.
+//  · HighlightBar — the farm's จุดเด่น opens from a tappable bar (§15, Super App) in a pop-up.
 
 /** A minimal one-page PDF that embeds a JPEG (no PDF library needed). */
 function jpegToPdf(jpeg: Uint8Array, w: number, h: number): Blob {
@@ -92,24 +92,28 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
   );
 }
 
-export function ReadMore({ title, text, limit = 120 }: { title: string; text: string; limit?: number }) {
+export function HighlightBar({ title, text }: { title: string; text: string }) {
   const [open, setOpen] = useState(false);
-  const long = text.length > limit;
   return (
     <>
-      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-        {long ? `${text.slice(0, limit).trimEnd()}… ` : text}
-        {long ? <button type="button" data-no-capture onClick={() => setOpen(true)} className="font-medium text-brand-pink underline underline-offset-2">ดูเพิ่มเติม</button> : null}
-      </p>
+      <button type="button" data-no-capture onClick={() => setOpen(true)} aria-haspopup="dialog"
+        className="flex w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-[#E6E7E8] active:bg-[#FDECEC]">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#FDECEC] text-[#EE2C34]"><Sparkles size={16} /></span>
+          <span className="min-w-0">
+            <span className="block text-[14px] font-semibold text-slate-800">จุดเด่นของฟาร์ม</span>
+            <span className="block truncate text-[12px] text-slate-500">{text}</span>
+          </span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-[#193686]" />
+      </button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-5" onClick={() => setOpen(false)} data-no-capture>
-          <div role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()} className="relative max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl border-t-4 border-[#1559b9] bg-white p-5 shadow-xl">
-            <button type="button" aria-label="ปิด" onClick={() => setOpen(false)} className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={16} /></button>
-            <p className="pr-6 text-center text-[15px] font-semibold text-slate-800">{title}</p>
+          <div role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()} className="relative max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl border-t-4 border-[#EE2C34] bg-white px-5 pb-4 pt-5 shadow-xl">
+            <button type="button" aria-label="ปิด" onClick={() => setOpen(false)} className="absolute right-3 top-3 grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+            <p className="pr-6 text-center text-[15px] font-semibold text-[#193686]">{title}</p>
             <p className="mt-3 whitespace-pre-line text-center text-[14px] leading-relaxed text-slate-600">{text}</p>
-            <div className="mt-4 border-t border-slate-100 pt-3 text-center">
-              <button type="button" onClick={() => setOpen(false)} className="text-[13px] text-[#1559b9] underline">ปิด</button>
-            </div>
+            <button type="button" onClick={() => setOpen(false)} className="mx-auto mt-3 block rounded-full bg-[#E6E7E8] px-6 py-1.5 text-[13px] font-medium text-[#193686]">ปิด</button>
           </div>
         </div>
       ) : null}
