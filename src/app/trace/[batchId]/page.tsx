@@ -8,7 +8,8 @@ import RateLot from "@/components/RateLot";
 import { thaiDateShort, thaiDateFull } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { SavePassport, FarmSheet } from "@/components/TraceClient";
-import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, Truck, PackageCheck, Flower2, Apple, Carrot, Package, Leaf, CalendarDays, Clock, Cloud, type LucideIcon } from "lucide-react";
+import { certAppliesTo, certTitle } from "@/lib/certs";
+import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, Truck, PackageCheck, Flower, Apple, Carrot, Package, Leaf, CalendarDays, Clock, Cloud, type LucideIcon } from "lucide-react";
 import {
   categoryOf, categoryLabel, quantityLabel, perUnitLabel, harvestLabel, ageLabel, batchCo2e,
   ripenessAtScan, shelfLifeLeft, coldChainWarning, RIPENESS_LABEL,
@@ -52,8 +53,8 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   const { stage, daysSinceHarvest, profile } = ripenessAtScan(batch);
   const left = shelfLifeLeft(batch);
   const chill = coldChainWarning(batch);
-  const today = new Date().toISOString().slice(0, 10);
-  const certs = (supplier.certifications ?? []).filter((c) => c.appliesTo.includes(category) && (!c.expiresAt || c.expiresAt >= today));
+  // certificates covering this lot: its category, its product type (when the certificate lists types), not expired
+  const certs = (supplier.certifications ?? []).filter((c) => certAppliesTo(c, category, typeName));
   const care = tipsOf(supplier.careTips).length ? tipsOf(supplier.careTips) : isFlower ? DEFAULT_CARE.flower
     : category === "fruit"
       ? [`เก็บที่ ${profile.storageMinC}–${profile.storageMaxC}°C${profile.chillSensitive ? " ไม่ควรแช่เย็นจัด" : ""}`, ...(profile.ripens ? ["วางไว้ที่อุณหภูมิห้องหากต้องการให้สุกต่อ"] : []), "ล้างให้สะอาดก่อนรับประทาน"]
@@ -62,10 +63,8 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   // photos (uploaded on ข้อมูลฟาร์ม); a farm without one shows the greenhouse picture
   const farmPhoto = supplier.photoUrl || "/figma/greenhouse.webp";
   const productPhoto = supplier.productPhotos?.[typeName] ?? supplier.productPhotos?.[batch.productType ?? ""];
-  const standards = certs.length
-    ? certs.map((c) => [c.kind === "other" ? c.name : c.kind, c.certNo, c.issuer].filter(Boolean).join(" · ")).join(" / ")
-    : "ยังไม่มีข้อมูลใบรับรองมาตรฐาน";
-  const carbonLine = `ติดตามคาร์บอนทุกรอบส่งออก · ล็อตนี้ ${batch.co2ePerFlower.toFixed(4)} kg CO₂e ${perUnitLabel(batch)} (ISO 14067, Tier-1)`;
+  // มาตรฐานการผลิต in the farm sheet: "GAP" over its number, e.g. "กษ 03-9001-57-001-001234"
+  const standards = certs.map((c) => ({ title: certTitle(c), no: c.certNo }));
   const steps = [
     { label: isFlower ? "ตัดดอก" : "เก็บเกี่ยว", date: thaiDateFull(batch.cutDate), done: true, Icon: Scissors },
     { label: "รับสินค้า", date: thaiDateFull(batch.entryDate), done: true, Icon: ClipboardCheck },
@@ -75,7 +74,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   // the 6 tiles keep our own content (product · quantity · CO₂e per unit · CO₂e รวม · cut date · age) in the
   // mockup's card style — the lot's total CO₂e, not its weight (10 Oct 2026)
   const tiles: { v: string; l: string; Icon: LucideIcon }[] = [
-    { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower2 : category === "fruit" ? Apple : Carrot },
+    { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower : category === "fruit" ? Apple : Carrot },
     { v: quantityLabel(batch), l: isFlower ? "จำนวนดอก" : "น้ำหนักสินค้า", Icon: Package },
     { v: `${batch.co2ePerFlower.toFixed(4)} kg`, l: `CO₂e ${perUnitLabel(batch)}`, Icon: Leaf },
     { v: `${batchCo2e(batch).toFixed(2)} kg`, l: "CO₂e รวม", Icon: Cloud },
@@ -100,7 +99,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-[#EE2C34]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#EE2C34]">Product Passport</span>
             <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">{categoryLabel(category)}</span>
-            {batch.grade ? <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[11px] font-semibold text-white">เกรด {batch.grade}</span> : null}
+            {batch.grade ? <span className="rounded-full bg-[#193686] px-2.5 py-0.5 text-[11px] font-semibold text-white">เกรด {batch.grade}</span> : null}
           </div>
           <h1 className="mt-2 text-[22px] font-bold leading-tight text-[#EE2C34]">{productName}</h1>
           {/* one standard line for every product (§15) — the farm's own story lives behind the bar below */}
@@ -113,7 +112,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
         </section>
 
         {/* farm card → sheet with the farm's details (§15, Super App mockup) */}
-        <FarmSheet name={supplier.farmName} address={supplier.address} photo={farmPhoto} story={story || undefined} standards={standards} carbon={carbonLine}>
+        <FarmSheet name={supplier.farmName} address={supplier.address} photo={farmPhoto} story={story || undefined} standards={standards}>
           <span className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={farmPhoto} alt="" className="size-[72px] shrink-0 rounded-xl object-cover object-[80%_60%]" />

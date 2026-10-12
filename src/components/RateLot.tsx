@@ -50,12 +50,12 @@ export default function RateLot({ batchId, farmName, carrierName, mine }: {
       <div className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#E6E7E8]">
         {sent && !editing ? (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-slate-600">ขอบคุณสำหรับคะแนน — สวน {farm || "–"} ดาว · การขนส่ง {transport || "–"} ดาว</p>
+            <p className="text-[13px] text-slate-600">ขอบคุณสำหรับคะแนน — แหล่งที่มา {farm || "–"} ดาว · การขนส่ง {transport || "–"} ดาว</p>
             <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-[13px] font-medium text-[#193686] underline">แก้คะแนน</button>
           </div>
         ) : (
           <>
-            <Stars label="สวน" sub={farmName} value={farm} onChange={setFarm} />
+            <Stars label="แหล่งที่มา" sub={farmName} value={farm} onChange={setFarm} />
             <Stars label="การขนส่ง" sub={carrierName} value={transport} onChange={setTransport} />
             <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={300} rows={2} placeholder="ความคิดเห็นเพิ่มเติม (ไม่บังคับ)"
               className="w-full resize-none rounded-[10px] border border-[#E6E7E8] px-3 py-2 text-[13px] text-slate-700 outline-none focus:border-[#EE2C34]" />
@@ -63,7 +63,7 @@ export default function RateLot({ batchId, farmName, carrierName, mine }: {
             <button type="button" onClick={send} disabled={busy || (!farm && !transport)} className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#EE2C34] px-4 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50">
               {busy ? <Loader2 size={16} className="animate-spin" /> : null} ส่งคะแนน
             </button>
-            <p className="text-center text-[11px] text-slate-400">คะแนนแสดงเป็นค่าเฉลี่ยของสวนและผู้ขนส่ง · ความคิดเห็นส่งถึงสวนและผู้ขนส่งเท่านั้น</p>
+            <p className="text-center text-[11px] text-slate-400">คะแนนแสดงเป็นค่าเฉลี่ยของแหล่งที่มาและผู้ขนส่ง · ความคิดเห็นส่งถึงแหล่งที่มาและผู้ขนส่งเท่านั้น</p>
           </>
         )}
       </div>

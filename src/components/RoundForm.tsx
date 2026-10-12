@@ -8,7 +8,7 @@ import DateField, { formatThaiDate } from "@/components/DateField";
 import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
 import { useRecipientDistance } from "@/lib/use-distance";
 import { PRODUCT_CATEGORIES, typesFor, variantsFor, categoryOfType } from "@/lib/master-data";
-import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_OPTIONS, UNIT_LABEL } from "@/lib/produce";
+import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_LEVELS, gradeLabel, UNIT_LABEL } from "@/lib/produce";
 import type { ProductCategory, QuantityUnit, Ripeness } from "@/lib/types";
 import { AlertTriangle, MapPin } from "lucide-react";
 import { BRANCHES, findBranch } from "@/lib/branches";
@@ -236,7 +236,7 @@ export default function RoundForm({
     ชนิด: flowerType, พันธุ์: variety,
     จำนวน: flowerCount ? `${Number(flowerCount).toLocaleString()} ${UNIT_LABEL[unit]}` : "",
     วันที่ปลูก: plantingDate ? formatThaiDate(plantingDate) : "", วันที่ตัด: formatThaiDate(cutDate),
-    อายุ: ageDays ? `${ageDays} วัน` : "", ระยะการสุก: ripeness ? RIPENESS_LABEL[ripeness] : "", เกรด: grade,
+    อายุ: ageDays ? `${ageDays} วัน` : "", ระยะการสุก: ripeness ? RIPENESS_LABEL[ripeness] : "", เกรด: gradeLabel(grade),
     จังหวัดปลายทาง: destination, ที่อยู่ปลายทาง: destAddress, พิกัดปลายทาง: destGps, ระยะทาง: distanceKm ? `${distanceKm} กม.` : "",
     รูปแบบการขนส่ง: carrierLabel, รหัสไปรษณีย์: postalCode, ผู้ให้บริการ: provider, สาขาต้นทาง: branchName(branch),
     // one key per packaging field, so the edit review can mark exactly what changed (old → new)
@@ -308,7 +308,7 @@ export default function RoundForm({
           packPhotoIds: postSupplierId ? undefined : photos.map((p) => p.id),
           plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
           ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
-          grade: !isFlower && grade ? grade : undefined,
+          grade: grade || undefined,
           ethyleneUsed: category === "fruit" ? ethylene : undefined,
           ethyleneNote: category === "fruit" && ethylene ? ethyleneNote : undefined,
           destination,
@@ -392,7 +392,7 @@ export default function RoundForm({
               <F k="วันที่ตัด" label={harvestLabel(category)} value={formatThaiDate(cutDate)} />
               {isFlower ? <F k="อายุ" label="อายุหลังตัดที่คาดการณ์" value={ageDays ? `${ageDays} วัน` : ""} /> : null}
               {category === "fruit" && ripeness ? <F k="ระยะการสุก" label="ระยะการสุก" value={RIPENESS_LABEL[ripeness]} /> : null}
-              {!isFlower && grade ? <F k="เกรด" label="เกรด" value={grade} /> : null}
+              {grade ? <F k="เกรด" label="เกรดสินค้า" value={gradeLabel(grade)} /> : null}
               {category === "fruit" && ethylene ? <F label="เอทิลีน/สารยับยั้งการสุก" value={ethyleneNote || "ใช้"} /> : null}
             </div>
             {/* Col 2 — packaging */}
@@ -497,6 +497,17 @@ export default function RoundForm({
               <datalist id="fvars">{varieties.map((v) => <option key={v} value={v} />)}</datalist>
               <Err msg={errs.variety} />
             </div>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>เกรดสินค้า</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="เกรดสินค้า">
+                {[...GRADE_LEVELS, ...(grade && !GRADE_LEVELS.some((g) => g.value === grade) ? [{ value: grade, label: "(เดิม)" }] : [])].map((g) => (
+                  <button key={g.value} type="button" role="radio" aria-checked={grade === g.value} onClick={() => setGrade(grade === g.value ? "" : g.value)}
+                    className={`rounded-[10px] border px-3 py-2.5 text-left text-[13px] transition ${grade === g.value ? T.radioSel : "border-gray-300 text-slate-700 hover:border-slate-400"}`}>
+                    <span className="font-semibold">{g.value}</span> <span className={grade === g.value ? "" : "text-slate-500"}>{g.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className={labelCls}>{isFlower ? "จำนวนดอกไม้" : "น้ำหนักสินค้า"}{req}</label>
               <div className="flex gap-2">
@@ -533,12 +544,6 @@ export default function RoundForm({
                   {(Object.keys(RIPENESS_LABEL) as Ripeness[]).map((r) => <option key={r} value={r}>{RIPENESS_LABEL[r]}</option>)}
                 </select>
                 <Err msg={errs.ripeness} />
-              </div>
-            ) : null}
-            {!isFlower ? (
-              <div>
-                <label className={labelCls}>เกรดคุณภาพ</label>
-                <SelectOther value={grade} onChange={setGrade} options={GRADE_OPTIONS.map((g) => ({ value: g, label: g }))} placeholder="ไม่ระบุ" className={inputCls} otherPlaceholder="ระบุเกรด" />
               </div>
             ) : null}
             {category === "fruit" ? (

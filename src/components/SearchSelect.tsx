@@ -7,6 +7,8 @@ export interface SelectOption {
   value: string;
   label: string;
   group?: string;
+  /** extra words that also find this option when typed (e.g. the English name) */
+  keywords?: string;
 }
 
 // Grouped, searchable dropdown (Figma dev-note "dropdown search"): category headers,
@@ -48,7 +50,7 @@ export default function SearchSelect({
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
+    const list = needle ? options.filter((o) => `${o.label} ${o.keywords ?? ""}`.toLowerCase().includes(needle)) : options;
     // group in first-seen order
     const groups: { name: string; items: SelectOption[] }[] = [];
     for (const o of list) {

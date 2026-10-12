@@ -130,6 +130,7 @@ export interface Certification {
   kind: "GAP" | "GlobalGAP" | "Organic Thailand" | "other";
   name?: string; // ชื่อใบรับรอง (เมื่อ kind = other)
   appliesTo: ProductCategory[]; // ใช้กับประเภทสินค้า
+  productTypes?: string[]; // ชนิดสินค้าที่ใบรับรองครอบคลุม (ว่าง = ทุกชนิดในประเภทที่เลือก)
   certNo?: string; // เลขที่ใบรับรอง
   issuer?: string; // หน่วยงานที่ออก (Thai Post doc §17)
   expiresAt?: string; // YYYY-MM-DD

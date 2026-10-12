@@ -109,6 +109,7 @@ window.qa = {
     await act(`qa.cat("ดอกไม้")`, 400);
     await act(`qa.inp(document, "ชนิด", "กุหลาบ", 0, true)`);
     await act(`qa.inp(document, "พันธุ์", "แดง", 0, true)`);
+    await act(`qa.click("A+ พรีเมียม")`); // เกรดสินค้า (13 Oct 2026)
     await act(`qa.inp(document, "จำนวนดอกไม้", "500")`);
     await act(`qa.date(document, "วันที่ตัด", "2026-10-08")`);
     log("§S1 label reads อายุหลังตัดที่คาดการณ์ (วัน)", await ev(`!!qa.find(document, "select", "อายุหลังตัดที่คาดการณ์ (วัน)", 0, true)`));
@@ -204,6 +205,7 @@ window.qa = {
     const [row] = lot ? await sql`SELECT expected_age_days, shipped_weight_kg, distance_km, packaging_items, destination, status FROM batches WHERE id = ${lot}` : [];
     log("saved: age 14 · packed 30 kg (from grams) · 3 packaging rows · computed", row?.expected_age_days === 14 && Number(row?.shipped_weight_kg) === 30 && (row?.packaging_items as unknown[])?.length === 3 && row?.status === "computed", JSON.stringify({ age: row?.expected_age_days, kg: row?.shipped_weight_kg, rows: (row?.packaging_items as unknown[])?.length, st: row?.status }));
     log("packing photo saved on the lot", (await sql`SELECT count(*)::int n FROM pack_photos WHERE batch_id = ${lot}`)[0].n === 1);
+    log("grade A+ saved", (await sql`SELECT grade FROM batches WHERE id = ${lot}`)[0]?.grade === "A+");
     const [ce] = await sql`SELECT field FROM custom_entries WHERE value = ${OTHER_NAME}`;
     log("4.6 the อื่นๆ packaging went to KYN's review queue", !!ce, ce?.field);
     if (!lot) throw new Error("no lot");
@@ -222,6 +224,24 @@ window.qa = {
       const save = (await tp.evaluate(`(() => { const x = Array.from(document.querySelectorAll("button, a")).find((e) => /บันทึก/.test((e.getAttribute("aria-label") || "") + (e.textContent || ""))); if (!x) return null; const r = x.getBoundingClientRect(); return { fromRight: Math.round(innerWidth - r.right), top: Math.round(r.top) }; })()`)) as { fromRight: number; top: number } | null;
       log("§15 tapping the farm card opens the farm's จุดเด่น", btn && pop.open && pop.full, JSON.stringify({ btn, ...pop }));
       log("§14 save as image / PDF sits top-right", !!save && save.fromRight < 80 && save.top < 140, JSON.stringify(save));
+      log("QR hero shows เกรด A+", (await tp.evaluate(`document.body.innerText.includes("เกรด A+")`)) as boolean);
+      const openSave = async (pg: typeof tp) => {
+        await pg.evaluate(`document.querySelector('button[aria-label="บันทึกหน้านี้"]').click()`); await sleep(300);
+        await pg.evaluate(`Array.from(document.querySelectorAll('[role="menuitem"]')).find((x) => x.textContent.includes("รูปภาพ")).click()`);
+        return pg.waitForFunction(`!!Array.from(document.querySelectorAll('[role="dialog"]')).find((d) => d.innerText.includes("บันทึก / แชร์"))`, { timeout: 25000 }).then(() => true, () => false);
+      };
+      const sheet = await openSave(tp);
+      const pv = (await tp.evaluate(`(() => { const d = Array.from(document.querySelectorAll('[role="dialog"]')).find((x) => x.innerText.includes("บันทึก / แชร์")); const im = d && d.querySelector("img"); return { img: !!im && im.naturalWidth > 300, hint: !!d && d.innerText.includes("กดค้างที่รูป") }; })()`)) as { img: boolean; hint: boolean };
+      log("phone: save → the image is made, then a sheet: บันทึก / แชร์ + long-press preview", sheet && pv.img && pv.hint, JSON.stringify(pv));
+      const lineCtx = await b.createBrowserContext();
+      const lp = await lineCtx.newPage(); await lp.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+      await lp.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/14.10.0");
+      await lp.evaluateOnNewDocument(DRIVER);
+      await lp.goto(BASE + "/t/" + lot, { waitUntil: "networkidle0" });
+      const lineSheet = await openSave(lp);
+      const ext = (await lp.evaluate(`(() => { const a = Array.from(document.querySelectorAll('[role="dialog"] a')).find((x) => x.textContent.includes("เปิดหน้านี้ในเบราว์เซอร์")); return a ? a.href : ""; })()`)) as string;
+      log("LINE in-app browser: the sheet offers 'เปิดหน้านี้ในเบราว์เซอร์' (openExternalBrowser=1)", lineSheet && ext.includes("openExternalBrowser=1"), ext);
+      await lineCtx.close();
       await ctx.close();
     }
 
@@ -280,6 +300,8 @@ window.qa = {
       const air = (await q.evaluate(`qa.opts(qa.find(document, "select", "ท่าอากาศยานต้นทาง")).includes("__other__")`)) as boolean;
       log("§4 carrier export form loads the farm's packaging rows (+ PKG code)", picked === true && JSON.stringify(lg1.rows) === JSON.stringify(["carton", "basket", "other"]) && lg1.code === code, JSON.stringify(lg1));
       log("§4 carrier form: อื่นๆ on จังหวัดปลายทาง + ท่าอากาศยานต้นทาง", lg1.prov === true && air === true, `${lg1.prov} ${air}`);
+      const units = (await q.evaluate(`(() => { const a = qa.find(document, "select", "จำนวนสินค้า"), b = qa.find(document, "select", "จำนวนส่งออก"); return { a: a && a.value, aOther: qa.opts(a).includes("__other__"), b: b && b.value, bOther: qa.opts(b).includes("__other__") }; })()`)) as Record<string, unknown>;
+      log("carrier form: quantity units are dropdowns (ดอก from the lot) with อื่นๆ (ระบุ)", units.a === "ดอก" && units.aOther === true && units.b === "ช่อ" && units.bOther === true, JSON.stringify(units));
       // carrier sign-up link: the button on รายการรับเข้าจากผู้ผลิต opens the panel (read-only here — no link is made)
       await q.goto(BASE + "/logistic/incoming", { waitUntil: "networkidle0" });
       await q.evaluate(`Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes("ชวนผู้ผลิต")).click()`); await sleep(900);
@@ -371,6 +393,25 @@ window.qa = {
     if (adds) await act(`qa.click("เพิ่มรายการเชื้อเพลิง")`, 300);
     const fuel1 = await ev<{ n: number; other: boolean }>(`(() => { const all = qa.all(document, "select", "ประเภทเชื้อเพลิง"); return { n: all.length, other: qa.opts(all[all.length - 1]).includes("other") }; })()`);
     log("§S3 farm resources: + เพิ่มรายการ under fuel / fertilizer / chemical; each line offers อื่นๆ", adds === 3 && fuel1.n === fuel0 + 1 && fuel1.other, `lines ${fuel0} → ${fuel1.n}, add buttons ${adds}, other ${fuel1.other}`);
+    await act(`qa.click("ข้อมูลผู้ผลิต")`, 300);
+    await act(`qa.click("เพิ่มรายการผลผลิต")`, 300);
+    await act(`document.querySelectorAll('[role="radiogroup"][aria-label="ประเภทสินค้า"] [role="radio"]')[1].click()`, 200); // ผลไม้
+    await act(`Array.from(document.querySelectorAll("button")).find((x) => (x.textContent || "").includes("พิมพ์ค้นหาชนิดผลไม้")).click()`, 300);
+    const all = await ev<string[]>(`Array.from(document.querySelectorAll("div.max-h-64 button")).map((x) => x.textContent.trim())`);
+    await act(`qa.set(document.querySelector('input[placeholder="ค้นหา..."]'), "durian")`, 300);
+    const found = await ev<string[]>(`Array.from(document.querySelectorAll("div.max-h-64 button")).map((x) => x.textContent.trim())`);
+    log("ข้อมูลฟาร์ม: pick ผลไม้ → only fruit listed; typing 'durian' finds ทุเรียน", all.length > 5 && !all.includes("กุหลาบ") && found.includes("ทุเรียน"), `${all.length} fruit · ${found.join(",")}`);
+    await act(`document.body.click()`, 200);
+    const dots = await ev<Record<string, unknown>>(`(() => {
+      const btns = Array.from(document.querySelectorAll('button[title="ตัวเลือก"]'));
+      const card = btns.findIndex((b) => { let c = b.parentElement; while (c && !String(c.className).includes("rounded-[12px]")) c = c.parentElement; return !!c && !Array.from(c.querySelectorAll("div")).some((d) => String(d.className).includes("rounded-b-[11px]")); });
+      if (card < 0) return { card };
+      btns[card].click();
+      return { card };
+    })()`);
+    await sleep(300);
+    const menuOk = await ev<boolean>(`(() => { const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes("ลบรายการนี้")); if (!b) return false; const r = b.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!el && b.contains(el); })()`);
+    log("ข้อมูลฟาร์ม: ⋮ on a collapsed card shows 'ลบรายการนี้' (not clipped)", dots.card !== -1 && menuOk, JSON.stringify(dots));
 
     // ---- the form at phone width (§8) --------------------------------------------------------------
     await p.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });

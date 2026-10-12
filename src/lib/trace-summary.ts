@@ -1,6 +1,7 @@
 // Consumer-safe traceability summary of one batch — the payload a partner app (e.g. the
 // Thai Post Super App "My Item" order detail) would pull from Corta. No account PII: farm name,
 // province and certifications only. Shared by GET /api/trace/[id] and the /superapp prototype.
+import { certAppliesTo } from "./certs";
 import type { Batch, Supplier } from "./types";
 import {
   categoryOf, categoryLabel, unitOf, unitsOf, perUnitLabel, ripenessAtScan, shelfLifeLeft,
@@ -56,7 +57,7 @@ export function buildTraceSummary(b: Batch, s: Supplier, origin: string): TraceS
       province: s.province,
       address: s.address,
       description: s.description || s.highlights,
-      certifications: (s.certifications ?? []).filter((c) => c.appliesTo.includes(category)).map((c) => ({ kind: c.kind, name: c.name, certNo: c.certNo, expiresAt: c.expiresAt })),
+      certifications: (s.certifications ?? []).filter((c) => certAppliesTo(c, category, b.productType || s.flowerType)).map((c) => ({ kind: c.kind, name: c.name, certNo: c.certNo, expiresAt: c.expiresAt })),
     },
     shipment: { status: b.shipmentStatus, destination: b.destination, carrier: b.carrier, provider: b.provider, distanceKm: b.distanceKm, reefer: !!b.isReeferUsed },
     links: { passport: `${origin}/t/${b.id}` },

@@ -29,6 +29,7 @@ const COMMENT = `ส่งเร็ว ดอกสดมาก QA ${TS}`;
     log("QR page has no rating form before printing", !(await html(`/t/${lot}`)).includes("ให้คะแนนความพึงพอใจ"));
     const pr = await api("/api/prints", "POST", { supplierId: supId, batchId: lot }, cCookie);
     log("print records the carrier org", pr.status === 201 && (await sql`SELECT org_code FROM prints WHERE id = ${pr.json.id}`)[0]?.org_code === cu.org_code);
+    log("rating form says แหล่งที่มา (not สวน)", (await html(`/t/${lot}`)).includes("แหล่งที่มา"));
     log("QR page offers the rating form + 'no score yet'", (await html(`/t/${lot}`)).includes("ให้คะแนนความพึงพอใจ") && (await html(`/t/${lot}`)).includes("ยังไม่มีคะแนน"));
 
     // device 1

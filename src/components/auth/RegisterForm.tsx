@@ -202,7 +202,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
               <textarea value={f.details} onChange={set("details")} rows={2} placeholder="จุดเด่น : ผลผลิตดี ดอกสวยงาม" className={inputCls} />
             </Field>
             <ProduceGroupsEditor groups={groups} onChange={setGroups} inputCls={inputCls} error={errs.flowerType} accent="pink" />
-            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="pink" mode="register" skip={skipCerts} onSkip={setSkipCerts} errors={certErrs} />
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="pink" mode="register" skip={skipCerts} onSkip={setSkipCerts} errors={certErrs} farmTypes={cleanGroups.map((g) => ({ type: g.type, category: g.category }))} />
           </div>
         )}
 

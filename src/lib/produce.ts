@@ -5,7 +5,17 @@ import { CATEGORY_LABEL, profileFor, type ProduceProfile } from "./master-data";
 
 export const UNIT_LABEL: Record<QuantityUnit, string> = { stem: "ดอก", bunch: "ช่อ", kg: "กก.", ton: "ตัน" };
 export const RIPENESS_LABEL: Record<Ripeness, string> = { unripe: "ดิบ", turning: "เริ่มสุก", ripe: "สุกพอดี", overripe: "สุกเกิน" };
-export const GRADE_OPTIONS = ["A", "B", "C", "ส่งออก"];
+/** เกรดสินค้า (13 Oct 2026) — the value saved is the letter; the QR page shows "เกรด A+" */
+export const GRADE_LEVELS = [
+  { value: "A+", label: "พรีเมียม" },
+  { value: "A", label: "คุณภาพดี" },
+  { value: "B", label: "มาตรฐาน" },
+  { value: "C", label: "ทั่วไป" },
+] as const;
+/** known grades (an older round may carry "ส่งออก") — anything else goes to KYN's review queue */
+export const GRADE_OPTIONS: string[] = [...GRADE_LEVELS.map((g) => g.value), "ส่งออก"];
+/** "A+ · พรีเมียม" */
+export const gradeLabel = (g?: string) => { const hit = GRADE_LEVELS.find((x) => x.value === g); return hit ? `${hit.value} · ${hit.label}` : g ?? ""; };
 export const CATEGORY_TAG: Record<ProductCategory, string> = {
   flower: "bg-brand-pink-light text-brand-pink",
   fruit: "bg-orange-50 text-orange-600",

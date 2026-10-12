@@ -26,6 +26,8 @@ const EA = `qa-cert-a-${TS}@klora-qa.test`, EB = `qa-cert-b-${TS}@klora-qa.test`
       { kind: "GAP", certNo: "GAP-QA-1", issuer: "กรมวิชาการเกษตร", appliesTo: ["fruit"], expiresAt: day(400), fileId: "CF-FORGED00001" },
       { kind: "GlobalGAP", appliesTo: ["fruit"], expiresAt: day(10) },
       { kind: "Organic Thailand", appliesTo: ["fruit"], expiresAt: day(-5) },
+      { kind: "other", name: "QA เฉพาะลำไย", appliesTo: ["fruit"], productTypes: ["ลำไย"], expiresAt: day(400) },
+      { kind: "other", name: "QA เฉพาะมะม่วง", appliesTo: ["fruit"], productTypes: ["มะม่วง", " มะม่วง "], expiresAt: day(400) },
     ]); ids.push(A.id);
     const [s] = await sql`SELECT certifications FROM suppliers WHERE id = ${A.id}`;
     const certs = s.certifications as { issuer?: string; fileId?: string }[];
@@ -52,7 +54,7 @@ const EA = `qa-cert-a-${TS}@klora-qa.test`, EB = `qa-cert-b-${TS}@klora-qa.test`
     // saving from ข้อมูลฟาร์ม: someone else's file id is dropped; a removed file is deleted
     const other = await upload(B.cookie, PDF, "b.pdf", "application/pdf");
     const cur = (await sql`SELECT certifications FROM suppliers WHERE id = ${A.id}`)[0].certifications as Record<string, unknown>[];
-    const patch = await fetch(`${BASE}/api/suppliers/${A.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Cookie: `klora_session=${A.cookie}` }, body: JSON.stringify({ certifications: [{ ...cur[0], fileId: other.json.id, fileName: "b.pdf" }, cur[1], cur[2]] }) });
+    const patch = await fetch(`${BASE}/api/suppliers/${A.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Cookie: `klora_session=${A.cookie}` }, body: JSON.stringify({ certifications: [{ ...cur[0], fileId: other.json.id, fileName: "b.pdf" }, ...cur.slice(1)] }) });
     const after = (await sql`SELECT certifications FROM suppliers WHERE id = ${A.id}`)[0].certifications as { fileId?: string }[];
     log("another farm's file id is not accepted", patch.status === 200 && !after[0].fileId);
     log("the dropped file is deleted", (await sql`SELECT count(*)::int n FROM cert_files WHERE id = ${fid}`)[0].n === 0);
@@ -66,7 +68,9 @@ const EA = `qa-cert-a-${TS}@klora-qa.test`, EB = `qa-cert-b-${TS}@klora-qa.test`
     log("bell reminder for the certificate expiring in 10 days — once, not for the far / expired ones", notes.length === 1 && String(notes[0].title).includes("GlobalGAP"), notes.map((n) => n.title).join(" | "));
     const lot = await fetch(`${BASE}/api/batches`, { method: "POST", headers: { "Content-Type": "application/json", Cookie: `klora_session=${A.cookie}` }, body: JSON.stringify({ productCategory: "fruit", productType: "มะม่วง", unit: "kg", quantity: 40, cutDate: "2026-10-09", distanceKm: 300, destination: "กรุงเทพฯ", carrier: "ไปรษณีย์ไทย", shippedWeightKg: 45, packagingItems: [] }) }).then((r) => r.json());
     const page = (await (await fetch(`${BASE}/t/${lot.id}`)).text()).replace(/<!-- -->/g, "");
-    log("QR page: valid certificates shown, expired one hidden", page.includes("GAP · GAP-QA-1") && page.includes("GlobalGAP") && !page.includes("Organic Thailand"));
+    log("QR page: valid certificates shown (GAP over its number), expired one hidden", page.includes("GAP-QA-1") && page.includes("GlobalGAP") && !page.includes("Organic Thailand"));
+    log("ชนิดสินค้า scope: a มะม่วง lot shows the มะม่วง-only certificate, not the ลำไย-only one", page.includes("QA เฉพาะมะม่วง") && !page.includes("QA เฉพาะลำไย"));
+    log("product types saved (trimmed, no duplicates)", JSON.stringify(((await sql`SELECT certifications FROM suppliers WHERE id = ${A.id}`)[0].certifications as { productTypes?: string[] }[])[4]?.productTypes) === JSON.stringify(["มะม่วง"]));
     log("QR page never links the files", !page.includes("/api/cert-files/"));
   } catch (e) {
     log("run", false, String((e as Error).message));

@@ -75,6 +75,7 @@ export function parseCertifications(raw: unknown): Certification[] | undefined {
         appliesTo: appliesTo.length ? appliesTo : (["flower", "fruit", "vegetable"] as ProductCategory[]),
         certNo: String(c.certNo ?? "").trim() || undefined,
         issuer: String(c.issuer ?? "").trim().slice(0, 120) || undefined,
+        productTypes: Array.isArray(c.productTypes) ? [...new Set((c.productTypes as unknown[]).map((t) => String(t).trim().slice(0, 60)).filter(Boolean))].slice(0, 30) : undefined,
         expiresAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.expiresAt ?? "")) ? String(c.expiresAt) : undefined,
         // ownership of the file id is checked by the route that saves it
         fileId: /^CF-[A-Z0-9]{8,20}$/.test(String(c.fileId ?? "")) ? String(c.fileId) : undefined,

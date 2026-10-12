@@ -7,6 +7,8 @@ import Modal from "@/components/Modal";
 import DateField, { formatThaiDate } from "@/components/DateField";
 import SearchSelect from "@/components/SearchSelect";
 import SelectOther from "@/components/SelectOther";
+
+const QTY_UNITS = ["ดอก", "ช่อ", "กก.", "ตัน"];
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
 import { useRecipientDistance } from "@/lib/use-distance";
@@ -15,7 +17,7 @@ import { findBranch } from "@/lib/branches";
 import type { Supplier, Batch } from "@/lib/types";
 import PackagingLines, { firstRow, validateRows, rowsToPayload, rowsFromBatch, rowsWeightKg, rowSummary, type PackRowState } from "@/components/PackagingLines";
 import { DEFAULT_CATALOG, type PackCatalog } from "@/lib/packaging-catalog";
-import { categoryOf } from "@/lib/produce";
+import { categoryOf, UNIT_LABEL } from "@/lib/produce";
 import { ORIGIN_AIRPORTS, DEST_AIRPORTS, AIRLINES, airportLabel, findAirport, flightDistanceKm } from "@/lib/airports";
 
 const inputCls =
@@ -75,6 +77,9 @@ export default function LogisticExportForm({
   const [flowerCount, setFlowerCount] = useState("");
   const [ageDays, setAgeDays] = useState("");
   const [exportBunches, setExportBunches] = useState("");
+  // units (13 Oct 2026): a dropdown like the farm form, + อื่นๆ (ระบุ)
+  const [qtyUnit, setQtyUnit] = useState("ดอก");
+  const [exportUnit, setExportUnit] = useState("ช่อ");
   const [packs, setPacks] = useState<PackRowState[]>(() => [firstRow(catalog, "flower")]);
   const packagingKg = rowsWeightKg(packs, catalog);
   // Transport
@@ -153,9 +158,10 @@ export default function LogisticExportForm({
     const b = batches.find((x) => x.id === id);
     if (!b) return;
     const s = supById.get(b.supplierId);
-    setFlowerType(s?.flowerType ?? "");
+    setFlowerType(b.productType || s?.flowerType || "");
     setVariety(b.variety ?? "");
-    setFlowerCount(String(b.flowerCount));
+    setFlowerCount(String(b.quantity ?? b.flowerCount));
+    setQtyUnit(UNIT_LABEL[b.unit ?? "stem"] ?? "ดอก");
     setAgeDays(String(b.ageDays));
     setDestination(b.destination ?? "");
     setDistanceKm(String(b.distanceKm ?? ""));
@@ -269,7 +275,8 @@ export default function LogisticExportForm({
                 <F label="ชนิดดอกไม้" value={flowerType} />
                 <F label="พันธุ์ดอกไม้" value={variety} />
                 <F label="อายุดอกไม้หลังตัด" value={ageDays ? `${ageDays} วัน` : ""} />
-                <F label="จำนวนช่อดอกไม้" value={exportBunches ? `${exportBunches} ช่อ` : ""} />
+                <F label="จำนวนสินค้า" value={flowerCount ? `${Number(flowerCount).toLocaleString()} ${qtyUnit}` : ""} />
+                <F label="จำนวนส่งออก" value={exportBunches ? `${Number(exportBunches).toLocaleString()} ${exportUnit}` : ""} />
               </div>
               <div className="space-y-4 border-slate-100 p-5 md:border-r">
                 {boxes.map((p, i) => (
@@ -341,9 +348,19 @@ export default function LogisticExportForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div><label className={labelCls}>ชนิดดอกไม้</label><input value={flowerType} onChange={(e) => setFlowerType(e.target.value)} placeholder="เลือกประเภทดอกไม้" className={inputCls} /></div>
           <div><label className={labelCls}>พันธุ์ดอกไม้</label><input value={variety} onChange={(e) => setVariety(e.target.value)} placeholder="พันธุ์ดอกไม้" className={inputCls} /></div>
-          <div><label className={labelCls}>จำนวนดอกไม้ (ดอก)</label><input type="number" value={flowerCount} onChange={(e) => setFlowerCount(e.target.value)} placeholder="ระบุจำนวนดอกไม้" className={inputCls} /></div>
+          <div><label className={labelCls}>จำนวนสินค้า</label>
+            <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
+              <input type="number" value={flowerCount} onChange={(e) => setFlowerCount(e.target.value)} placeholder="ระบุจำนวน" className={inputCls} />
+              <SelectOther value={qtyUnit} onChange={setQtyUnit} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} />
+            </div>
+          </div>
           <div><label className={labelCls}>อายุดอกไม้หลังตัด (วัน)</label><input type="number" value={ageDays} onChange={(e) => setAgeDays(e.target.value)} placeholder="ระบุอายุดอกไม้" className={inputCls} /></div>
-          <div><label className={labelCls}>จำนวนส่งออกดอกไม้ (ช่อ)</label><input type="number" value={exportBunches} onChange={(e) => setExportBunches(e.target.value)} placeholder="ระบุจำนวนช่อ" className={inputCls} /></div>
+          <div><label className={labelCls}>จำนวนส่งออก</label>
+            <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
+              <input type="number" value={exportBunches} onChange={(e) => setExportBunches(e.target.value)} placeholder="ระบุจำนวน" className={inputCls} />
+              <SelectOther value={exportUnit} onChange={setExportUnit} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} />
+            </div>
+          </div>
         </div>
       </Section>
 

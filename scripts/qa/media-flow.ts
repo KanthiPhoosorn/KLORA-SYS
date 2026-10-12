@@ -48,7 +48,7 @@ const EA = `qa-media-a-${TS}@klora-qa.test`, EB = `qa-media-b-${TS}@klora-qa.tes
     const page = (await (await fetch(`${BASE}/t/${lot.id}`)).text()).replace(/<!-- -->/g, "");
     log("QR page: product photo in the hero, farm photo on card + sheet", page.includes(k.json.url) && page.split(f2.json.url).length - 1 >= 2);
     log("QR page tiles: CO₂e รวม instead of weight", page.includes("CO₂e รวม") && !page.includes("น้ำหนักรวม<"));
-    log("farm sheet: ข้อมูลแหล่งผลิต + the three rows", ["ข้อมูลแหล่งผลิต", "มาตรฐานการผลิต", "ตรวจสอบย้อนกลับ", "การดูแลสิ่งแวดล้อม"].every((t) => page.includes(t)));
+    log("farm sheet: ข้อมูลแหล่งผลิต + มาตรฐานการผลิต only (13 Oct: traceability + environment rows removed)", ["ข้อมูลแหล่งผลิต", "มาตรฐานการผลิต"].every((t) => page.includes(t)) && !page.includes("ตรวจสอบย้อนกลับ") && !page.includes("การดูแลสิ่งแวดล้อม"));
 
     // removing
     const del = await fetch(`${BASE}/api/media?kind=farm`, { method: "DELETE", headers: { Cookie: `klora_session=${A.cookie}` } });

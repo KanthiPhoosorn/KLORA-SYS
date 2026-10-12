@@ -68,8 +68,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
         ) : (
           <div className="space-y-5">
             <p className="text-[13px] leading-relaxed text-slate-500">
-              ส่งลิงก์หรือ QR ให้ฟาร์มที่จะมาส่งของกับ <b className="text-slate-700">{org.company ?? "บริษัทของคุณ"}</b> — ฟาร์มที่สมัครหรือผูกบัญชีผ่านลิงก์นี้
-              จะส่งสินค้าได้กับผู้ขนส่งรายนี้เท่านั้น และสาขาด้านล่างจะถูกเลือกไว้เป็นสาขาต้นทางให้
+              สร้างลิงก์หรือ QR Code เพื่อเชิญผู้ผลิตเข้าร่วมระบบ โดยสินค้าจะถูกจัดส่งผ่าน <b className="text-slate-700">{org.company ?? "บริษัทของคุณ"}</b> เท่านั้น
             </p>
             <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div>

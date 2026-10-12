@@ -6,64 +6,31 @@ import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVe
 import { shrinkImage } from "@/lib/image-shrink";
 import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "@/lib/types";
 import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
-import { type SelectOption } from "@/components/SearchSelect";
+import SearchSelect, { type SelectOption } from "@/components/SearchSelect";
 import { CertificationsEditor, certErrors, certPayload, type CertDraft } from "@/components/ProduceGroupsEditor";
 import ResourceUsageFields, { resourcePayload, resourceStateFrom, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
 import { farmResourceLines } from "@/lib/resource-types";
 
-const OTHER = "__other__";
 const CAT_ICON: Record<ProductCategory, string> = { flower: "🌸", fruit: "🍊", vegetable: "🥬" };
 
 const inputCls =
   "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-black outline-none placeholder:text-[#bdbdbd] focus:border-brand-pink";
 const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
 
-// Plain dropdown (Figma #116) — a native select styled like the design, no search box.
-function PlainSelect({
-  value, onChange, options, placeholder,
-}: {
-  value: string; onChange: (v: string) => void; options: SelectOption[]; placeholder: string;
-}) {
-  const groups: { name: string; items: SelectOption[] }[] = [];
-  for (const o of options) {
-    const n = o.group ?? "";
-    let g = groups.find((x) => x.name === n);
-    if (!g) { g = { name: n, items: [] }; groups.push(g); }
-    g.items.push(o);
-  }
-  const grouped = groups.some((g) => g.name);
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] pr-9 text-[13px] text-slate-700 outline-none focus:border-brand-green"
-      >
-        <option value="">{placeholder}</option>
-        {grouped
-          ? groups.map((g) => g.name
-              ? <optgroup key={g.name} label={g.name}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
-              : g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>))
-          : options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-    </div>
-  );
-}
 
-// ชนิดทั้งหมด (ดอกไม้ / ผลไม้ / ผัก) จับกลุ่ม "ประเภท · หมวด" สำหรับ dropdown "เพิ่มรายการผลผลิต"
-const TYPE_OPTIONS: SelectOption[] = (() => {
+// ชนิดสินค้าของประเภทเดียว (ดอกไม้ / ผลไม้ / ผัก) — 13 Oct 2026: one category at a time, grouped by
+// sub-category, searchable in Thai or English (KYN thailand_cut_flowers_list.xlsx)
+const typeOptionsFor = (cat: ProductCategory): SelectOption[] => {
   const seen = new Set<string>();
   const out: SelectOption[] = [];
-  for (const cat of PRODUCT_CATEGORIES) {
-    for (const p of PRODUCTS) {
-      if (p.productCategory !== cat.key || seen.has(p.type)) continue;
-      seen.add(p.type);
-      out.push({ value: p.type, label: p.type, group: `${cat.label} · ${p.category}` });
-    }
+  for (const p of PRODUCTS) {
+    if (p.productCategory !== cat || seen.has(p.type)) continue;
+    seen.add(p.type);
+    out.push({ value: p.type, label: p.type, group: p.category, keywords: p.typeEn });
   }
   return out;
-})();
+};
+const TYPE_EXAMPLE: Record<ProductCategory, string> = { flower: "กุหลาบ, rose", fruit: "มะม่วง, mango", vegetable: "ผักกาดหอม, lettuce" };
 
 function useSaver(id: string, onSaved: () => void) {
   const router = useRouter();
@@ -140,14 +107,12 @@ function FlowerTypeCard({
   // พันธุ์ที่ยังไม่ได้เลือกของชนิดนี้ (ตัดที่เลือกแล้วออก) + อื่นๆ ระบุเอง
   const varietyOptions: SelectOption[] = [
     ...variantsFor(category, entry.type).filter((v) => !entry.varieties.includes(v)).map((v) => ({ value: v, label: v })),
-    { value: OTHER, label: "อื่นๆ (ระบุเอง)" },
   ];
-  const [customVariety, setCustomVariety] = useState<string | null>(null);
 
   return (
-    <div className={`relative overflow-hidden rounded-[12px] border border-brand-green/40 ${menu ? "z-20" : ""}`}>
+    <div className={`relative rounded-[12px] border border-brand-green/40 ${menu ? "z-20" : ""}`}>
       {/* หัวการ์ดสีเขียว */}
-      <div className="flex items-center gap-3 bg-brand-green px-4 py-3 text-white">
+      <div className={`flex items-center gap-3 bg-brand-green px-4 py-3 text-white ${open ? "rounded-t-[11px]" : "rounded-[11px]"}`}>
         <button type="button" onClick={onToggle} className="flex flex-1 items-center gap-2 text-left">
           <span className="shrink-0 text-[15px] leading-none">{CAT_ICON[category]}</span>
           <span className="text-[14px] font-semibold">{entry.type || "เลือกชนิด"}</span>
@@ -185,32 +150,18 @@ function FlowerTypeCard({
 
       {/* เนื้อในการ์ด */}
       {open ? (
-        <div className="space-y-3 bg-[#f5fbf6] px-4 py-4">
+        <div className="space-y-3 rounded-b-[11px] bg-[#f5fbf6] px-4 py-4">
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
               <Plus size={15} className="text-brand-green" /> เพิ่มพันธุ์{CATEGORY_LABEL[category]}
             </label>
-            {customVariety === null ? (
-              <PlainSelect
-                value=""
-                onChange={(v) => { if (v === OTHER) setCustomVariety(""); else if (v.trim()) onAddVariety(v.trim()); }}
-                options={varietyOptions}
-                placeholder="เลือกพันธุ์"
-              />
-            ) : (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={customVariety}
-                  onChange={(e) => setCustomVariety(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (customVariety.trim()) onAddVariety(customVariety.trim()); setCustomVariety(null); } }}
-                  placeholder="พิมพ์ชื่อพันธุ์"
-                  className="w-full rounded-[8px] border border-gray-300 bg-white px-[12px] py-[10px] text-[13px] text-black outline-none focus:border-brand-green"
-                />
-                <button type="button" onClick={() => { if (customVariety.trim()) onAddVariety(customVariety.trim()); setCustomVariety(null); }} className="shrink-0 rounded-[8px] bg-brand-green px-3 py-[10px] text-[13px] font-medium text-white">เพิ่ม</button>
-                <button type="button" onClick={() => setCustomVariety(null)} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50"><X size={16} /></button>
-              </div>
-            )}
+            <SearchSelect
+              value=""
+              onChange={(v) => { if (v.trim()) onAddVariety(v.trim()); }}
+              options={varietyOptions}
+              placeholder="พิมพ์ค้นหาหรือเลือกพันธุ์"
+              allowCustom
+            />
           </div>
           {entry.varieties.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -296,8 +247,8 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
     if (!r.ok) { setPhotoErr("ลบรูปไม่สำเร็จ"); return; }
     if (kind === "farm") setFarmPhoto(undefined); else setProductPhotos((p) => { const n = { ...p }; delete n[type!]; return n; });
   }
-  // "อื่นๆ" type: free text + which category it belongs to
-  const [customType, setCustomType] = useState<{ name: string; category: ProductCategory } | null>(null);
+  // the category being added to (13 Oct 2026: one list at a time)
+  const [addCat, setAddCat] = useState<ProductCategory>(supplier.flowerTypes?.[0]?.category ?? "flower");
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
   const [adding, setAdding] = useState(false);
 
@@ -311,12 +262,10 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
   // ── ตัวช่วยแก้ไข fts ──
   const addType = (type: string, category?: ProductCategory) => {
-    if (type === OTHER) { setCustomType({ name: "", category: "fruit" }); return; }
     if (!type || fts.some((f) => f.type === type)) return;
     setFts((prev) => [...prev, { category: category ?? categoryOfType(type) ?? "flower", type, varieties: [] }]);
     setOpenType(type);
     setAdding(false);
-    setCustomType(null);
   };
   const removeType = (type: string) => {
     setFts((prev) => prev.filter((f) => f.type !== type));
@@ -325,7 +274,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const mutVarieties = (type: string, fn: (vs: string[]) => string[]) =>
     setFts((prev) => prev.map((f) => (f.type === type ? { ...f, varieties: fn(f.varieties) } : f)));
 
-  const typeOptionsLeft = [...TYPE_OPTIONS.filter((o) => !fts.some((f) => f.type === o.value)), { value: OTHER, label: "อื่นๆ (ระบุเอง)", group: "อื่นๆ" }];
+  const typeOptionsLeft = typeOptionsFor(addCat).filter((o) => !fts.some((f) => f.type === o.value));
 
   const targets = yieldTargets(fts);
 
@@ -476,33 +425,26 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             )}
 
             {/* เพิ่มชนิดดอกไม้ */}
-            {adding && customType ? (
-              <div className="space-y-2 rounded-[10px] border border-dashed border-slate-300 p-3">
-                <div className="flex gap-2">
+            {adding ? (
+              <div className="space-y-2.5 rounded-[10px] border border-dashed border-slate-300 p-3">
+                <div className="flex gap-2" role="radiogroup" aria-label="ประเภทสินค้า">
                   {PRODUCT_CATEGORIES.map((c) => (
-                    <button key={c.key} type="button" onClick={() => setCustomType({ ...customType, category: c.key })} className={`flex-1 rounded-[8px] border px-3 py-2 text-[12px] ${customType.category === c.key ? "border-brand-green bg-brand-green font-medium text-white" : "border-gray-300 text-slate-600"}`}>{c.label}</button>
+                    <button key={c.key} type="button" role="radio" aria-checked={addCat === c.key} onClick={() => setAddCat(c.key)}
+                      className={`flex-1 rounded-[8px] border px-3 py-2 text-[13px] ${addCat === c.key ? "border-brand-green bg-brand-green font-medium text-white" : "border-slate-300 text-slate-600 hover:border-slate-400"}`}>
+                      {c.label}
+                    </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <input autoFocus value={customType.name} onChange={(e) => setCustomType({ ...customType, name: e.target.value })} placeholder="พิมพ์ชื่อชนิด เช่น อะโวคาโด" className={inputCls}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addType(customType.name.trim(), customType.category); } }} />
-                  <button type="button" onClick={() => addType(customType.name.trim(), customType.category)} className="shrink-0 rounded-[8px] bg-brand-green px-4 py-[10px] text-[13px] font-medium text-white">เพิ่ม</button>
-                  <button type="button" onClick={() => { setCustomType(null); setAdding(false); }} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50"><X size={16} /></button>
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <SearchSelect key={addCat} value="" onChange={(v) => addType(v.trim(), addCat)} options={typeOptionsLeft}
+                      placeholder={`พิมพ์ค้นหาชนิด${CATEGORY_LABEL[addCat]} เช่น ${TYPE_EXAMPLE[addCat]}`} allowCustom />
+                  </div>
+                  <button type="button" onClick={() => setAdding(false)} aria-label="ปิด" className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50">
+                    <X size={16} />
+                  </button>
                 </div>
-              </div>
-            ) : adding ? (
-              <div className="flex items-start gap-2">
-                <div className="flex-1">
-                  <PlainSelect
-                    value=""
-                    onChange={(v) => addType(v)}
-                    options={typeOptionsLeft}
-                    placeholder="เลือกชนิดที่จะเพิ่ม (ดอกไม้ / ผลไม้ / ผัก)"
-                  />
-                </div>
-                <button type="button" onClick={() => setAdding(false)} className="grid size-[40px] shrink-0 place-items-center rounded-[8px] border border-slate-300 text-slate-400 hover:bg-slate-50">
-                  <X size={16} />
-                </button>
+                <p className="text-[11px] text-slate-400">พิมพ์ชื่อไทยหรืออังกฤษเพื่อค้นหา · ไม่มีในรายการ พิมพ์ชื่อแล้วเลือก &quot;อื่นๆ (ระบุ)&quot;</p>
               </div>
             ) : (
               <button
@@ -517,7 +459,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
           {/* ใบรับรองมาตรฐานสินค้าเกษตร */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="green" mode="settings" errors={certErrs} supplierId={supplier.id} />
+            <CertificationsEditor certs={certs} onChange={setCerts} inputCls={inputCls} accent="green" mode="settings" errors={certErrs} supplierId={supplier.id} farmTypes={fts.map((f) => ({ type: f.type, category: f.category ?? categoryOfType(f.type) ?? "flower" }))} />
           </div>
 
           {profile.error ? <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{profile.error}</p> : null}
