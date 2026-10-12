@@ -166,6 +166,11 @@ window.qa = {
     await act(`qa.inp(qa.row(2), "จำนวน", "1")`);
     log("4.6 the อื่นๆ row is tagged ค่าประมาณ", await ev(`qa.text(qa.row(2)).includes("ค่าประมาณ")`));
 
+    // รูปถ่ายตอนแพ็ก (12 Oct 2026): the camera button takes a picture → stamped, shrunk, uploaded
+    const cam = await p.$('input[type="file"][capture="environment"]');
+    await (cam as unknown as { uploadFile: (f: string) => Promise<void> }).uploadFile("public/figma/step-qr.webp");
+    const shot1 = await waitFor(`document.querySelectorAll('img[alt="รูปถ่ายตอนแพ็ก"]').length === 1`, 20000);
+    log("packing photo: taken, uploaded, shown with its time badge", shot1 && (await ev<boolean>(`/ยืนยันเวลา|ไม่ยืนยันเวลา/.test(document.body.innerText)`)));
     // packed weight in grams (§4.8)
     await act(`qa.inp(document, "น้ำหนักรวมหลังแพ็ก", "30000")`);
     await act(`qa.sel(document, "หน่วยน้ำหนักรวม", "กรัม")`);
@@ -198,6 +203,7 @@ window.qa = {
     log("saved as LOT-YYMM-NNNN", /^LOT-\d{4}-\d{4}$/.test(lot), lot);
     const [row] = lot ? await sql`SELECT expected_age_days, shipped_weight_kg, distance_km, packaging_items, destination, status FROM batches WHERE id = ${lot}` : [];
     log("saved: age 14 · packed 30 kg (from grams) · 3 packaging rows · computed", row?.expected_age_days === 14 && Number(row?.shipped_weight_kg) === 30 && (row?.packaging_items as unknown[])?.length === 3 && row?.status === "computed", JSON.stringify({ age: row?.expected_age_days, kg: row?.shipped_weight_kg, rows: (row?.packaging_items as unknown[])?.length, st: row?.status }));
+    log("packing photo saved on the lot", (await sql`SELECT count(*)::int n FROM pack_photos WHERE batch_id = ${lot}`)[0].n === 1);
     const [ce] = await sql`SELECT field FROM custom_entries WHERE value = ${OTHER_NAME}`;
     log("4.6 the อื่นๆ packaging went to KYN's review queue", !!ce, ce?.field);
     if (!lot) throw new Error("no lot");
@@ -342,6 +348,7 @@ window.qa = {
     await waitFor(`location.search.includes("copy=") && document.body.innerText.includes("คัดลอกจาก")`, 15000);
     const cp = await ev<Record<string, unknown>>(`({ qty: qa.find(document, "input", "จำนวนดอกไม้")?.value, rows: qa.rows().length, code: qa.find(qa.row(1), "select", "หมายเลขบรรจุภัณฑ์")?.value, other: qa.find(qa.row(2), "input", "ชื่อบรรจุภัณฑ์")?.value, addr: qa.find(document, "input", "ที่อยู่ปลายทาง")?.value, cut: qa.find(document, "input", "วันที่ตัด")?.value, prov: qa.find(document, "select", "จังหวัดปลายทาง")?.value })`);
     log("คัดลอกรายการ: product + packaging kept, dates + destination blank", cp.qty === "600" && cp.rows === 3 && cp.code === code && cp.other === OTHER_NAME && cp.addr === "" && cp.cut === "" && cp.prov === "", JSON.stringify(cp));
+    log("คัดลอกรายการ: the copy starts without the packing photo", await ev<boolean>(`document.querySelectorAll('img[alt="รูปถ่ายตอนแพ็ก"]').length === 0`));
     await act(`qa.date(document, "วันที่ตัด", "2026-10-10")`);
     await act(`qa.date(document, "วันที่จัดส่ง", "2026-10-11")`);
     await act(`qa.sel(document, "จังหวัดปลายทาง", "เชียงใหม่")`);
@@ -386,6 +393,7 @@ window.qa = {
       await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`;
       await sql`DELETE FROM custom_entries WHERE supplier_id = ${supId} OR value = ${OTHER_NAME}`;
       await sql`DELETE FROM packaging_assets WHERE owner_supplier_id = ${supId}`;
+      await sql`DELETE FROM pack_photos WHERE supplier_id = ${supId}`;
       await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`;
     }
     await sql`DELETE FROM rate_limits WHERE key IN (SELECT k || id FROM users, (VALUES ('pkg-assets:user:'), ('geocode:user:')) v(k) WHERE email = ${EMAIL})`;

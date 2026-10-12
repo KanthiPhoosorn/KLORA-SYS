@@ -22,6 +22,8 @@ const req = <span className="text-[#ee443f]"> *</span>;
 // รูปแบบการขนส่ง (design: 5 options). `key` is stable; `label` is what we store on the batch.
 import { CARRIERS, PROVIDERS } from "@/lib/carriers";
 import SelectOther from "@/components/SelectOther";
+import PackPhotos, { PackPhotoBadge } from "@/components/PackPhotos";
+import type { PackPhoto } from "@/lib/pack-photo";
 import PackagingLines, { firstRow, validateRows, rowsToPayload, rowsFromBatch, rowsWeightKg, rowSummary, type PackRowState } from "@/components/PackagingLines";
 import { DEFAULT_CATALOG, NO_PACK, OTHER, packsFor, type PackCatalog } from "@/lib/packaging-catalog";
 import type { CarrierKey } from "@/lib/types";
@@ -63,12 +65,15 @@ export default function RoundForm({
   catalog = DEFAULT_CATALOG,
   edit,
   copyFrom,
+  packPhotos: savedPhotos = [],
 }: {
   supplier: Supplier;
   /** แก้ไขรอบส่งออก: the lot to edit (form prefilled, saved with PUT under the same LOT code) */
   edit?: Batch;
   /** คัดลอกรายการ: a new round starting from this lot (product + packaging kept; dates + destination blank) */
   copyFrom?: Batch;
+  /** รูปถ่ายตอนแพ็ก already on the lot being edited */
+  packPhotos?: PackPhoto[];
   varietyOptions?: string[];
   /** KYN central packaging table (standard sizes/weights, materials) */
   catalog?: PackCatalog;
@@ -105,6 +110,8 @@ export default function RoundForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const src = edit ?? copyFrom; // what the form starts from
+  // packing photos: the farm's own form only (a carrier logging on behalf has none); a copy starts empty
+  const [photos, setPhotos] = useState<PackPhoto[]>(edit ? savedPhotos : []);
   const [distEdited, setDistEdited] = useState(!!edit); // an edit keeps its saved distance until asked to recompute
   const [errs, setErrs] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -235,6 +242,7 @@ export default function RoundForm({
     // one key per packaging field, so the edit review can mark exactly what changed (old → new)
     ...Object.fromEntries(packs.flatMap((r, i) => { const s = rowSummary(r, catalog); return [[`p${i}.บรรจุภัณฑ์`, [s.name, s.usage].filter(Boolean).join(" · ")], [`p${i}.หมายเลข`, s.code ?? ""], [`p${i}.ขนาด`, `${s.size} · ${s.qty}`], [`p${i}.วัสดุ`, s.inner]]; })),
     วันที่จัดส่ง: formatThaiDate(shipDate),
+    รูปตอนแพ็ก: photos.map((p) => p.id).join(","),
     น้ำหนักรวม: packedKg ? `${packedKg.toLocaleString("th-TH", { maximumFractionDigits: 3 })} กก.` : "",
   });
   const original = useRef<Record<string, string> | null>(null);
@@ -297,6 +305,7 @@ export default function RoundForm({
           cutDate,
           shipDate,
           copiedFrom: copyFrom?.id,
+          packPhotoIds: postSupplierId ? undefined : photos.map((p) => p.id),
           plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
           ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
           grade: !isFlower && grade ? grade : undefined,
@@ -399,6 +408,20 @@ export default function RoundForm({
                 </div>
               ))}
               <F k="น้ำหนักรวม" label="น้ำหนักรวมหลังแพ็ก" value={packedKg ? `${packedKg.toLocaleString("th-TH", { maximumFractionDigits: 3 })} กก.` : ""} />
+              {photos.length ? (
+                <div className={was("รูปตอนแพ็ก") !== undefined ? "rounded-[10px] bg-[#FFF6DB] px-2.5 py-2" : ""}>
+                  <p className="text-[13px] font-semibold text-slate-800">รูปถ่ายตอนแพ็ก{was("รูปตอนแพ็ก") !== undefined ? <span className="ml-1 rounded-full bg-[#FFE7A3] px-2 py-0.5 text-[11px] font-semibold text-[#6B4A00]">แก้ไข</span> : null}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {photos.map((p) => (
+                      <div key={p.id} className="w-[96px]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt="รูปถ่ายตอนแพ็ก" className="h-[72px] w-full rounded-md object-cover" />
+                        <PackPhotoBadge p={p} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : edit && was("รูปตอนแพ็ก") !== undefined ? <F k="รูปตอนแพ็ก" label="รูปถ่ายตอนแพ็ก" value="ไม่มีรูป" /> : null}
             </div>
             {/* Col 3 — transport */}
             <div className="space-y-4 p-6">
@@ -556,6 +579,11 @@ export default function RoundForm({
           </div>
           <p className="text-[12px] leading-relaxed text-slate-400 sm:pt-7">ชั่งสินค้าพร้อมบรรจุภัณฑ์ทั้งหมดของรอบนี้ก่อนส่ง · ใช้คำนวณคาร์บอนขนส่ง และใช้ตรวจว่าน้ำหนักบรรจุภัณฑ์ที่เลือกไว้สมเหตุสมผล{packagingKg > 0 ? ` (บรรจุภัณฑ์ที่เลือก ≈ ${packagingKg.toFixed(2)} กก.)` : ""}</p>
         </div>
+        {!postSupplierId ? (
+          <div className="border-t border-slate-100 pt-4">
+            <PackPhotos value={photos} onChange={setPhotos} farmName={supplier.farmName} saved={savedPhotos.map((p) => p.id)} />
+          </div>
+        ) : null}
       </Section>
 
       {/* Shipping */}

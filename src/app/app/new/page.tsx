@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
-import { getSupplier, getBatchesBySupplier, getCatalog, getBatch, activePrintOf } from "@/lib/store";
+import { getSupplier, getBatchesBySupplier, getCatalog, getBatch, activePrintOf, getPackPhotos } from "@/lib/store";
 import RoundForm from "@/components/RoundForm";
 
 export const dynamic = "force-dynamic";
@@ -21,12 +21,13 @@ export default async function NewRoundPage({ searchParams }: { searchParams: Pro
   if (editId) {
     if (!edit || edit.supplierId !== supplier.id || edit.cancelledAt || (await activePrintOf(edit.id))) redirect("/app/history");
   }
+  const packPhotos = edit ? await getPackPhotos(edit.id) : [];
   const varietyOptions = Array.from(new Set(batches.map((b) => b.variety).filter((v): v is string => !!v)));
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">{edit ? `แก้ไขรอบส่งออก · ${edit.id}` : copyFrom ? `กรอกข้อมูลรอบส่งออกใหม่ · คัดลอกจาก ${copyFrom.id}` : "กรอกข้อมูลรอบส่งออกใหม่"}</h1>
-      <RoundForm supplier={supplier} varietyOptions={varietyOptions} catalog={catalog} edit={edit ?? undefined} copyFrom={copyFrom ?? undefined} />
+      <RoundForm supplier={supplier} varietyOptions={varietyOptions} catalog={catalog} edit={edit ?? undefined} copyFrom={copyFrom ?? undefined} packPhotos={packPhotos} />
     </div>
   );
 }

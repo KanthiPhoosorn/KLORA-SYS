@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBatches, getBatchesBySupplier, getBatch, addBatch, getSupplier, computeBatch, addNotification, addBatchEvent } from "@/lib/store";
+import { getBatches, getBatchesBySupplier, getBatch, setPackPhotos, addBatch, getSupplier, computeBatch, addNotification, addBatchEvent } from "@/lib/store";
 import { unitsOf, perUnitLabel } from "@/lib/produce";
 import { getCurrentUser } from "@/lib/auth";
 import { guard } from "@/lib/api-guard";
@@ -63,6 +63,8 @@ export async function POST(req: Request) {
 
   try {
     const batch = await addBatch({ ...fields, supplierId, status });
+    // photos taken while packing (the farm's own, uploaded from the form) go onto the new lot
+    if (user.role === "supplier") await setPackPhotos(supplierId, batch.id, (Array.isArray(body.packPhotoIds) ? (body.packPhotoIds as unknown[]).map(String) : []));
     const from = body.copiedFrom ? await getBatch(String(body.copiedFrom)) : null; // คัดลอกรายการ
     await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create", detail: from && from.supplierId === supplierId ? { copiedFrom: from.id } : undefined });
     // "อื่นๆ (ระบุ)" values → KYN review queue

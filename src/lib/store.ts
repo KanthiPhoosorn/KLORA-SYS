@@ -4,10 +4,10 @@
 // Convention: nullable columns come back from Drizzle as `null`; the domain types use
 // optional (`?`, i.e. `undefined`). `clean()` converts null -> undefined on every row read.
 
-import { eq, and, or, desc, sql, isNull, inArray, like } from "drizzle-orm";
+import { eq, and, or, desc, sql, isNull, inArray, notInArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media, packPhotos } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -46,6 +46,7 @@ import {
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { isWeightBased, unitsOf } from "./produce";
 import { fuelEf, fertilizerEf, chemicalEf, weightedEf } from "./resource-types";
+import { isVerified, MAX_PACK_PHOTOS, type PackPhoto } from "./pack-photo";
 
 // --- KYN-editable reference factors (app_settings "factors") ------------------
 export async function getFactors(): Promise<Factors> {
@@ -228,6 +229,53 @@ const trailingNum = (id: string): number => {
 };
 
 // --- Suppliers ------------------------------------------------------------
+
+// --- Packing photos (12 Oct 2026) — confirm when a round was packed -----------------------------------
+const packMeta = (r: { id: string; takenAt: string | null; takenSrc: string; uploadedAt: string }): PackPhoto => ({
+  id: r.id, url: `/api/pack-photos/${r.id}`, takenAt: r.takenAt ?? undefined, takenSrc: r.takenSrc as PackPhoto["takenSrc"],
+  uploadedAt: r.uploadedAt, verified: isVerified(r.takenAt, r.uploadedAt),
+});
+const metaCols = { id: packPhotos.id, batchId: packPhotos.batchId, takenAt: packPhotos.takenAt, takenSrc: packPhotos.takenSrc, uploadedAt: packPhotos.uploadedAt };
+export async function addPackPhoto(p: { supplierId: string; mime: string; size: number; data: string; takenAt?: string; takenSrc: PackPhoto["takenSrc"]; createdBy: string }): Promise<PackPhoto> {
+  // photos picked for a round that was never saved are dropped after a day
+  await db.delete(packPhotos).where(and(eq(packPhotos.supplierId, p.supplierId), isNull(packPhotos.batchId), sql`${packPhotos.uploadedAt} < ${new Date(Date.now() - 86400_000).toISOString()}`));
+  const row = { id: `PP-${randomBytes(6).toString("hex").toUpperCase()}`, ...p, takenAt: p.takenAt ?? null, uploadedAt: new Date().toISOString() };
+  await db.insert(packPhotos).values(row);
+  return packMeta(row);
+}
+export async function getPackPhotoFile(id: string) {
+  const [row] = await db.select().from(packPhotos).where(eq(packPhotos.id, id)).limit(1);
+  return row ?? null;
+}
+export async function getPackPhotos(batchId: string): Promise<PackPhoto[]> {
+  const rows = await db.select(metaCols).from(packPhotos).where(eq(packPhotos.batchId, batchId)).orderBy(packPhotos.uploadedAt);
+  return rows.map(packMeta);
+}
+/** Photos of many lots at once (KYN). */
+export async function getPackPhotosFor(batchIds: string[]): Promise<Record<string, PackPhoto[]>> {
+  if (!batchIds.length) return {};
+  const rows = await db.select(metaCols).from(packPhotos).where(inArray(packPhotos.batchId, batchIds)).orderBy(packPhotos.uploadedAt);
+  const out: Record<string, PackPhoto[]> = {};
+  for (const r of rows) (out[r.batchId!] ??= []).push(packMeta(r));
+  return out;
+}
+/** The round's photos become exactly `ids` (≤ MAX): the farm's own unsaved photos or ones already on this
+ *  lot are linked; photos dropped from the lot are deleted. Returns how many are on the lot. */
+export async function setPackPhotos(supplierId: string, batchId: string, ids: string[]): Promise<number> {
+  // only this farm's unsaved photos or ones already on this lot count — then the first MAX, in the order sent
+  const asked = [...new Set(ids)];
+  const ok = asked.length ? new Set((await db.select({ id: packPhotos.id }).from(packPhotos).where(and(inArray(packPhotos.id, asked), eq(packPhotos.supplierId, supplierId), or(isNull(packPhotos.batchId), eq(packPhotos.batchId, batchId))))).map((r) => r.id)) : new Set<string>();
+  const want = asked.filter((id) => ok.has(id)).slice(0, MAX_PACK_PHOTOS);
+  await db.delete(packPhotos).where(and(eq(packPhotos.batchId, batchId), want.length ? notInArray(packPhotos.id, want) : undefined));
+  if (want.length) {
+    await db.update(packPhotos).set({ batchId }).where(and(inArray(packPhotos.id, want), eq(packPhotos.supplierId, supplierId), or(isNull(packPhotos.batchId), eq(packPhotos.batchId, batchId))));
+  }
+  return (await db.select({ id: packPhotos.id }).from(packPhotos).where(eq(packPhotos.batchId, batchId))).length;
+}
+export async function deletePendingPackPhoto(id: string, supplierId: string): Promise<boolean> {
+  const r = await db.delete(packPhotos).where(and(eq(packPhotos.id, id), eq(packPhotos.supplierId, supplierId), isNull(packPhotos.batchId))).returning({ id: packPhotos.id });
+  return r.length > 0;
+}
 
 // --- Public farm / product photos (QR page) ------------------------------------------------------------
 export const mediaUrl = (id: string) => `/api/media/${id}`;
@@ -706,6 +754,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     if (rest.length === 0) {
       await db.delete(certFiles).where(eq(certFiles.supplierId, u.supplierId)); // personal documents go with the farm
       await db.delete(media).where(eq(media.supplierId, u.supplierId));
+      await db.delete(packPhotos).where(eq(packPhotos.supplierId, u.supplierId));
       await db.update(suppliers).set({ photoUrl: null, productPhotos: null }).where(eq(suppliers.id, u.supplierId));
       await db.update(suppliers).set({
         contactName: null, phone: null, lineId: null, contact: "—", gpsLat: 0, gpsLng: 0, status: "suspended",

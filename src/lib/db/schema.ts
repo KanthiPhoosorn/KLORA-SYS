@@ -265,6 +265,20 @@ export const prints = pgTable("prints", {
   orgCode: text("org_code"), // the carrier org that printed the QR (scripts/add-ratings.ts)
 });
 
+// Photos taken while packing a round (scripts/add-pack-photos.ts) — batch_id NULL until the round is saved.
+export const packPhotos = pgTable("pack_photos", {
+  id: text("id").primaryKey(),
+  supplierId: text("supplier_id").notNull(),
+  batchId: text("batch_id"),
+  mime: text("mime").notNull(),
+  size: integer("size").notNull(),
+  data: text("data").notNull(),
+  takenAt: text("taken_at"),
+  takenSrc: text("taken_src").notNull(),
+  uploadedAt: text("uploaded_at").notNull(),
+  createdBy: text("created_by"),
+});
+
 // Public farm / product photos for the QR page (scripts/add-media.ts).
 export const media = pgTable("media", {
   id: text("id").primaryKey(),

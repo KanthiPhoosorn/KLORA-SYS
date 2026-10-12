@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { getBatch, getSupplier, activePrintOf, carrierOfLot, ratingSummary, getMyRating } from "@/lib/store";
+import { getBatch, getSupplier, activePrintOf, carrierOfLot, ratingSummary, getMyRating, getPackPhotos } from "@/lib/store";
+import { packTime, shownTime } from "@/lib/pack-photo";
 import { RATER_COOKIE } from "@/lib/rating";
 import RatingBadge from "@/components/RatingBadge";
 import RateLot from "@/components/RateLot";
@@ -42,7 +43,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   // §15 ratings: the averages of THIS farm and THIS carrier; this device's own rating (to edit)
   const carrier = await carrierOfLot(batch, print);
   const rater = (await cookies()).get(RATER_COOKIE)?.value;
-  const [summary, mine] = await Promise.all([ratingSummary(supplier.id, carrier?.key), rater ? getMyRating(batch.id, rater) : null]);
+  const [summary, mine, packPhotos] = await Promise.all([ratingSummary(supplier.id, carrier?.key), rater ? getMyRating(batch.id, rater) : null, getPackPhotos(batch.id)]);
 
   const category = categoryOf(batch);
   const isFlower = category === "flower";
@@ -155,6 +156,29 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           ) : null}
           <Co2eDisclosure className="mt-2 px-1" />
         </section>
+
+        {/* รูปถ่ายตอนแพ็ก — when the farm packed this lot (12 Oct 2026) */}
+        {packPhotos.length ? (
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="text-[14px] font-semibold text-slate-700">ภาพตอนแพ็กสินค้า</h2>
+              {packPhotos.some((p) => p.verified)
+                ? <span className="inline-flex items-center gap-1 text-[12px] text-emerald-700"><ShieldCheck size={13} /> ยืนยันเวลาจากรูปถ่าย</span>
+                : null}
+            </div>
+            <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E6E7E8]">
+              <div className="flex gap-2 overflow-x-auto">
+                {packPhotos.map((p) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={p.id} src={p.url} alt="ภาพตอนแพ็กสินค้า" className={`h-40 shrink-0 rounded-xl object-cover object-bottom ${packPhotos.length === 1 ? "w-full" : "w-[78%]"}`} />
+                ))}
+              </div>
+              <p className="mt-2 text-[12.5px] text-slate-600">
+                {packPhotos.some((p) => p.verified) ? "แพ็กเมื่อ" : "บันทึกภาพเมื่อ"} <b className="text-slate-800">{packTime(shownTime(packPhotos.find((p) => p.verified) ?? packPhotos[0]))}</b>
+              </p>
+            </div>
+          </section>
+        ) : null}
 
         {/* shipping steps */}
         <section>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getBatch, computeBatch, updateBatch, addNotification, getSupplier, addBatchEvent, activePrintOf } from "@/lib/store";
+import { getBatch, computeBatch, updateBatch, addNotification, getSupplier, addBatchEvent, activePrintOf, getPackPhotos, setPackPhotos } from "@/lib/store";
 import { parseRound, type RoundFields } from "@/lib/round-parse";
 import { flowerAgeDays } from "@/lib/carbon";
 import { queueRoundOthers } from "@/lib/custom-queue";
@@ -214,7 +214,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const locked = sup ? lockRound(sup, f, batch.carrier) : null;
   if (locked) return NextResponse.json({ error: locked }, { status: 400 });
 
-  const changes = EDIT_LABELS
+  const changes: { field: string; label: string; from: string; to: string }[] = EDIT_LABELS
     .filter(([k]) => shown(f[k]) !== shown((batch as unknown as Record<string, unknown>)[k]))
     .map(([k, label]) => (k === "packagingItems"
       ? { field: k, label, from: "รายการเดิม", to: "แก้ไขรายการ" }
@@ -222,6 +222,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   // undefined → null so an emptied optional field is really cleared
   const patch = Object.fromEntries(Object.entries({ ...f, ageDays: flowerAgeDays(f.cutDate, batch.entryDate) }).map(([k, v]) => [k, v === undefined ? null : v]));
   await updateBatch(batch.id, patch as Partial<Batch>);
+  // packing photos: the list sent becomes the lot's photos; a change is part of the edit history
+  if (Array.isArray(body.packPhotoIds)) {
+    const before = await getPackPhotos(batch.id);
+    const now = await setPackPhotos(batch.supplierId, batch.id, (Array.isArray(body.packPhotoIds) ? (body.packPhotoIds as unknown[]).map(String) : []));
+    const same = before.length === now && before.every((p) => (body.packPhotoIds as unknown[]).includes(p.id));
+    if (!same) changes.push({ field: "packPhotos", label: "รูปตอนแพ็ก", from: `${before.length} รูป`, to: now === before.length ? `เปลี่ยนรูป (${now} รูป)` : `${now} รูป` });
+  }
   await addBatchEvent({ batchId: batch.id, actorId: g.user.id, actorName: g.user.username, action: "edit", detail: { changes } });
   await queueRoundOthers(sup ? withoutBound(sup, f) : f, { supplierId: batch.supplierId, userId: g.user.id, batchId: batch.id }).catch(() => undefined);
   const updated = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);

@@ -1,5 +1,7 @@
 "use client";
 
+import { PackPhotoBadge } from "@/components/PackPhotos";
+import { packTime, type PackPhoto } from "@/lib/pack-photo";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -22,9 +24,11 @@ function statusMeta(b: Batch, s?: Supplier): { key: string; label: string; tone:
 const th = "px-4 py-3 text-left font-semibold";
 
 export default function IncomingConsole({
-  suppliers, batches, prints = [],
+  suppliers, batches, prints = [], packPhotos = {},
 }: {
   suppliers: Supplier[]; batches: Batch[]; prints?: PrintLog[];
+  /** รูปถ่ายตอนแพ็ก by lot */
+  packPhotos?: Record<string, PackPhoto[]>;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -224,6 +228,25 @@ export default function IncomingConsole({
                   </div>
                 </div>
               </div>
+
+              {/* รูปถ่ายตอนแพ็ก — capture time vs upload time (12 Oct 2026) */}
+              {packPhotos[open.id]?.length ? (
+                <div>
+                  <div className="mb-2 text-[13px] font-semibold text-slate-800">รูปถ่ายตอนแพ็ก</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {packPhotos[open.id].map((p) => (
+                      <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block space-y-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.url} alt="รูปถ่ายตอนแพ็ก" className="h-20 w-full rounded-lg object-cover" />
+                        <PackPhotoBadge p={p} />
+                        <span className="block text-[10.5px] leading-tight text-slate-500">
+                          {p.takenAt ? `ถ่าย ${packTime(p.takenAt)} (${p.takenSrc === "exif" ? "จากกล้อง" : "จากไฟล์"})` : "ไม่มีเวลาถ่าย"}<br />อัปโหลด {packTime(p.uploadedAt)}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {/* กิจกรรมที่นำมาคำนวณ */}
               <div>
