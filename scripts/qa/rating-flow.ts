@@ -10,6 +10,7 @@ const html = async (path: string, raw?: string) => (await (await fetch(BASE + pa
 let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${n}${note ? "  — " + note : ""}`); };
 const EC = `qa-rt-c-${TS}@klora-qa.test`, EF = `qa-rt-f-${TS}@klora-qa.test`;
 const COMMENT = `ส่งเร็ว ดอกสดมาก QA ${TS}`;
+const TRANSPORT_ONLY = `กล่องบุบตอนส่ง QA ${TS}`;
 
 (async () => {
   const sql = neon(process.env.DATABASE_URL!);
@@ -43,6 +44,9 @@ const COMMENT = `ส่งเร็ว ดอกสดมาก QA ${TS}`;
     // device 2
     const r2 = await api("/api/ratings", "POST", { batchId: lot, farm: 5, transport: 5 });
     log("another device adds to the averages", r2.json.summary?.farm?.n === 2 && r2.json.summary?.farm?.avg === 4 && r2.json.summary?.transport?.avg === 5, JSON.stringify(r2.json.summary));
+    // a third buyer rates only the delivery, with a comment — that one is for the carrier, not the farm
+    const r3 = await api("/api/ratings", "POST", { batchId: lot, transport: 2, comment: TRANSPORT_ONLY });
+    log("transport-only rating accepted", r3.status === 200 && r3.json.summary?.transport?.n === 2);
     log("bad stars refused", (await api("/api/ratings", "POST", { batchId: lot, farm: 9 })).status === 400 && (await api("/api/ratings", "POST", { batchId: lot })).status === 400);
     log("unknown lot refused", (await api("/api/ratings", "POST", { batchId: "LOT-0000-0000", farm: 5 })).status === 404);
 
@@ -54,9 +58,11 @@ const COMMENT = `ส่งเร็ว ดอกสดมาก QA ${TS}`;
 
     // back offices
     const farmHome = await html("/app", `klora_session=${fCookie}`);
-    log("farm overview: its ratings + the comment", farmHome.includes("ความพึงพอใจของผู้ซื้อ") && farmHome.includes("คะแนนสวน"));
+    log("farm overview: only its own score (no transport score), by lot", farmHome.includes("ความพึงพอใจของผู้ซื้อ") && farmHome.includes("คะแนนสวนของคุณ") && !farmHome.includes("คะแนนการขนส่ง") && farmHome.includes("รายล็อต"));
+    log("farm overview: a transport-only comment is not shown to the farm", !farmHome.includes(TRANSPORT_ONLY));
     const carrierHome = await html("/logistic", `klora_session=${cCookie}`);
-    log("carrier overview: its transport score", carrierHome.includes("ความพึงพอใจของผู้ซื้อ") && carrierHome.includes("คะแนนการขนส่ง") && carrierHome.includes("5.0"));
+    log("carrier overview: only its transport score (no farm score)", carrierHome.includes("ความพึงพอใจของผู้ซื้อ") && carrierHome.includes("คะแนนการขนส่งของคุณ") && !carrierHome.includes("คะแนนสวน") && carrierHome.includes("3.5"));
+    log("carrier overview: the transport comment is there", carrierHome.includes(TRANSPORT_ONLY));
     const kyn = await html("/kyn", `klora_session=${mint("USR-0003")}`);
     log("KYN overview: by farm + by carrier", kyn.includes("รายสวน") && kyn.includes("รายผู้ขนส่ง") && kyn.includes(`QA Rating Farm ${TS}`) && kyn.includes(cu.company));
     const other = await html("/logistic", `klora_session=${mint("USR-0002")}`);

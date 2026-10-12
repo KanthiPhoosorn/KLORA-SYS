@@ -68,7 +68,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
         ) : (
           <div className="space-y-5">
             <p className="text-[13px] leading-relaxed text-slate-500">
-              สร้างลิงก์หรือ QR Code เพื่อเชิญผู้ผลิตเข้าร่วมระบบ โดยสินค้าจะถูกจัดส่งผ่าน <b className="text-slate-700">{org.company ?? "บริษัทของคุณ"}</b> เท่านั้น
+              สร้างลิงก์หรือ QR Code เพื่อเชิญผู้ผลิตเข้าร่วมระบบ โดยสินค้าจะถูกจัดส่งผ่านผู้ให้บริการขนส่งและสาขาต้นทางที่เลือกไว้
             </p>
             <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div>
@@ -90,7 +90,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
             {rows === null ? (
               <p className="flex items-center gap-2 text-[13px] text-slate-400"><Loader2 size={14} className="animate-spin" /> กำลังโหลด…</p>
             ) : live.length === 0 ? (
-              <p className="text-[13px] text-slate-400">ยังไม่มีลิงก์ที่เปิดใช้อยู่ — สร้างลิงก์ด้านบน</p>
+              <p className="text-[13px] text-slate-500">{closed.length ? "ยังไม่มีลิงก์ที่เปิดใช้อยู่" : "ยังไม่มีลิงก์ที่สร้างไว้"} สามารถสร้างลิงก์ใหม่ได้จากด้านบน</p>
             ) : (
               <ul className="space-y-3">
                 {live.map((r) => (

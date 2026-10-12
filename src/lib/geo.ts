@@ -64,8 +64,10 @@ const THAI_PROVINCES = DESTINATIONS.map((d) => d.province);
 
 // Best-effort province from a free-text Thai address (looks for "จ.XXX" then a known name).
 export function provinceFromAddress(address: string): string {
-  const m = address.match(/จ\.?\s*([฀-๿]+)/);
+  const a = address.replace(/กรุงเทพฯ|กรุงเทพ(?!มหานคร)|กทม\.?/g, "กรุงเทพมหานคร");
+  // the prefix must start a word — "ซ.เจริญนคร" has a จ inside
+  const m = /(?:^|[\s,])(?:จังหวัด|จ\.)\s*([฀-๿]+)/.exec(a);
   if (m) return m[1];
-  const hit = THAI_PROVINCES.find((p) => address.includes(p));
+  const hit = THAI_PROVINCES.find((p) => a.includes(p));
   return hit ?? "";
 }

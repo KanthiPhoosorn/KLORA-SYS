@@ -32,6 +32,9 @@ export default function SearchSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [active, setActive] = useState(0); // the row Enter picks (arrow keys move it)
+  const [nav, setNav] = useState(false); // an arrow key was used — show the highlight without a search too
+  const litRef = useRef<HTMLButtonElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,11 +68,41 @@ export default function SearchSelect({
   const exact = options.some((o) => o.label.toLowerCase() === q.trim().toLowerCase());
   const showAdd = allowCustom && q.trim().length > 0 && !exact;
   const nothing = filtered.length === 0 && !showAdd;
+  const flatList = filtered.flatMap((g) => g.items);
+  // keyboard rows: the matches, then the "อื่นๆ (ระบุ)" row when it is offered
+  const rowCount = flatList.length + (showAdd ? 1 : 0);
+  const lit = q.trim().length > 0 || nav; // a row is highlighted — Enter picks it
+  const at = Math.min(active, Math.max(rowCount - 1, 0));
+  useEffect(() => { if (open && lit) litRef.current?.scrollIntoView({ block: "nearest" }); }, [open, lit, at]);
 
-  function pick(v: string) {
-    onChange(v);
+  // Enter picks the highlighted row (it would otherwise submit the surrounding form); Esc closes this list only
+  function onKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!lit || !rowCount) return;
+      if (at < flatList.length) pick(flatList[at].value);
+      else pick(q.trim());
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive(nav || q.trim() ? Math.max(0, Math.min(at + (e.key === "ArrowDown" ? 1 : -1), rowCount - 1)) : 0);
+      setNav(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation(); // a modal around the form listens for Esc too
+      e.nativeEvent.stopImmediatePropagation();
+      shut();
+    }
+  }
+
+  function shut() {
     setOpen(false);
     setQ("");
+    setActive(0);
+    setNav(false);
+  }
+  function pick(v: string) {
+    onChange(v);
+    shut();
   }
 
   const triggerCls =
@@ -92,7 +125,8 @@ export default function SearchSelect({
               <input
                 autoFocus
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => { setQ(e.target.value); setActive(0); }}
+                onKeyDown={onKey}
                 placeholder="ค้นหา..."
                 className="w-full bg-transparent py-2 text-[13px] text-black outline-none placeholder:text-[#bdbdbd]"
               />
@@ -108,8 +142,9 @@ export default function SearchSelect({
                   <button
                     key={o.value}
                     type="button"
+                    ref={lit && flatList.indexOf(o) === at ? litRef : undefined}
                     onClick={() => pick(o.value)}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-blue-50"
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-slate-700 hover:bg-blue-50 ${lit && flatList.indexOf(o) === at ? "bg-blue-50" : ""}`}
                   >
                     <span className="truncate">{o.label}</span>
                     {o.value === value ? <Check size={15} className="shrink-0 text-blue-600" /> : null}
@@ -120,8 +155,9 @@ export default function SearchSelect({
             {showAdd ? (
               <button
                 type="button"
+                ref={at === flatList.length ? litRef : undefined}
                 onClick={() => pick(q.trim())}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-blue-600 hover:bg-blue-50"
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-blue-600 hover:bg-blue-50 ${at === flatList.length ? "bg-blue-50" : ""}`}
               >
                 <PlusMini /> อื่นๆ (ระบุ): “{q.trim()}”
               </button>

@@ -27,6 +27,8 @@ export interface ShipRow {
   destination: string;
   address?: string;
   carrier: string;
+  /** the private carrier's name (ผู้ให้บริการ), e.g. DHL Express */
+  provider?: string;
   trackingNo?: string;
   awbNo?: string;
   weightKg?: number;
@@ -99,7 +101,7 @@ export default function ShipmentsTable({
   const dests = useMemo(() => Array.from(new Set(rows.map((r) => r.destination).filter(Boolean))), [rows]);
   const shown = rows.filter((r) =>
     (cat === "all" || r.category === cat) && (dest === "all" || r.destination === dest) && (status === "all" || r.status === status) &&
-    (!q.trim() || `${r.id} ${r.trackingNo ?? ""} ${r.shipDate} ${r.cutDate}`.toLowerCase().includes(q.trim().toLowerCase())));
+    (!q.trim() || `${r.id} ${r.trackingNo ?? ""} ${r.awbNo ?? ""} ${(r.awbNo ?? "").replace(/-/g, "")} ${r.shipDate} ${r.cutDate}`.toLowerCase().includes(q.trim().toLowerCase())));
 
   function openModal(type: "cancel" | "track", row: ShipRow) {
     setOpen(null); setErr(null); setReason(""); setReasonOther("");
@@ -203,7 +205,7 @@ export default function ShipmentsTable({
             ) : shown.map((r) => {
               const off = r.status === "cancelled";
               const st = STATUS[r.status];
-              const link = r.awbNo ? awbUrl(r.awbNo) : parcelTrackingUrl(r.carrier, r.trackingNo);
+              const link = r.awbNo ? awbUrl(r.awbNo) : parcelTrackingUrl(`${r.carrier} ${r.provider ?? ""}`, r.trackingNo);
               const trackText = r.awbNo ? `AWB ${r.awbNo}` : r.trackingNo;
               return (
                 <tr key={r.id} className={`border-b border-slate-50 last:border-0 ${off ? "bg-slate-50/70 text-slate-400" : highlight === r.id ? "bg-amber-50" : ""}`}>

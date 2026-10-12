@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MapPin, CheckCircle2, Package, Plane } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -11,7 +11,8 @@ import SelectOther from "@/components/SelectOther";
 const QTY_UNITS = ["ดอก", "ช่อ", "กก.", "ตัน"];
 import { VEHICLE_FUELS } from "@/lib/master-data";
 import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
-import { useRecipientDistance } from "@/lib/use-distance";
+import { useRecipientDistance, parseLatLng, isShortMapsLink, resolveMapsLink } from "@/lib/use-distance";
+import DistanceHint from "@/components/DistanceHint";
 import { normalizeAwb, awbAirline, awbUrl } from "@/lib/tracking";
 import { findBranch } from "@/lib/branches";
 import type { Supplier, Batch } from "@/lib/types";
@@ -112,10 +113,9 @@ export default function LogisticExportForm({
   }
   const [destAddress, setDestAddress] = useState(""); // ที่อยู่ปลายทาง (ผู้รับ)
   const [destGps, setDestGps] = useState(""); // ส่งในประเทศ: "lat, lng"
-  const destGpsParsed = (() => {
-    const [a, b] = destGps.split(",").map((x) => Number(x.trim()));
-    return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 && destGps.includes(",") ? { lat: a, lng: b } : null;
-  })();
+  const destGpsParsed = parseLatLng(destGps); // "lat, lng" or a pasted Google Maps link
+  const gpsNow = useRef(destGps);
+  gpsNow.current = destGps;
   const [shipDataMode, setShipDataMode] = useState<"new" | "same">("new");
 
   const selectedBatch = batches.find((b) => b.id === batchId) ?? null;
@@ -126,7 +126,17 @@ export default function LogisticExportForm({
     setErrs((x) => ({ ...x, destination: "" }));
   }
   function onDestGps(v: string) {
-    setDestGps(v);
+    const p = /https?:/.test(v) ? parseLatLng(v) : null;
+    setDestGps(p ? `${p.lat}, ${p.lng}` : v);
+    gpsNow.current = p ? `${p.lat}, ${p.lng}` : v;
+    setErrs((x) => ({ ...x, destGps: "" }));
+    if (!p && isShortMapsLink(v)) {
+      resolveMapsLink(v).then((q) => {
+        if (gpsNow.current !== v) return; // the field was changed meanwhile
+        if (q) setDestGps(`${q.lat}, ${q.lng}`);
+        else setErrs((x) => ({ ...x, destGps: "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" }));
+      });
+    }
   }
   // Distance = recipient address − origin branch (the carrier's branch; else the farm), Thai Post doc 9 Oct 2026.
   const [distEdited, setDistEdited] = useState(false);
@@ -137,8 +147,10 @@ export default function LogisticExportForm({
     : farmNow?.gpsLat && farmNow?.gpsLng ? { lat: farmNow.gpsLat, lng: farmNow.gpsLng, label: "ที่ตั้งฟาร์ม" } : null;
   const dist = useRecipientDistance(shipType === "domestic" ? origin : null, destAddress, destGpsParsed, destination);
   useEffect(() => {
-    if (!distEdited && dist.km != null) setDistanceKm(String(dist.km));
-  }, [dist.km, distEdited]);
+    // follows the address — cleared while it is looked up, so an old distance never goes out with a new address
+    if (!distEdited) setDistanceKm(dist.km != null ? String(dist.km) : "");
+    if (!distEdited && dist.km != null) setErrs((x) => (x.distanceKm ? { ...x, distanceKm: "" } : x));
+  }, [dist.km, distEdited, batchId]);
   function onDestAddress(v: string) {
     setDestAddress(v);
     if (destination || shipType !== "domestic") return;
@@ -161,10 +173,15 @@ export default function LogisticExportForm({
     setFlowerType(b.productType || s?.flowerType || "");
     setVariety(b.variety ?? "");
     setFlowerCount(String(b.quantity ?? b.flowerCount));
-    setQtyUnit(UNIT_LABEL[b.unit ?? "stem"] ?? "ดอก");
+    const unit = UNIT_LABEL[b.unit ?? "stem"] ?? "ดอก";
+    setQtyUnit(unit);
+    setExportUnit(unit === "ดอก" ? "ช่อ" : unit);
     setAgeDays(String(b.ageDays));
     setDestination(b.destination ?? "");
-    setDistanceKm(String(b.distanceKm ?? ""));
+    setDestAddress(b.destinationAddress ?? "");
+    setDestGps(b.destLat != null && b.destLng != null ? `${b.destLat}, ${b.destLng}` : "");
+    setDistEdited(false);
+    setDistanceKm("");
     // prefill packaging from the batch
     const fromBatch = rowsFromBatch(b.packagingItems, catalog);
     setPacks(fromBatch.length ? fromBatch : [firstRow(catalog, categoryOf(b))]);
@@ -184,14 +201,10 @@ export default function LogisticExportForm({
     }
     if (b.fuelKey) setFuelKey(b.fuelKey);
     if (typeof b.isReeferUsed === "boolean") setIsReefer(b.isReeferUsed);
-    if (b.destination) {
-      const known = DESTINATIONS.find((d) => d.name === b.destination);
-      if (known) setDestination(known.name);
-      else { setDestAddress(b.destination); const prov = provinceFromAddress(b.destination); const hit = prov ? DESTINATIONS.find((d) => d.province === prov) : undefined; if (hit) setDestination(hit.name); }
-    }
+    if (b.destination) setDestination(b.destination);
     if (b.destinationAddress) setDestAddress(b.destinationAddress);
     if (b.destLat != null && b.destLng != null) setDestGps(`${b.destLat}, ${b.destLng}`);
-    if (b.distanceKm != null) setDistanceKm(String(b.distanceKm));
+    setDistEdited(false);
   }
 
   function validate(): Errors {
@@ -202,6 +215,9 @@ export default function LogisticExportForm({
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (shipType === "domestic") {
       if (!destination) e.destination = "กรุณาระบุปลายทาง";
+      if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ — ใช้คำนวณระยะทางขนส่ง";
+      if (destGps.trim() && !destGpsParsed) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
+      if (!(Number(distanceKm) > 0)) e.distanceKm = dist.looking && !distEdited ? "กำลังคำนวณระยะทาง รอสักครู่แล้วกดอีกครั้ง" : "กรุณาระบุระยะทางขนส่ง — ระบบคำนวณจากที่อยู่ผู้รับกับสาขาต้นทาง หรือกรอกเองได้";
       if (!vehicle) e.vehicle = "กรุณาเลือกประเภทรถ";
       if (!fuelKey) e.fuelKey = "กรุณาเลือกระบบเชื้อเพลิง";
     } else {
@@ -211,6 +227,8 @@ export default function LogisticExportForm({
       if (!originAirport.trim()) e.originAirport = "กรุณาระบุท่าอากาศยานต้นทาง";
       else if (!findAirport(originAirport) && !(Number(flightKm) > 0)) e.originAirport = "ท่าอากาศยานนอกรายการ · กรุณาระบุระยะทางบิน";
     }
+    if (flowerCount && !qtyUnit.trim()) e.qtyUnit = "กรุณาระบุหน่วย";
+    if (exportBunches && !exportUnit.trim()) e.exportUnit = "กรุณาระบุหน่วย";
     Object.assign(e, validateRows(packs));
     return e;
   }
@@ -294,6 +312,8 @@ export default function LogisticExportForm({
                 {shipType === "domestic" ? (
                   <>
                     <F label="จังหวัดปลายทาง" value={destination} />
+                    <F label="ที่อยู่ปลายทาง (ผู้รับ)" value={destAddress} />
+                    <F label="ระยะทางขนส่ง" value={distanceKm ? `${distanceKm} กม.` : ""} />
                     <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
                     <F label="น้ำหนักรวมหลังแพ็ก" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
                     <F label="ประเภทรถที่ใช้" value={vehicle} />
@@ -351,15 +371,17 @@ export default function LogisticExportForm({
           <div><label className={labelCls}>จำนวนสินค้า</label>
             <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
               <input type="number" value={flowerCount} onChange={(e) => setFlowerCount(e.target.value)} placeholder="ระบุจำนวน" className={inputCls} />
-              <SelectOther value={qtyUnit} onChange={setQtyUnit} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} />
+              <div><SelectOther value={qtyUnit} onChange={(v) => { setQtyUnit(v); setErrs((x) => ({ ...x, qtyUnit: "" })); }} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} invalid={!!errs.qtyUnit} /></div>
             </div>
+            <Err msg={errs.qtyUnit} />
           </div>
           <div><label className={labelCls}>อายุดอกไม้หลังตัด (วัน)</label><input type="number" value={ageDays} onChange={(e) => setAgeDays(e.target.value)} placeholder="ระบุอายุดอกไม้" className={inputCls} /></div>
           <div><label className={labelCls}>จำนวนส่งออก</label>
             <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2">
               <input type="number" value={exportBunches} onChange={(e) => setExportBunches(e.target.value)} placeholder="ระบุจำนวน" className={inputCls} />
-              <SelectOther value={exportUnit} onChange={setExportUnit} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} />
+              <div><SelectOther value={exportUnit} onChange={(v) => { setExportUnit(v); setErrs((x) => ({ ...x, exportUnit: "" })); }} options={QTY_UNITS.map((u) => ({ value: u, label: u }))} otherPlaceholder="ระบุหน่วย" className={inputCls} invalid={!!errs.exportUnit} /></div>
             </div>
+            <Err msg={errs.exportUnit} />
           </div>
         </div>
       </Section>
@@ -406,18 +428,25 @@ export default function LogisticExportForm({
                 <SelectOther value={destination} onChange={onDestProvince} options={DESTINATIONS.map((d) => ({ value: d.name, label: d.name }))} placeholder="เลือกจังหวัดปลายทาง" otherPlaceholder="ระบุจังหวัด / ปลายทาง" className={inputCls} invalid={!!errs.destination} />
                 <Err msg={errs.destination} />
               </div>
-              <div><label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร)</label><input type="number" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50`} /><p className="mt-1 text-[11px] text-slate-400">{distEdited ? <>แก้ไขเอง · <button type="button" onClick={() => setDistEdited(false)} className="underline">ให้ระบบคำนวณ</button></> : dist.looking ? "กำลังหาตำแหน่งที่อยู่ผู้รับ…" : dist.basis || "กรอกที่อยู่ผู้รับ"}</p></div>
-              <div className="sm:col-span-2">
-                <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ)</label>
-                <input value={destAddress} onChange={(e) => onDestAddress(e.target.value)} placeholder="เช่น 99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110" className={inputCls} />
-              </div>
               <div>
                 <label className={labelCls}>พิกัดปลายทาง</label>
                 <div className="flex gap-2">
-                  <input value={destGps} onChange={(e) => onDestGps(e.target.value)} placeholder="13.7367, 100.5602" className={`${inputCls} min-w-0 flex-1`} />
+                  <input value={destGps} onChange={(e) => onDestGps(e.target.value)} placeholder="13.7367, 100.5602" className={`${inputCls} min-w-0 flex-1 ${errs.destGps ? "border-[#ee443f]" : ""}`} />
                   <button type="button" onClick={useDestLocation} title="ใช้ตำแหน่งปัจจุบัน" className="grid size-[42px] shrink-0 place-items-center rounded-[8px] border border-gray-300 text-slate-500 hover:bg-gray-50"><MapPin size={16} /></button>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-400">ไม่บังคับ · ใส่พิกัดผู้รับได้ระยะทางแม่นที่สุด · คัดลอกจาก Google Maps ได้</p>
+                <p className="mt-1 text-[11px] text-slate-400">ไม่บังคับ · ใส่พิกัดผู้รับได้ระยะทางแม่นที่สุด · วางพิกัดหรือลิงก์แชร์จาก Google Maps ได้</p>
+                <Err msg={errs.destGps} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelCls}>ที่อยู่ปลายทาง (ผู้รับ){req}</label>
+                <input value={destAddress} onChange={(e) => { onDestAddress(e.target.value); setErrs((x) => ({ ...x, destAddress: "" })); }} placeholder="เช่น 99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110" className={`${inputCls} ${errs.destAddress ? "border-[#ee443f]" : ""}`} />
+                <Err msg={errs.destAddress} />
+              </div>
+              <div>
+                <label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร){req}</label>
+                <input type="number" min="0" step="any" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); setErrs((x) => ({ ...x, distanceKm: "" })); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50 ${errs.distanceKm ? "border-[#ee443f]" : ""}`} />
+                <DistanceHint edited={distEdited} onAuto={() => setDistEdited(false)} dist={dist} noOrigin="ไม่ทราบพิกัดสาขาต้นทาง — กรอกระยะทางเอง" />
+                <Err msg={errs.distanceKm} />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -458,7 +487,7 @@ export default function LogisticExportForm({
             <div><label className={labelCls}>หมายเลขเที่ยวบิน</label><input value={flightNo} onChange={(e) => setFlightNo(e.target.value)} placeholder="ระบุหมายเลขเที่ยวบิน เช่น TG102" className={inputCls} /></div>
             <div>
               <label className={labelCls}>เลขใบตราส่งสินค้าทางอากาศ (AWB)</label>
-              <input value={awb} onChange={(e) => { setAwb(e.target.value); setErrs((x) => ({ ...x, awb: "" })); }} placeholder="เช่น 232-12345678" inputMode="numeric" className={`${inputCls} font-mono ${errs.awb ? "border-[#ee443f]" : ""}`} />
+              <input value={awb} onChange={(e) => { setAwb(e.target.value); setErrs((x) => ({ ...x, awb: "" })); }} placeholder="เช่น 217-12345678" inputMode="numeric" className={`${inputCls} font-mono ${errs.awb ? "border-[#ee443f]" : ""}`} />
               <Err msg={errs.awb} />
               <p className="mt-1 text-[11px] text-slate-400">
                 {awbNorm ? (awbLine ? <>สายการบิน {awbLine.name} · <a href={awbUrl(awbNorm)!} target="_blank" rel="noreferrer" className="text-blue-600 underline">เช็กสถานะ</a></> : <>ไม่รู้จักรหัสสายการบิน {awbNorm.slice(0, 3)} · <a href={awbUrl(awbNorm)!} target="_blank" rel="noreferrer" className="text-blue-600 underline">เช็กสถานะ</a></>) : "ใช้ติดตามสถานะพัสดุทางอากาศ (Cargo Tracking) แทนหมายเลขเที่ยวบิน"}

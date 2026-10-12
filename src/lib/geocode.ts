@@ -7,6 +7,8 @@
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { DESTINATIONS } from "./geo";
+import { lookupTambon } from "./tambon";
+import { parseLatLng } from "./latlng";
 
 export type GeoPrecision = "subdistrict" | "postcode" | "district" | "province";
 export interface GeoPoint { lat: number; lng: number; precision: GeoPrecision; label: string }
@@ -31,15 +33,16 @@ export function addressParts(address: string) {
   return { subdistrict, district, province, postcode };
 }
 
-async function nominatim(params: Record<string, string>): Promise<{ lat: number; lng: number; label: string } | null> {
+/** A Nominatim search. `undefined` = the service failed (timeout, throttled) — not the same as "no match" (null). */
+async function nominatim(params: Record<string, string>): Promise<{ lat: number; lng: number; label: string } | null | undefined> {
   const qs = new URLSearchParams({ format: "json", limit: "1", "accept-language": "th", ...params });
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return null;
+    if (!r.ok) return undefined;
     const j = (await r.json()) as { lat: string; lon: string; display_name: string }[];
     return j[0] ? { lat: Number(j[0].lat), lng: Number(j[0].lon), label: j[0].display_name } : null;
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -56,12 +59,37 @@ async function remember(key: string, p: GeoPoint | null) {
     ON CONFLICT (q) DO NOTHING`);
 }
 
+// Google Maps share links (maps.app.goo.gl/…) only redirect to the real URL that carries the point;
+// the redirects are followed here by hand, and only between Google's own hosts.
+const MAPS_HOSTS = /^(?:maps\.app\.goo\.gl|goo\.gl|(?:www\.|maps\.)?google\.(?:com|co\.th))$/i;
+export async function mapsLinkPoint(link: string): Promise<{ lat: number; lng: number } | null> {
+  let url = link.trim();
+  for (let hop = 0; hop < 5; hop++) {
+    let u: URL;
+    try { u = new URL(url); } catch { return null; }
+    if (u.protocol !== "https:" || !MAPS_HOSTS.test(u.hostname)) return null;
+    let plain = url;
+    try { plain = decodeURIComponent(url); } catch { /* a stray % — read it as it is */ }
+    const p = parseLatLng(plain);
+    if (p) return p;
+    const r = await fetch(url, { redirect: "manual", headers: { "User-Agent": UA }, signal: AbortSignal.timeout(5000) }).catch(() => null);
+    const next = r?.headers.get("location");
+    if (!next) return null;
+    url = new URL(next, url).toString();
+  }
+  return null;
+}
+
 /** Best point for an address, most precise first; province centre as the last resort. */
 export async function geocodeAddress(address: string): Promise<GeoPoint | null> {
   const key = address.replace(/\s+/g, " ").trim().toLowerCase().slice(0, 300);
   if (!key) return null;
+  // 13 Oct 2026: the offline subdistrict list first (instant, works without ต./อ./จ.); Nominatim only after
+  const offline = lookupTambon(address);
+  if (offline?.precision === "subdistrict") return offline;
   const hit = await cached(key);
-  if (hit !== undefined) return hit;
+  // a remembered "not found" / province centre never beats the district the offline list just gave
+  if (hit !== undefined) return hit && hit.precision !== "province" ? hit : offline ?? hit;
 
   const { subdistrict, district, province, postcode } = addressParts(address);
   let found: GeoPoint | null = null;
@@ -76,14 +104,18 @@ export async function geocodeAddress(address: string): Promise<GeoPoint | null> 
   if (dist && prov) tries.push(["district", { q: `${dist} ${prov}`, countrycodes: "th" }]);
   // a hit outside the address's province is a false match (e.g. a shop named after the district)
   const inProvince = (label: string) => !province || label.includes(province) || (bkk && label.includes("กรุงเทพ"));
+  let failed = false;
   for (const [precision, params] of tries) {
     const r = await nominatim(params);
+    if (r === undefined) failed = true;
     if (r && inProvince(r.label)) { found = { ...r, precision }; break; }
   }
+  if (!found && offline) found = offline; // the district centre from the offline list
   if (!found && province) {
     const d = DESTINATIONS.find((x) => x.province === province || x.name === province);
     if (d) found = { lat: d.lat, lng: d.lng, precision: "province", label: d.province };
   }
-  await remember(key, found);
+  // a lookup that only fell back because the service failed is not remembered — the next try asks again
+  if (!failed) await remember(key, found);
   return found;
 }

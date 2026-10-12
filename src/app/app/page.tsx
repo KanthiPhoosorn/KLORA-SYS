@@ -36,6 +36,7 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
           title="ปลดล็อกภาพรวม"
           desc="อัปเกรดเป็นแพ็กเกจ Pro เพื่อดูภาพรวมการส่งออก แนวโน้ม CO₂e รายเดือน และสถานะการจัดส่งทั้งหมดในหน้าเดียว"
         />
+        <RatingsCard ratings={await getRatings({ supplierId: user.supplierId! })} show="farm" />
       </div>
     );
   }

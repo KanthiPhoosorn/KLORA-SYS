@@ -24,6 +24,16 @@ export default function SelectOther({
 }) {
   const known = options.some((o) => o.value === value);
   const [other, setOther] = useState(!!value && !known);
+  // The parent set a new value from outside (e.g. a picked lot prefills กก.) — follow it instead of keeping
+  // the old mode. What the user picks or types here is recorded in `seen` first, so typing "4" on the way
+  // to "45" in อื่นๆ mode does not jump back to the list.
+  const [seen, setSeen] = useState(value);
+  if (value !== seen) {
+    setSeen(value);
+    if (known && other) setOther(false);
+    else if (value && !known && !other) setOther(true);
+  }
+  const emit = (v: string) => { setSeen(v); onChange(v); };
   const bad = invalid ? "border-[#ee443f]" : "";
   return (
     <>
@@ -31,8 +41,8 @@ export default function SelectOther({
         value={other ? OTHER_OPTION : value}
         disabled={disabled}
         onChange={(e) => {
-          if (e.target.value === OTHER_OPTION) { setOther(true); onChange(""); }
-          else { setOther(false); onChange(e.target.value); }
+          if (e.target.value === OTHER_OPTION) { setOther(true); emit(""); }
+          else { setOther(false); emit(e.target.value); }
         }}
         className={`${className} ${bad}`}
       >
@@ -46,7 +56,7 @@ export default function SelectOther({
           type={numeric ? "number" : "text"}
           min={numeric ? 0 : undefined}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => emit(e.target.value)}
           placeholder={otherPlaceholder}
           className={`${inputClassName ?? className} mt-2 ${bad}`}
         />

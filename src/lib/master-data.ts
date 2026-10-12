@@ -357,15 +357,32 @@ export function typesFor(category: ProductCategory): string[] {
   return Array.from(new Set(PRODUCTS.filter((p) => p.productCategory === category).map((p) => p.type)));
 }
 
-/** Varieties (พันธุ์) of one type within a category. */
+/** "กุหลาบ (Rose)" → "กุหลาบ" — older farm profiles kept the English name in the type. */
+export function baseType(type: string): string {
+  return (type ?? "").trim().replace(/\s*\([^)]*\)$/, "");
+}
+
+/** Varieties (พันธุ์) of one type within a category, with their English names — each name once
+ *  (สีชมพู is both a เงาะ and a ลำไย). */
+export function variantEntries(category: ProductCategory, type: string): { variant: string; variantEn: string }[] {
+  const t = baseType(type);
+  const seen = new Set<string>();
+  const out: { variant: string; variantEn: string }[] = [];
+  for (const p of PRODUCTS) {
+    if (p.productCategory !== category || (t && p.type !== t) || seen.has(p.variant)) continue;
+    seen.add(p.variant);
+    out.push({ variant: p.variant, variantEn: p.variantEn });
+  }
+  return out;
+}
 export function variantsFor(category: ProductCategory, type: string): string[] {
-  const t = (type ?? "").trim();
-  return PRODUCTS.filter((p) => p.productCategory === category && (!t || p.type === t)).map((p) => p.variant);
+  return variantEntries(category, type).map((v) => v.variant);
 }
 
 /** Category of a known type name (ชนิด) — undefined for free-text "อื่นๆ". */
 export function categoryOfType(type: string): ProductCategory | undefined {
-  return PRODUCTS.find((p) => p.type === type)?.productCategory;
+  const t = baseType(type);
+  return PRODUCTS.find((p) => p.type === t)?.productCategory;
 }
 
 export interface ProduceProfile {

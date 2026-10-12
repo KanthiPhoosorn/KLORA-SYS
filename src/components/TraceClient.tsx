@@ -87,7 +87,8 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
     const el = document.getElementById(targetId);
     if (!el) throw new Error("no page");
     const { toPng, toJpeg } = await import("html-to-image");
-    const opts = { pixelRatio: 2, backgroundColor: "#f8fafc", cacheBust: true, filter: (n: HTMLElement) => !(n.dataset && n.dataset.noCapture !== undefined) };
+    // style: the page centres the passport with mx-auto — the copy keeps that margin and lands outside the canvas on a wide screen
+    const opts = { pixelRatio: 2, backgroundColor: "#f8fafc", cacheBust: true, style: { margin: "0" }, filter: (n: HTMLElement) => !(n.dataset && n.dataset.noCapture !== undefined) };
     if (webkit()) await toJpeg(el, { ...opts, pixelRatio: 1, quality: 0.5 }).catch(() => undefined); // warm-up pass
     if (kind === "png") {
       const url = await toPng(el, opts);
@@ -199,7 +200,7 @@ export function FarmSheet({ name, address, photo, story, standards, children }: 
         <span className="min-w-0 flex-1">{children}</span>
         <ChevronRight size={20} className="shrink-0 text-slate-500" />
       </button>
-      <div className={open ? "fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-5" : "hidden"} onClick={() => setOpen(false)} data-no-capture>
+      <div className={open ? "fixed inset-0 z-50 m-0 flex items-end justify-center bg-black/45 sm:items-center sm:p-5" : "hidden"} onClick={() => setOpen(false)} data-no-capture>
         <div role="dialog" aria-modal="true" aria-label={name} onClick={(e) => e.stopPropagation()} className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white px-5 pb-5 pt-2 shadow-2xl sm:rounded-3xl">
           <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" aria-hidden />
           <button type="button" aria-label="ปิด" onClick={() => setOpen(false)} className="absolute right-3 top-3 grid size-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100"><X size={20} /></button>

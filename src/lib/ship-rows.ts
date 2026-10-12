@@ -18,6 +18,7 @@ export function toShipRows(batches: Batch[], prints: PrintLog[]): ShipRow[] {
       destination: b.destination ?? "",
       address: b.destinationAddress,
       carrier: b.carrier ?? "",
+      provider: b.provider, // DHL Express / FedEx / UPS → their own tracking page
       trackingNo: b.trackingNo,
       awbNo: b.awbNo,
       weightKg: b.shippedWeightKg,

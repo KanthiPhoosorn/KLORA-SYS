@@ -63,6 +63,7 @@ export default function PrivacyPage() {
         <UL items={[
           <><b>ในระบบ</b> — สมาชิกในองค์กรเดียวกันเห็นข้อมูลขององค์กรนั้น ผู้ให้บริการขนส่งเห็นข้อมูลรอบส่งออกที่ต้องจัดส่ง ผู้ดำเนินการ KYN เห็นข้อมูลของทุกฟาร์มตามบทบาทงาน</>,
           <><b>ผู้ให้บริการที่เราใช้ประมวลผลแทนเรา</b> — Vercel (โฮสต์เว็บไซต์), Neon (ฐานข้อมูล ตั้งอยู่ที่สิงคโปร์), Resend (ส่งอีเมล) และ Google (เฉพาะเมื่อคุณเลือกเข้าสู่ระบบด้วย Google) ผู้ให้บริการเหล่านี้เข้าถึงข้อมูลเท่าที่จำเป็นต่อการให้บริการเท่านั้น</>,
+          <><b>ที่อยู่ผู้รับสำหรับคำนวณระยะทาง</b> — ระบบหาตำแหน่งจากรายชื่อตำบลทั่วประเทศที่เก็บไว้ในระบบก่อน หากหาไม่พบจะส่งเฉพาะข้อความที่อยู่ไปค้นหาที่ OpenStreetMap Nominatim (ไม่มีชื่อหรือข้อมูลติดต่อ)</>,
           <><b>ตามกฎหมาย</b> — หากมีคำสั่งศาลหรือหน่วยงานที่มีอำนาจร้องขอ</>,
         ]} />
 
@@ -92,6 +93,7 @@ export default function PrivacyPage() {
 
       <footer className="border-t border-gray-100 px-6 py-6 text-center text-xs text-slate-400">
         © 2569 Corta · <Link href="/privacy" className="hover:text-slate-600">นโยบายความเป็นส่วนตัว</Link>
+        <p className="mt-2">ข้อมูลตำบล/อำเภอ/จังหวัดและพิกัด: <a href="https://github.com/DevelopedbyWill/thailand-canonical-admin-names" className="underline hover:text-slate-600" target="_blank" rel="noreferrer">Thailand Canonical Administrative-Names Reference</a> (William J. Reynolds) · <a href="https://creativecommons.org/licenses/by/4.0/" className="underline hover:text-slate-600" target="_blank" rel="noreferrer">CC BY 4.0</a> · ปรับรูปแบบเพื่อใช้ในระบบ</p>
       </footer>
     </div>
   );

@@ -86,8 +86,9 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
     <div className="min-h-screen bg-slate-50 py-5">
       <div id="passport" className="mx-auto max-w-md space-y-5 bg-slate-50 px-4 pb-4">
         {/* header: Corta + save, Thai Post red corner (Super App mockup) */}
-        <div className="relative -mx-4 flex items-center justify-between overflow-hidden px-4 pb-1 pt-5">
-          <span aria-hidden className="pointer-events-none absolute -left-1 -top-5 h-10 w-20 bg-[#EE2C34] [clip-path:polygon(0_0,100%_0,0_100%)]" />
+        {/* only the red corner is clipped — the save menu below the button must stay visible */}
+        <div className="relative -mx-4 flex items-center justify-between px-4 pb-1 pt-5">
+          <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden"><span className="absolute -left-1 -top-5 h-10 w-20 bg-[#EE2C34] [clip-path:polygon(0_0,100%_0,0_100%)]" /></span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/corta-logo.png" alt="Corta" className="relative h-7 w-auto" />
           <SavePassport targetId="passport" fileName={`Corta-${batch.id}`} />

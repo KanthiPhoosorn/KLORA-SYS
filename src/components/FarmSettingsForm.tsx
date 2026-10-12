@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, MapPin, User, Flower2, Plus, ChevronDown, MoreVertical, Trash2, X, Camera, ImagePlus } from "lucide-react";
 import { shrinkImage } from "@/lib/image-shrink";
 import type { Supplier, FlowerTypeEntry, ProductCategory, Certification } from "@/lib/types";
-import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantsFor, categoryOfType } from "@/lib/master-data";
+import { PRODUCTS, PRODUCT_CATEGORIES, CATEGORY_LABEL, variantEntries, categoryOfType, baseType } from "@/lib/master-data";
 import SearchSelect, { type SelectOption } from "@/components/SearchSelect";
 import { CertificationsEditor, certErrors, certPayload, type CertDraft } from "@/components/ProduceGroupsEditor";
 import ResourceUsageFields, { resourcePayload, resourceStateFrom, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
@@ -106,7 +106,7 @@ function FlowerTypeCard({
   const category: ProductCategory = entry.category ?? categoryOfType(entry.type) ?? "flower";
   // พันธุ์ที่ยังไม่ได้เลือกของชนิดนี้ (ตัดที่เลือกแล้วออก) + อื่นๆ ระบุเอง
   const varietyOptions: SelectOption[] = [
-    ...variantsFor(category, entry.type).filter((v) => !entry.varieties.includes(v)).map((v) => ({ value: v, label: v })),
+    ...variantEntries(category, entry.type).filter((v) => !entry.varieties.includes(v.variant)).map((v) => ({ value: v.variant, label: v.variant, keywords: v.variantEn })),
   ];
 
   return (
@@ -251,6 +251,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const [addCat, setAddCat] = useState<ProductCategory>(supplier.flowerTypes?.[0]?.category ?? "flower");
   const [openType, setOpenType] = useState<string | null>(fts[0]?.type ?? null);
   const [adding, setAdding] = useState(false);
+  const [dupNote, setDupNote] = useState("");
 
   const [c, setC] = useState<ResourceState>(() =>
     resourceStateFrom(farmResourceLines(supplier), {
@@ -262,7 +263,10 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
 
   // ── ตัวช่วยแก้ไข fts ──
   const addType = (type: string, category?: ProductCategory) => {
-    if (!type || fts.some((f) => f.type === type)) return;
+    if (!type) return;
+    const have = fts.find((f) => f.type === type || baseType(f.type) === baseType(type));
+    if (have) { setOpenType(have.type); setAdding(false); setDupNote(`มี “${have.type}” อยู่แล้ว — เพิ่มพันธุ์ในการ์ดเดิมได้เลย`); return; }
+    setDupNote("");
     setFts((prev) => [...prev, { category: category ?? categoryOfType(type) ?? "flower", type, varieties: [] }]);
     setOpenType(type);
     setAdding(false);
@@ -274,7 +278,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const mutVarieties = (type: string, fn: (vs: string[]) => string[]) =>
     setFts((prev) => prev.map((f) => (f.type === type ? { ...f, varieties: fn(f.varieties) } : f)));
 
-  const typeOptionsLeft = typeOptionsFor(addCat).filter((o) => !fts.some((f) => f.type === o.value));
+  const typeOptionsLeft = typeOptionsFor(addCat).filter((o) => !fts.some((f) => baseType(f.type) === o.value));
 
   const targets = yieldTargets(fts);
 
@@ -424,6 +428,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
               </p>
             )}
 
+            {dupNote ? <p role="status" className="rounded-[8px] bg-amber-50 px-3 py-2 text-[12px] text-amber-800">{dupNote}</p> : null}
             {/* เพิ่มชนิดดอกไม้ */}
             {adding ? (
               <div className="space-y-2.5 rounded-[10px] border border-dashed border-slate-300 p-3">
@@ -449,7 +454,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             ) : (
               <button
                 type="button"
-                onClick={() => setAdding(true)}
+                onClick={() => { setAdding(true); setDupNote(""); }}
                 className="inline-flex items-center gap-2 rounded-[8px] border border-brand-pink px-4 py-2.5 text-[13px] font-medium text-brand-pink hover:bg-brand-pink-light"
               >
                 <Plus size={16} /> เพิ่มรายการผลผลิต

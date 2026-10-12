@@ -8,6 +8,10 @@
 import puppeteer from "puppeteer-core";
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { PNG } from "pngjs";
 
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36); const EMAIL = `qa-ui-${TS}@klora-qa.test`;
 const SHOTS = process.env.SHOT_DIR;
@@ -17,6 +21,12 @@ const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${n}${note ? "  — " + note : ""}`); };
 const has = (a: string[], want: string[]) => want.every((w) => a.includes(w));
+async function tapOn(pg: import("puppeteer-core").Page, el: string, mouse = false): Promise<boolean> {
+  const r = (await pg.evaluate(`(() => { const e = ${el}; if (!e) return null; const b = e.getBoundingClientRect(); const x = b.left + b.width / 2, y = b.top + b.height / 2; const hit = document.elementFromPoint(x, y); return { x, y, top: !!hit && e.contains(hit) }; })()`)) as { x: number; y: number; top: boolean } | null;
+  if (!r) return false;
+  if (mouse) await pg.mouse.click(r.x, r.y); else await pg.touchscreen.tap(r.x, r.y);
+  return r.top;
+}
 const lacks = (a: string[], bad: string[]) => !bad.some((w) => a.includes(w));
 
 // Page-side driver. Fields are found by their visible label (or aria-label), the way a person reads the form.
@@ -113,6 +123,10 @@ window.qa = {
     await act(`qa.inp(document, "จำนวนดอกไม้", "500")`);
     await act(`qa.date(document, "วันที่ตัด", "2026-10-08")`);
     log("§S1 label reads อายุหลังตัดที่คาดการณ์ (วัน)", await ev(`!!qa.find(document, "select", "อายุหลังตัดที่คาดการณ์ (วัน)", 0, true)`));
+    await act(`qa.sel(document, "อายุหลังตัดที่คาดการณ์", "__other__")`, 250);
+    await p.keyboard.type("45", { delay: 60 }); await sleep(200);
+    const typed = await ev<{ sel: string; v: string | null }>(`(() => { const s = qa.find(document, "select", "อายุหลังตัดที่คาดการณ์"); const i = s.parentElement.querySelector('input[type="number"]'); return { sel: s.value, v: i ? i.value : null }; })()`);
+    log("อื่นๆ (ระบุ): typing 45 stays in the box (does not jump to the listed 4)", typed.sel === "__other__" && typed.v === "45", JSON.stringify(typed));
     await act(`qa.sel(document, "อายุหลังตัดที่คาดการณ์", "14")`);
 
     // row 1 — single-use carton, size unknown, two inner materials (one removed again)
@@ -182,6 +196,9 @@ window.qa = {
     await act(`qa.sel(document, "จังหวัดปลายทาง", "เชียงใหม่")`);
     await act(`qa.inp(document, "รหัสไปรษณีย์", "50100")`);
     await act(`(() => { const s = qa.find(document, "select", "สาขาต้นทาง"); return qa.set(s, Array.from(s.options).map((x) => x.value).find((v) => v && v !== "__other__")); })()`);
+    await sleep(900);
+    const beforeAddr = await ev<{ km: string; hint: boolean }>(`({ km: qa.find(document, "input", "ระยะทางขนส่ง")?.value, hint: document.body.innerText.includes("กรอกที่อยู่ผู้รับ ระบบจะคำนวณระยะทาง") })`);
+    log("§S2 no distance from the province alone — it asks for the recipient address", beforeAddr.km === "" && beforeAddr.hint, JSON.stringify(beforeAddr));
     await act(`qa.inp(document, "ที่อยู่ปลายทาง", ${JSON.stringify(LONG_ADDR)})`, 400);
     const gotKm = await waitFor(`Number(qa.find(document, "input", "ระยะทางขนส่ง")?.value) > 0`, 25000);
     const km = await ev<string>(`qa.find(document, "input", "ระยะทางขนส่ง")?.value`);
@@ -223,14 +240,19 @@ window.qa = {
       const pop = (await tp.evaluate(`(() => { const d = document.querySelector('[role="dialog"]'); return { open: !!d, full: !!d && d.innerText.includes("ปิดท้ายเรื่องราวของฟาร์ม QA") }; })()`)) as { open: boolean; full: boolean };
       const save = (await tp.evaluate(`(() => { const x = Array.from(document.querySelectorAll("button, a")).find((e) => /บันทึก/.test((e.getAttribute("aria-label") || "") + (e.textContent || ""))); if (!x) return null; const r = x.getBoundingClientRect(); return { fromRight: Math.round(innerWidth - r.right), top: Math.round(r.top) }; })()`)) as { fromRight: number; top: number } | null;
       log("§15 tapping the farm card opens the farm's จุดเด่น", btn && pop.open && pop.full, JSON.stringify({ btn, ...pop }));
+      const gap = (await tp.evaluate(`(() => { const d = document.querySelector('[role="dialog"]'); return Math.round(innerHeight - d.parentElement.getBoundingClientRect().bottom); })()`)) as number;
+      log("§15 the farm sheet covers the screen to the bottom edge", gap === 0, `gap ${gap}px`);
+      await tp.keyboard.press("Escape"); await sleep(200);
       log("§14 save as image / PDF sits top-right", !!save && save.fromRight < 80 && save.top < 140, JSON.stringify(save));
       log("QR hero shows เกรด A+", (await tp.evaluate(`document.body.innerText.includes("เกรด A+")`)) as boolean);
       const openSave = async (pg: typeof tp) => {
-        await pg.evaluate(`document.querySelector('button[aria-label="บันทึกหน้านี้"]').click()`); await sleep(300);
-        await pg.evaluate(`Array.from(document.querySelectorAll('[role="menuitem"]')).find((x) => x.textContent.includes("รูปภาพ")).click()`);
+        await tapOn(pg, `document.querySelector('button[aria-label="บันทึกหน้านี้"]')`); await sleep(300);
+        const onTop = await tapOn(pg, `Array.from(document.querySelectorAll('[role="menuitem"]')).find((x) => x.textContent.includes("รูปภาพ"))`);
+        if (!onTop) return false;
         return pg.waitForFunction(`!!Array.from(document.querySelectorAll('[role="dialog"]')).find((d) => d.innerText.includes("บันทึก / แชร์"))`, { timeout: 25000 }).then(() => true, () => false);
       };
       const sheet = await openSave(tp);
+      log("phone: a real tap reaches the save menu (not hidden under the page)", sheet);
       const pv = (await tp.evaluate(`(() => { const d = Array.from(document.querySelectorAll('[role="dialog"]')).find((x) => x.innerText.includes("บันทึก / แชร์")); const im = d && d.querySelector("img"); return { img: !!im && im.naturalWidth > 300, hint: !!d && d.innerText.includes("กดค้างที่รูป") }; })()`)) as { img: boolean; hint: boolean };
       log("phone: save → the image is made, then a sheet: บันทึก / แชร์ + long-press preview", sheet && pv.img && pv.hint, JSON.stringify(pv));
       const lineCtx = await b.createBrowserContext();
@@ -243,6 +265,31 @@ window.qa = {
       log("LINE in-app browser: the sheet offers 'เปิดหน้านี้ในเบราว์เซอร์' (openExternalBrowser=1)", lineSheet && ext.includes("openExternalBrowser=1"), ext);
       await lineCtx.close();
       await ctx.close();
+
+      const dctx = await b.createBrowserContext();
+      const dp = await dctx.newPage(); await dp.setViewport({ width: 1280, height: 900 });
+      const dir = mkdtempSync(join(tmpdir(), "corta-dl-"));
+      const cdp = await b.target().createCDPSession(); // downloads are set per browser context
+      await cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: dir, browserContextId: (dctx as unknown as { id: string }).id } as never);
+      await dp.goto(BASE + "/t/" + lot, { waitUntil: "networkidle0" });
+      const grab = async (kind: string, ext: string) => {
+        await tapOn(dp, `document.querySelector('button[aria-label="บันทึกหน้านี้"]')`, true); await sleep(300);
+        const onTop = await tapOn(dp, `Array.from(document.querySelectorAll('[role="menuitem"]')).find((x) => x.textContent.includes(${JSON.stringify(kind)}))`, true);
+        for (let i = 0; i < 100; i++) { const f = readdirSync(dir).find((n) => n.endsWith(ext)); if (f) { await sleep(300); return { onTop, file: readFileSync(join(dir, f)) }; } await sleep(250); }
+        return { onTop, file: null as Buffer | null };
+      };
+      const png = await grab("รูปภาพ", ".png");
+      let cover = 0;
+      if (png.file) {
+        const im = PNG.sync.read(png.file); let minX = im.width, maxX = 0;
+        for (let y = 0; y < im.height; y += 4) for (let x = 0; x < im.width; x += 2) { const i = (y * im.width + x) * 4; if (Math.abs(im.data[i] - 248) + Math.abs(im.data[i + 1] - 250) + Math.abs(im.data[i + 2] - 252) > 30) { if (x < minX) minX = x; if (x > maxX) maxX = x; } }
+        cover = maxX > minX ? (maxX - minX) / im.width : 0;
+      }
+      log("desktop: click → บันทึกเป็นรูปภาพ downloads a PNG with the whole passport (not blank)", png.onTop && !!png.file && cover > 0.6, `content across ${Math.round(cover * 100)}% of the width`);
+      const pdf = await grab("PDF", ".pdf");
+      log("desktop: click → บันทึกเป็น PDF downloads a real PDF", pdf.onTop && !!pdf.file && pdf.file.subarray(0, 5).toString() === "%PDF-" && pdf.file.length > 20000, `${pdf.file?.length ?? 0} bytes`);
+      rmSync(dir, { recursive: true, force: true });
+      await dctx.close();
     }
 
     // ---- overview table + manage menu (§5) ---------------------------------------------------------
@@ -269,6 +316,23 @@ window.qa = {
     const pre = await ev<Record<string, unknown>>(`({ title: document.body.innerText.includes(${JSON.stringify(`แก้ไขรอบส่งออก · ${lot}`)}), qty: qa.find(document, "input", "จำนวนดอกไม้")?.value, rows: qa.rows().length, code: qa.find(qa.row(1), "select", "หมายเลขบรรจุภัณฑ์")?.value, other: qa.find(qa.row(2), "input", "ชื่อบรรจุภัณฑ์")?.value, addr: qa.find(document, "input", "ที่อยู่ปลายทาง")?.value })`);
     log("5.4 edit form: title ‘แก้ไขรอบส่งออก · LOT’ + old data", pre.title === true && pre.qty === "500" && pre.rows === 3 && pre.code === code && pre.other === OTHER_NAME && pre.addr === LONG_ADDR, JSON.stringify({ ...pre, addr: String(pre.addr).slice(0, 20) }));
     await act(`qa.inp(document, "จำนวนดอกไม้", "600")`);
+    const kmBefore = await ev<string>(`qa.find(document, "input", "ระยะทางขนส่ง")?.value`);
+    log("edit: the saved distance is still there before anything changes", Number(kmBefore) > 0, `${kmBefore} km`);
+    await act(`qa.inp(document, "ที่อยู่ปลายทาง", "99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110")`, 400);
+    const recomputed = await waitFor(`Number(qa.find(document, "input", "ระยะทางขนส่ง")?.value) > 0 && qa.find(document, "input", "ระยะทางขนส่ง").value !== ${JSON.stringify(kmBefore)}`, 25000);
+    const kmBkk = await ev<string>(`qa.find(document, "input", "ระยะทางขนส่ง")?.value`);
+    log("edit: a new recipient address recomputes the distance", recomputed && Number(kmBkk) < 100, `${kmBefore} → ${kmBkk} km`);
+    await act(`qa.inp(document, "ที่อยู่ปลายทาง", ${JSON.stringify(LONG_ADDR)})`, 400);
+    await waitFor(`qa.find(document, "input", "ระยะทางขนส่ง").value === ${JSON.stringify(kmBefore)}`, 25000);
+    // a distance typed by hand is the user's: a later address change leaves it; "ให้ระบบคำนวณ" hands it back
+    await act(`qa.inp(document, "ระยะทางขนส่ง", "321")`, 200);
+    await act(`qa.inp(document, "ที่อยู่ปลายทาง", ${JSON.stringify(LONG_ADDR + " (ตึกหลัง)")})`, 400); await sleep(2500);
+    const kept = await ev<string>(`qa.find(document, "input", "ระยะทางขนส่ง").value`);
+    log("edit: a distance typed by hand stays when the address changes after it", kept === "321", kept);
+    await act(`qa.click("ให้ระบบคำนวณ")`, 300);
+    await act(`qa.inp(document, "ที่อยู่ปลายทาง", ${JSON.stringify(LONG_ADDR)})`, 400);
+    const autoBack = await waitFor(`qa.find(document, "input", "ระยะทางขนส่ง").value === ${JSON.stringify(kmBefore)}`, 25000);
+    log("edit: ให้ระบบคำนวณ puts the address-based distance back", autoBack);
     await act(`qa.inp(qa.row(0), "จำนวน", "12")`);
     await act(`qa.click(${JSON.stringify(nextLabel)}, null, true)`, 500);
     if (!(await waitFor(`document.body.innerText.includes("ตรวจสอบและยืนยันข้อมูล")`, 8000))) console.log("      edit form errors:", await ev(`Array.from(document.querySelectorAll("p")).map((x) => x.textContent || "").filter((t) => /กรุณา|ต้อง|ไม่ถูกต้อง/.test(t)).join(" | ")`));
@@ -300,8 +364,20 @@ window.qa = {
       const air = (await q.evaluate(`qa.opts(qa.find(document, "select", "ท่าอากาศยานต้นทาง")).includes("__other__")`)) as boolean;
       log("§4 carrier export form loads the farm's packaging rows (+ PKG code)", picked === true && JSON.stringify(lg1.rows) === JSON.stringify(["carton", "basket", "other"]) && lg1.code === code, JSON.stringify(lg1));
       log("§4 carrier form: อื่นๆ on จังหวัดปลายทาง + ท่าอากาศยานต้นทาง", lg1.prov === true && air === true, `${lg1.prov} ${air}`);
+      const carried = (await q.evaluate(`qa.find(document, "input", "ที่อยู่ปลายทาง")?.value`)) as string;
+      log("carrier form: the farm's recipient address comes with the lot", carried === LONG_ADDR, String(carried).slice(0, 40));
       const units = (await q.evaluate(`(() => { const a = qa.find(document, "select", "จำนวนสินค้า"), b = qa.find(document, "select", "จำนวนส่งออก"); return { a: a && a.value, aOther: qa.opts(a).includes("__other__"), b: b && b.value, bOther: qa.opts(b).includes("__other__") }; })()`)) as Record<string, unknown>;
       log("carrier form: quantity units are dropdowns (ดอก from the lot) with อื่นๆ (ระบุ)", units.a === "ดอก" && units.aOther === true && units.b === "ช่อ" && units.bOther === true, JSON.stringify(units));
+      // domestic again: the distance comes from the lot's address (the carrier's branch → recipient); picking the lot again refills it
+      await q.evaluate(`Array.from(document.querySelectorAll("label")).find((x) => x.textContent.trim() === "ส่งภายในประเทศ").click()`); await sleep(300);
+      const kmFilled = () => q.waitForFunction(`Number(qa.find(document, "input", "ระยะทางขนส่ง")?.value) > 0`, { timeout: 25000 }).then(() => true, () => false);
+      const km1ok = await kmFilled();
+      const km1 = (await q.evaluate(`qa.find(document, "input", "ระยะทางขนส่ง")?.value`)) as string;
+      await q.evaluate(`(() => { const s = Array.from(document.querySelectorAll("select")).find((x) => Array.from(x.options).some((o) => o.value === ${JSON.stringify(lot)})); qa.set(s, ""); })()`); await sleep(300);
+      await q.evaluate(`(() => { const s = Array.from(document.querySelectorAll("select")).find((x) => Array.from(x.options).some((o) => o.value === ${JSON.stringify(lot)})); qa.set(s, ${JSON.stringify(lot)}); })()`); await sleep(600);
+      const km2ok = await kmFilled();
+      const km2 = (await q.evaluate(`qa.find(document, "input", "ระยะทางขนส่ง")?.value`)) as string;
+      log("carrier form: distance from the lot's address; picking the lot again fills it again", km1ok && km2ok && km1 === km2, `${km1} → ${km2} km`);
       // carrier sign-up link: the button on รายการรับเข้าจากผู้ผลิต opens the panel (read-only here — no link is made)
       await q.goto(BASE + "/logistic/incoming", { waitUntil: "networkidle0" });
       await q.evaluate(`Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes("ชวนผู้ผลิต")).click()`); await sleep(900);
@@ -401,6 +477,14 @@ window.qa = {
     await act(`qa.set(document.querySelector('input[placeholder="ค้นหา..."]'), "durian")`, 300);
     const found = await ev<string[]>(`Array.from(document.querySelectorAll("div.max-h-64 button")).map((x) => x.textContent.trim())`);
     log("ข้อมูลฟาร์ม: pick ผลไม้ → only fruit listed; typing 'durian' finds ทุเรียน", all.length > 5 && !all.includes("กุหลาบ") && found.includes("ทุเรียน"), `${all.length} fruit · ${found.join(",")}`);
+    let saves = 0; const onReq = (r: { method(): string; url(): string }) => { if (r.method() !== "GET" && r.url().includes("/api/suppliers/")) saves++; };
+    p.on("request", onReq);
+    const cards0 = await ev<number>(`document.querySelectorAll('button[title="ตัวเลือก"]').length`);
+    await act(`document.querySelector('input[placeholder="ค้นหา..."]').focus()`, 100);
+    await p.keyboard.press("Enter"); await sleep(500);
+    const cards1 = await ev<number>(`document.querySelectorAll('button[title="ตัวเลือก"]').length`);
+    p.off("request", onReq);
+    log("ข้อมูลฟาร์ม: Enter in the search box adds ทุเรียน — and does not save the whole form", cards1 === cards0 + 1 && saves === 0 && (await ev<boolean>(`document.body.innerText.includes("ทุเรียน")`)), `cards ${cards0} → ${cards1}, saves ${saves}`);
     await act(`document.body.click()`, 200);
     const dots = await ev<Record<string, unknown>>(`(() => {
       const btns = Array.from(document.querySelectorAll('button[title="ตัวเลือก"]'));
