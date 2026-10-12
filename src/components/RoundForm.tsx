@@ -194,7 +194,9 @@ export default function RoundForm({
     setErrs((e) => ({ ...e, cutDate: "" }));
     // อายุหลังตัดที่คาดการณ์ is the farm's own forecast — no longer derived from the cut date
   }
+  const autoDest = useRef(false); // the province was read from the typed address — it keeps following the address
   function onDest(v: string) {
+    autoDest.current = false;
     setDestination(v);
     setErrs((e) => ({ ...e, destination: "" }));
   }
@@ -219,10 +221,11 @@ export default function RoundForm({
   // Typing an address that names a province picks the destination automatically.
   function onDestAddress(v: string) {
     setDestAddress(v);
-    if (destination) return;
+    if (destination && !autoDest.current) return; // chosen by hand — left alone
+    // the whole province name only: "จ.เ…" half-typed must not pick the first province with an เ in it
     const prov = provinceFromAddress(v);
-    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name.includes(prov)) : undefined;
-    if (hit) onDest(hit.name);
+    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name === prov) : undefined;
+    if (hit && hit.name !== destination) { onDest(hit.name); autoDest.current = true; }
   }
   function useDestLocation() {
     if (!navigator.geolocation) return;

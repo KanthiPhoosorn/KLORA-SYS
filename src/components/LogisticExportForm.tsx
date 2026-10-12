@@ -121,7 +121,9 @@ export default function LogisticExportForm({
   const selectedBatch = batches.find((b) => b.id === batchId) ?? null;
   const farmOf = (b: Batch | null) => (b ? suppliers.find((x) => x.id === b.supplierId) : undefined);
   // ปลายทาง (province) → distance estimate from the farm, unless a destination GPS is given.
+  const autoDest = useRef(false); // the province was read from the typed address — it keeps following the address
   function onDestProvince(v: string) {
+    autoDest.current = false;
     setDestination(v);
     setErrs((x) => ({ ...x, destination: "" }));
   }
@@ -153,10 +155,11 @@ export default function LogisticExportForm({
   }, [dist.km, distEdited, batchId]);
   function onDestAddress(v: string) {
     setDestAddress(v);
-    if (destination || shipType !== "domestic") return;
+    if ((destination && !autoDest.current) || shipType !== "domestic") return; // chosen by hand — left alone
+    // the whole province name only: "จ.เ…" half-typed must not pick the first province with an เ in it
     const prov = provinceFromAddress(v);
-    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name.includes(prov)) : undefined;
-    if (hit) onDestProvince(hit.name);
+    const hit = prov ? DESTINATIONS.find((d) => d.province === prov || d.name === prov) : undefined;
+    if (hit && hit.name !== destination) { onDestProvince(hit.name); autoDest.current = true; }
   }
   function useDestLocation() {
     if (!navigator.geolocation) return;
@@ -178,6 +181,7 @@ export default function LogisticExportForm({
     setExportUnit(unit === "ดอก" ? "ช่อ" : unit);
     setAgeDays(String(b.ageDays));
     setDestination(b.destination ?? "");
+    autoDest.current = false;
     setDestAddress(b.destinationAddress ?? "");
     setDestGps(b.destLat != null && b.destLng != null ? `${b.destLat}, ${b.destLng}` : "");
     setDistEdited(false);

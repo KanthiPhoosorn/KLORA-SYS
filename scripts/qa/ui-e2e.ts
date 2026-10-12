@@ -506,6 +506,14 @@ window.qa = {
     const mob = await ev<Record<string, unknown>>(`(() => { const out = []; for (const r of qa.rows()) { const R = r.getBoundingClientRect(); for (const el of r.querySelectorAll("select, input, button")) { const e = el.getBoundingClientRect(); if (e.width && (e.right > R.right + 1 || e.left < R.left - 1)) out.push(qa.lab(el) || el.tagName); } } return { sx: document.documentElement.scrollWidth - innerWidth, spill: out.slice(0, 5) }; })()`);
     log("§8 phone 390 px: packaging rows fit, no sideways scroll", (mob.sx as number) <= 1 && (mob.spill as string[]).length === 0, JSON.stringify(mob));
     await shot("phone-form");
+    // typing the address first: the province follows the whole name ("จ.เ…" half-typed picked กรุงเทพฯ once), and a correction
+    const addrBox = await p.$('input[placeholder^="เช่น 99/1"]');
+    await addrBox!.click(); await p.keyboard.type("12 ม.3 ต.ริมกก อ.เมือง จ.เชียงใหม่", { delay: 15 }); await sleep(300);
+    const prov1 = await ev<string>(`qa.find(document, "select", "จังหวัดปลายทาง").value`);
+    for (let i = 0; i < 9; i++) await p.keyboard.press("Backspace");
+    await p.keyboard.type("เชียงราย", { delay: 15 }); await sleep(300);
+    const prov2 = await ev<string>(`qa.find(document, "select", "จังหวัดปลายทาง").value`);
+    log("typing the address first picks the province from its whole name, and follows a correction", prov1 === "เชียงใหม่" && prov2 === "เชียงราย", `${prov1} → ${prov2}`);
     log("no page / console errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   } catch (e) {
     log("run", false, String((e as Error).message).slice(0, 200));
