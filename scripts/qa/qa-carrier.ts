@@ -26,7 +26,7 @@ export async function qaCarrier(sql: NeonQueryFunction<false, false>, tag: strin
   const cookie = /klora_session=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")![1];
   if (j.status === "pending") {
     const ok = await fetch(`${BASE}/api/logistic/companies/${j.orgCode}`, { method: "PATCH", headers: { "Content-Type": "application/json", Cookie: `klora_session=${mint("USR-0003")}` }, body: JSON.stringify({ action: "approve" }) });
-    if (!ok.ok) throw new Error(`qa carrier approve ${ok.status}`);
+    if (!ok.ok) { await cleanupQaCarriers(sql); throw new Error(`qa carrier approve ${ok.status}`); } // leave nothing behind
   }
   const [u] = await sql`SELECT id, branch_id, org_code, company FROM users WHERE email = ${String(body.email)}`;
   return { cookie, userId: String(u.id), orgCode: String(u.org_code), branchId: String(u.branch_id), company: String(u.company), email: String(body.email) };

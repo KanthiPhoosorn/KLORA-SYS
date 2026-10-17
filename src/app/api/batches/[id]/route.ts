@@ -215,7 +215,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const sup = await getSupplier(batch.supplierId);
   const locked = sup ? lockRound(sup, f, batch.carrier) : null;
   if (locked) return NextResponse.json({ error: locked }, { status: 400 });
-  // the lot keeps its branch unless the farm picked another (a branch since closed may stay on its own lot)
+  // the lot keeps its branch unless the farm picked another (a branch since closed may stay on its own lot);
+  // an edit that does not mention the branch at all leaves it as it is
+  if (!("branchId" in body) && !("branch" in body)) f.branch = batch.branch;
   const where = await placeRound(f, body.branchId ?? (f.branch === batch.branch ? batch.branchId : undefined), sup?.carrierOrg ?? undefined, batch.branchId);
   if (where) return NextResponse.json({ error: where }, { status: 400 });
 
