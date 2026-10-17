@@ -6,10 +6,10 @@ import TileMap from "@/components/TileMap";
 import { parseLatLng } from "@/lib/latlng";
 
 // Address block of the logistic sign-up forms (doc "Logistic", 17 Oct 2026): street address, จังหวัด (by
-// ภาค) → อำเภอ/เขต → ตำบล/แขวง → รหัสไปรษณีย์ shown by the system, and พิกัดที่ตั้ง typed or picked on a map.
+// ภาค) → อำเภอ/เขต → ตำบล/แขวง → รหัสไปรษณีย์ shown by the system (KYN's รหัสไปรษณีย์ (แยกภาค) sheet), and พิกัดที่ตั้ง typed or picked on a map.
 export interface AddressValue { address: string; province: string; district: string; subdistrict: string; postcode: string; gps: string }
 export const EMPTY_ADDRESS: AddressValue = { address: "", province: "", district: "", subdistrict: "", postcode: "", gps: "" };
-type Sub = { name: string; postcode: string; lat: number; lng: number };
+type Sub = { name: string; postcode: string; lat: number | null; lng: number | null };
 
 export default function AddressFields({ value, onChange, errs, clearErr, addressLabel, addressPlaceholder = "บ้านเลขที่ หมู่ ซอย ถนน", gpsPlaceholder, gpsHint, inputCls, labelCls, req }: {
   value: AddressValue;
@@ -100,7 +100,7 @@ export default function AddressFields({ value, onChange, errs, clearErr, address
       </div>
       {picking ? (
         <MapPicker
-          start={pin ?? (sub ? { lat: sub.lat, lng: sub.lng } : null)}
+          start={pin ?? (sub?.lat != null && sub.lng != null ? { lat: sub.lat, lng: sub.lng } : null)}
           onClose={() => setPicking(false)}
           onPick={(p) => { set({ gps: `${p.lat}, ${p.lng}` }); clearErr("gps"); setPicking(false); }}
         />

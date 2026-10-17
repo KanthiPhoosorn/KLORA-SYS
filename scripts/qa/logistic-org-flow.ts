@@ -151,6 +151,8 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     // --- 8. KYN sees the companies -------------------------------------------------------------------------
     const kyn = await page("/kyn/carriers", KYN);
     log("KYN › บริษัทขนส่ง lists the companies with their type", kyn.text.includes(`QA ขนส่ง loa ${TS}`) && kyn.text.includes("ลิงก์เชิญบริษัท"));
+    const chon = (await api(`/api/places?province=${encodeURIComponent("ชลบุรี")}&district=${encodeURIComponent("เมืองชลบุรี")}`, "GET")).json.subdistricts as { name: string; postcode: string }[];
+    log("postcodes come from KYN's รหัสไปรษณีย์ (แยกภาค) sheet (เสม็ด 20000, แสนสุข 20130)", chon?.find((x) => x.name === "เสม็ด")?.postcode === "20000" && chon?.find((x) => x.name === "แสนสุข")?.postcode === "20130");
     log("places API: provinces by region, districts, ตำบล + postcode", (await api("/api/places", "GET")).json.regions?.length === 6 && (await api(`/api/places?province=${encodeURIComponent("เชียงราย")}&district=${encodeURIComponent("แม่สาย")}`, "GET")).json.subdistricts?.some((s: { name: string; postcode: string }) => s.name === "เวียงพางคำ" && s.postcode === "57130"));
   } catch (e) {
     log("run", false, String((e as Error).stack ?? e).slice(0, 300));

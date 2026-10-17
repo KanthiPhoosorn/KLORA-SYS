@@ -156,6 +156,31 @@ const selectWhenReady = async (p: Page, name: string, value: string) => {
     await m.goto(`${BASE}/logistic/join/${link2}`, { waitUntil: "networkidle0" });
     const sx = (await m.evaluate("document.documentElement.scrollWidth - innerWidth")) as number;
     log("branch sign-up at 390 px: company locked, no sideways scroll", sx <= 1 && (await text(m)).includes(`QA ขนส่ง ui ${TS}`) && (await text(m)).includes("ลงทะเบียนสาขา"), `overflow ${sx}px`);
+    // the map picker on a phone: real touch taps
+    await selectWhenReady(m, "province", "เชียงราย");
+    await selectWhenReady(m, "district", "แม่สาย");
+    await selectWhenReady(m, "subdistrict", "เวียงพางคำ");
+    log("phone: ตำบล → รหัสไปรษณีย์ from the sheet", (await m.$eval('input[name="postcode"]', (e) => (e as HTMLInputElement).value)) === "57130");
+    const pick = (await m.$('button[aria-label="เลือกตำแหน่งจากแผนที่"]'))!;
+    await pick.scrollIntoView(); // a finger scrolls to it first
+    await sleep(300);
+    const pb = (await pick.boundingBox())!;
+    const onTop = await m.evaluate(`(() => { const e = document.querySelector('button[aria-label="เลือกตำแหน่งจากแผนที่"]'); const r = e.getBoundingClientRect(); const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!h && e.contains(h); })()`);
+    log("phone: the map button is reachable (nothing on top of it)", onTop === true);
+    await m.touchscreen.tap(pb.x + pb.width / 2, pb.y + pb.height / 2);
+    await m.waitForSelector('[role="dialog"][aria-label="เลือกตำแหน่งจากแผนที่"]', { timeout: 8000 });
+    const mTiles = await m.waitForFunction(`Array.from(document.querySelectorAll('[role="dialog"] img')).filter((i) => i.src.includes("tile.openstreetmap.org") && i.complete && i.naturalWidth > 0).length >= 2`, { timeout: 20000 }).then(() => true, () => false);
+    const mb = (await (await m.$('[role="dialog"] .cursor-crosshair'))!.boundingBox())!;
+    await m.touchscreen.tap(mb.x + mb.width / 2 + 30, mb.y + mb.height / 2 + 20);
+    await sleep(300);
+    const use = (await m.evaluateHandle(`Array.from(document.querySelectorAll('[role="dialog"] button')).find((b) => b.innerText.includes("ใช้ตำแหน่งนี้"))`)).asElement() as import("puppeteer-core").ElementHandle<Element>;
+    const ub = (await use.boundingBox())!;
+    const dialogFits = ub.x >= 0 && ub.x + ub.width <= 390;
+    await m.touchscreen.tap(ub.x + ub.width / 2, ub.y + ub.height / 2);
+    await sleep(300);
+    const mGps = await m.$eval('input[name="gps"]', (e) => (e as HTMLInputElement).value);
+    const [mla, mln] = mGps.split(",").map(Number);
+    log("phone: map picker opens with tiles, a tap pins the spot, fits the screen", mTiles && dialogFits && Math.abs(mla - 20.41) < 0.08 && Math.abs(mln - 99.88) < 0.08 && ((await m.evaluate("document.documentElement.scrollWidth - innerWidth")) as number) <= 1, mGps);
     log("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   } catch (e) {
     log("run", false, String((e as Error).stack ?? e).slice(0, 300));
