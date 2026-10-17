@@ -1,27 +1,36 @@
 import Link from "next/link";
 import { Bell, LifeBuoy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { logisticAccess } from "@/lib/logistic-org";
+import { RECORDS_EXPORTS } from "@/lib/carriers";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
 
 export const dynamic = "force-dynamic";
 
-const ITEMS: PortalNavItem[] = [
-  { href: "/logistic", label: "ภาพรวม", icon: "home", exact: true },
-  { href: "/logistic/new", label: "เพิ่มข้อมูลรอบส่งออก", icon: "plus" },
-  { href: "/logistic/incoming", label: "รายการรับเข้าจากผู้ผลิต", icon: "inbox" },
-  { href: "/logistic/search", label: "ค้นหา QR code", icon: "search" },
-  { href: "/logistic/branches", label: "ข้อมูลรายสาขา", icon: "building" },
-  { href: "/logistic/history", label: "ประวัติ", icon: "file" },
-  { href: "/logistic/settings", label: "จัดการระบบ", icon: "users" },
-];
-
 export default async function LogisticLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole("logistic");
+  const access = await logisticAccess(user); // pending accounts never get here — requireRole sends them to /logistic/waiting
+
+  const exports = !access.org || RECORDS_EXPORTS.includes(access.org.providerType);
+  const items: PortalNavItem[] = [
+    { href: "/logistic", label: "ภาพรวม", icon: "home", exact: true },
+    ...(exports ? [{ href: "/logistic/new", label: "เพิ่มข้อมูลรอบส่งออก", icon: "plus" } as PortalNavItem] : []),
+    { href: "/logistic/incoming", label: "รายการรับเข้าจากผู้ผลิต", icon: "inbox" },
+    { href: "/logistic/search", label: "ค้นหา QR code", icon: "search" },
+    // the per-branch comparison belongs to the head office; a branch sees only itself
+    ...(access.hq ? [{ href: "/logistic/branches", label: "ข้อมูลรายสาขา", icon: "building" } as PortalNavItem] : []),
+    { href: "/logistic/history", label: "ประวัติ", icon: "file" },
+    { href: "/logistic/settings", label: "จัดการระบบ", icon: "users" },
+  ];
+  const where = [access.org?.company ?? user.company, access.branch && !access.branch.isHq ? access.branch.name : access.branch?.isHq ? "สำนักงานใหญ่" : ""].filter(Boolean).join(" · ");
 
   const header = (
     <>
-      <div className="hidden min-w-0 truncate text-lg font-semibold text-slate-800 sm:block">โรงคัดแยกพัสดุ</div>
+      <div className="hidden min-w-0 sm:block">
+        <div className="truncate text-lg font-semibold text-slate-800">โรงคัดแยกพัสดุ</div>
+        {where ? <div className="truncate text-[12px] text-slate-500">{where}</div> : null}
+      </div>
       <div className="ml-auto flex items-center gap-4">
         <Link href="/logistic/settings" className="hidden items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800 sm:flex">
           <LifeBuoy size={16} /> Help center
@@ -33,7 +42,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
   );
 
   return (
-    <PortalShell accent="blue" brand="Logistic" items={ITEMS} header={header} account={{ label: "ID", id: user.orgCode ?? user.username }}>
+    <PortalShell accent="blue" brand="Logistic" items={items} header={header} account={{ label: "ID", id: user.orgCode ?? user.username }}>
       {children}
     </PortalShell>
   );

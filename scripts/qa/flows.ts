@@ -3,6 +3,7 @@
 //   npx tsx --env-file=.env.local scripts/qa/flows.ts
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
+import { companyForm, cleanupQaCarriers } from "./qa-carrier";
 
 const BASE = "http://localhost:3123";
 const SECRET = process.env.KLORA_SESSION_SECRET || "klora-dev-secret-change-in-production";
@@ -158,8 +159,16 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   supCookie = r.cookie || supCookie;
 
   // ---------- Logistic register → login → transport data → status → discard → prints ----------
-  r = await api("/api/auth/register-logistic", { method: "POST", body: { username: "qa_log_" + TS, email: LOG_EMAIL, company: "QA Logistics", branch: "สาขาเชียงราย", password: PW, confirmPassword: PW } });
-  log("register logistic", r.status === 201 || r.status === 200, `${r.status} ${r.json?.error || ""}`);
+  // a logistic company signs up (doc "Logistic", 17 Oct 2026), KYN approves it, and the farm's lot is the one
+  // dropped at its head office (สาขาต้นทาง) — a carrier only works on its own branches' lots
+  r = await api("/api/auth/register-logistic", { method: "POST", body: companyForm("log", TS, { email: LOG_EMAIL, username: "qa_log_" + TS, password: PW, confirmPassword: PW }) });
+  log("register logistic", r.status === 201, `${r.status} ${r.json?.error || ""}`);
+  log("self-registered company waits for KYN", r.json?.status === "pending");
+  const logOrg = r.json?.orgCode as string;
+  r = await api(`/api/logistic/companies/${logOrg}`, { method: "PATCH", cookie: mint("USR-0003"), body: { action: "approve" } });
+  log("KYN approves the company", r.status === 200, String(r.status));
+  const [logHq] = await sql`SELECT branch_id FROM users WHERE email = ${LOG_EMAIL}`;
+  await sql`UPDATE batches SET branch_id = ${logHq.branch_id} WHERE id = ${batchId}`;
   let logCookie = r.cookie || "";
   r = await api("/api/auth/login", { method: "POST", body: { login: LOG_EMAIL, password: PW } });
   log("login logistic", r.status === 200 && r.json?.redirect === "/logistic", `${r.status} ${r.json?.redirect}`);
@@ -299,10 +308,12 @@ async function api(path: string, opts: { method?: string; body?: unknown; cookie
   await sql`DELETE FROM invites WHERE supplier_id = ${supId} OR email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM members WHERE supplier_id = ${supId} OR email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`;
+  await sql`DELETE FROM custom_entries WHERE supplier_id = ${supId}`;
   await sql`DELETE FROM farm_monthly_inputs WHERE supplier_id = ${supId}`;
   await sql`DELETE FROM otp WHERE email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM users WHERE email LIKE '%@klora-qa.test'`;
   await sql`DELETE FROM suppliers WHERE id = ${supId}`;
+  await cleanupQaCarriers(sql);
   await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%' OR key LIKE '%klora-qa.test%' OR key LIKE 'pwcheck:user:%'`;
   const left = await sql`SELECT (SELECT count(*) FROM users WHERE email LIKE '%@klora-qa.test') u, (SELECT count(*) FROM suppliers WHERE id = ${supId}) s, (SELECT count(*) FROM batches WHERE supplier_id = ${supId}) b`;
   log("cleanup complete", left[0].u === "0" && left[0].s === "0" && left[0].b === "0", JSON.stringify(left[0]));

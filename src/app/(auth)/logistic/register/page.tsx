@@ -1,10 +1,17 @@
 import Link from "next/link";
-import LogisticRegisterForm from "@/components/LogisticRegisterForm";
+import LogisticSignupForm from "@/components/LogisticSignupForm";
+import { getCompanyInvite } from "@/lib/logistic-org";
 
 export const metadata = { title: "ลงทะเบียน · Logistic · Corta" };
 
-// Logistic portal register — same blue chrome as the login (matches the Figma Logistic Register frame).
-export default function LogisticRegisterPage() {
+// Logistic portal register — same blue chrome as the login. The form is the company sign-up (doc "Logistic"
+// แบบที่ 1, 17 Oct 2026); through KYN's invite link (?invite=…) the company is active at once.
+export const dynamic = "force-dynamic";
+
+export default async function LogisticRegisterPage({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
+  const asked = ((await searchParams).invite ?? "").toUpperCase();
+  const inv = asked ? await getCompanyInvite() : null;
+  const invite = inv && inv.token === asked ? asked : undefined;
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* Top bar */}
@@ -44,8 +51,8 @@ export default function LogisticRegisterPage() {
         </div>
 
         {/* Right — form */}
-        <div className="flex flex-1 items-center justify-center px-8 py-10">
-          <LogisticRegisterForm />
+        <div className="flex flex-1 items-start justify-center bg-slate-50 px-4 py-8 sm:px-8 sm:py-10">
+          <LogisticSignupForm mode="company" invite={invite} />
         </div>
       </div>
     </div>

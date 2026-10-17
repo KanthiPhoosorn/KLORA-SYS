@@ -59,8 +59,13 @@ type Errors = Record<string, string>;
 // Logistic / Exporter data-export (Figma "Logistic → data export"): pick a received Batch,
 // then enrich it with the export transport spec (vehicle, fuel, weight, reefer, domestic/intl).
 export default function LogisticExportForm({
-  suppliers, batches, catalog = DEFAULT_CATALOG, originBranch,
-}: { suppliers: Supplier[]; batches: Batch[]; catalog?: PackCatalog; /** the carrier's own branch (สาขาต้นทาง) */ originBranch?: string }) {
+  suppliers, batches, catalog = DEFAULT_CATALOG, originBranch, origin: branchPoint,
+}: {
+  suppliers: Supplier[]; batches: Batch[]; catalog?: PackCatalog;
+  /** the carrier's own branch (สาขาต้นทาง) */ originBranch?: string;
+  /** where that branch is (its registered พิกัด) — the start of the distance */
+  origin?: { lat: number; lng: number; label: string } | null;
+}) {
   const router = useRouter();
   const supById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
 
@@ -142,10 +147,10 @@ export default function LogisticExportForm({
   }
   // Distance = recipient address − origin branch (the carrier's branch; else the farm), Thai Post doc 9 Oct 2026.
   const [distEdited, setDistEdited] = useState(false);
-  const branchHit = findBranch(originBranch);
+  const branchHit = branchPoint ?? (() => { const b = findBranch(originBranch); return b ? { lat: b.lat, lng: b.lng, label: b.name } : null; })();
   const farmNow = farmOf(selectedBatch);
   const origin = branchHit
-    ? { lat: branchHit.lat, lng: branchHit.lng, label: branchHit.name }
+    ? branchHit
     : farmNow?.gpsLat && farmNow?.gpsLng ? { lat: farmNow.gpsLat, lng: farmNow.gpsLng, label: "ที่ตั้งฟาร์ม" } : null;
   const dist = useRecipientDistance(shipType === "domestic" ? origin : null, destAddress, destGpsParsed, destination);
   useEffect(() => {

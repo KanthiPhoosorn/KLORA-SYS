@@ -12,6 +12,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { PNG } from "pngjs";
+import { qaCarrier, cleanupQaCarriers } from "./qa-carrier";
 
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36); const EMAIL = `qa-ui-${TS}@klora-qa.test`;
 const SHOTS = process.env.SHOT_DIR;
@@ -72,7 +73,10 @@ window.qa = {
 (async () => {
   const sql = neon(process.env.DATABASE_URL!);
   await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1'`;
-  const lg = mint("USR-0002");
+  // the carrier: a QA ศูนย์คัดแยกสินค้า company whose head office is in Don Mueang — the farm drops its lot
+  // there (สาขาต้นทาง), so this carrier sees it, prints it and records its export (doc "Logistic", 17 Oct 2026)
+  const QC = await qaCarrier(sql, "ui-c", TS, { address: "1 ถ.วิภาวดีรังสิต", province: "กรุงเทพมหานคร", district: "ดอนเมือง", subdistrict: "สีกัน", gps: "13.9126, 100.6068" });
+  const lg = QC.cookie;
   let supId = ""; let lot = ""; let code = "";
   const b = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
   try {
@@ -195,7 +199,8 @@ window.qa = {
     log("§S2 labels: จังหวัดปลายทาง + สาขาต้นทาง", await ev(`!!qa.find(document, "select", "จังหวัดปลายทาง", 0, true) && !!qa.find(document, "select", "สาขาต้นทาง", 0, true)`));
     await act(`qa.sel(document, "จังหวัดปลายทาง", "เชียงใหม่")`);
     await act(`qa.inp(document, "รหัสไปรษณีย์", "50100")`);
-    await act(`(() => { const s = qa.find(document, "select", "สาขาต้นทาง"); return qa.set(s, Array.from(s.options).map((x) => x.value).find((v) => v && v !== "__other__")); })()`);
+    log("สาขาต้นทาง lists registered branches with their company", await ev(`Array.from(qa.find(document, "select", "สาขาต้นทาง").options).some((o) => o.value === ${JSON.stringify(QC.branchId)} && o.textContent.includes(${JSON.stringify(QC.company)}))`));
+    await act(`qa.set(qa.find(document, "select", "สาขาต้นทาง"), ${JSON.stringify(QC.branchId)})`);
     await sleep(900);
     const beforeAddr = await ev<{ km: string; hint: boolean }>(`({ km: qa.find(document, "input", "ระยะทางขนส่ง")?.value, hint: document.body.innerText.includes("กรอกที่อยู่ผู้รับ ระบบจะคำนวณระยะทาง") })`);
     log("§S2 no distance from the province alone — it asks for the recipient address", beforeAddr.km === "" && beforeAddr.hint, JSON.stringify(beforeAddr));
@@ -531,6 +536,7 @@ window.qa = {
     }
     await sql`DELETE FROM rate_limits WHERE key IN (SELECT k || id FROM users, (VALUES ('pkg-assets:user:'), ('geocode:user:')) v(k) WHERE email = ${EMAIL})`;
     await sql`DELETE FROM users WHERE email = ${EMAIL}`; await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
+    await cleanupQaCarriers(sql);
   }
   console.log(fails ? `${fails} failed` : "all passed");
 })();

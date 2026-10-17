@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useCooldown, retryAfterOf } from "@/lib/use-cooldown";
 import { Eye, EyeOff, Loader2, MapPin, Check } from "lucide-react";
 import ProduceGroupsEditor, { CertificationsEditor, emptyGroup, emptyCert, certErrors, certPayload, type CertDraft, type ProduceGroup } from "@/components/ProduceGroupsEditor";
 import type { Certification } from "@/lib/types";
@@ -110,6 +111,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
     setStep((s) => s + 1);
   }
 
+  const wait = useCooldown(); // too many sign-ups from this place → wait, counting down
   async function submit() {
     setBusy(true); setError(null);
     try {
@@ -118,6 +120,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
         body: JSON.stringify({ ...f, ...resourcePayload(resUse, yieldTargets(cleanGroups)), flowerType: cleanGroups[0]?.type ?? f.flowerType, varieties, flowerTypes: cleanGroups, certifications: skipCerts ? [] : certPayload(certs), via, carrierLink: linkToken }),
       });
       const data = await res.json();
+      if (res.status === 429) wait.start(retryAfterOf(res, data));
       if (!res.ok) throw new Error(data.error || "สมัครไม่สำเร็จ");
       // certificate files picked during sign-up go up now that the account exists (it can be redone later)
       if (!skipCerts) for (const [i, c] of certs.entries()) {
@@ -219,7 +222,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
           </div>
         )}
 
-        {error ? <p className="rounded-[5px] bg-brand-pink-light px-3 py-2 text-[12px] text-[#c1006e]">{error}</p> : null}
+        {error ? <p role="alert" className="rounded-[5px] bg-brand-pink-light px-3 py-2 text-[12px] text-[#c1006e]">{error}{wait.left > 0 ? <span className="mt-1 block font-semibold">ลองใหม่ได้ในอีก <span className="tabular-nums">{wait.label}</span> นาที</span> : null}</p> : null}
 
         <div className="space-y-[16px]">
           <div className="flex gap-3">
@@ -229,7 +232,7 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
             {step < 2 ? (
               <button type="button" onClick={next} className="flex h-[35px] flex-1 items-center justify-center rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90">ถัดไป</button>
             ) : (
-              <button type="button" onClick={submit} disabled={busy} className="flex h-[35px] flex-1 items-center justify-center gap-2 rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy ? <Loader2 size={16} className="animate-spin" /> : null} สมัครสมาชิก · รับ ID</button>
+              <button type="button" onClick={submit} disabled={busy || wait.left > 0} className="flex h-[35px] flex-1 items-center justify-center gap-2 rounded-[5px] bg-brand-pink text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy ? <Loader2 size={16} className="animate-spin" /> : null} สมัครสมาชิก · รับ ID</button>
             )}
           </div>
           <p className="text-center text-[10px] text-black">

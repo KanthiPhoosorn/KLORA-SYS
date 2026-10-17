@@ -7,6 +7,7 @@ import type { BatchStatus } from "@/lib/types";
 import { parseRound } from "@/lib/round-parse";
 import { queueRoundOthers, queuePackagingOthers } from "@/lib/custom-queue";
 import { lockRound, withoutBound } from "@/lib/carrier-lock";
+import { myLots, logisticWriteRefusal, logisticAccess, placeRound } from "@/lib/logistic-org";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -15,9 +16,10 @@ export async function GET(req: Request) {
   if (g.deny) return g.deny;
   const q = new URL(req.url).searchParams.get("supplierId");
   const supplierId = g.user.role === "supplier" ? (g.user.supplierId ?? "") : q;
-  const batches = supplierId
-    ? await getBatchesBySupplier(supplierId)
-    : await getBatches();
+  // a carrier lists only its own lots (its branch, or its company for the head office)
+  const batches = g.user.role === "logistic"
+    ? (await myLots(g.user)).filter((b) => !supplierId || b.supplierId === supplierId)
+    : supplierId ? await getBatchesBySupplier(supplierId) : await getBatches();
   return NextResponse.json(batches);
 }
 
@@ -44,6 +46,8 @@ export async function POST(req: Request) {
     supplierId = user.supplierId;
     sup = await getSupplier(supplierId);
   } else if (user.role === "logistic" && body.supplierId) {
+    const refusal = await logisticWriteRefusal(user);
+    if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
     sup = await getSupplier(String(body.supplierId));
     if (!sup) return NextResponse.json({ error: "ไม่พบฟาร์มที่เลือก" }, { status: 400 });
     if (sup.carrierOrg && sup.carrierOrg !== user.orgCode) return NextResponse.json({ error: "ฟาร์มนี้ส่งกับผู้ขนส่งรายอื่น" }, { status: 403 });
@@ -58,6 +62,14 @@ export async function POST(req: Request) {
   // a farm bound through a carrier's link ships only with that carrier
   const locked = sup ? lockRound(sup, fields) : null;
   if (locked) return NextResponse.json({ error: locked }, { status: 400 });
+  // which branch (and so which carrier) the lot belongs to: the farm's สาขาต้นทาง, or the carrier's own branch
+  if (user.role === "logistic") {
+    const own = (await logisticAccess(user)).branch;
+    if (own) { fields.branchId = own.id; fields.branch = own.name; }
+  } else {
+    const where = await placeRound(fields, body.branchId, sup?.carrierOrg ?? undefined);
+    if (where) return NextResponse.json({ error: where }, { status: 400 });
+  }
   const { packagingItems } = fields;
   const status: BatchStatus = body.status === "draft" ? "draft" : "submitted";
 

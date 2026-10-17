@@ -12,7 +12,8 @@ import { PRODUCT_CATEGORIES, typesFor, variantsFor, categoryOfType } from "@/lib
 import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_LEVELS, gradeLabel, UNIT_LABEL } from "@/lib/produce";
 import type { ProductCategory, QuantityUnit, Ripeness } from "@/lib/types";
 import { AlertTriangle, MapPin } from "lucide-react";
-import { BRANCHES, findBranch } from "@/lib/branches";
+import { findBranch } from "@/lib/branches";
+import type { OriginBranch } from "@/lib/logistic-org";
 import type { Supplier, Batch } from "@/lib/types";
 
 const inputCls =
@@ -67,6 +68,7 @@ export default function RoundForm({
   edit,
   copyFrom,
   packPhotos: savedPhotos = [],
+  branches = [],
 }: {
   supplier: Supplier;
   /** แก้ไขรอบส่งออก: the lot to edit (form prefilled, saved with PUT under the same LOT code) */
@@ -75,6 +77,8 @@ export default function RoundForm({
   copyFrom?: Batch;
   /** รูปถ่ายตอนแพ็ก already on the lot being edited */
   packPhotos?: PackPhoto[];
+  /** สาขาต้นทาง choices — registered carriers' active branches (lib/logistic-org originBranches) */
+  branches?: OriginBranch[];
   varietyOptions?: string[];
   /** KYN central packaging table (standard sizes/weights, materials) */
   catalog?: PackCatalog;
@@ -173,9 +177,13 @@ export default function RoundForm({
   const [carrier, setCarrier] = useState<CarrierKey>(lockedCarrier ?? CARRIERS.find((c) => c.label === src?.carrier)?.key ?? "thaipost");
   const [postalCode, setPostalCode] = useState(src?.postalCode ?? "");
   const [provider, setProvider] = useState(lockedProvider ?? src?.provider ?? "");
-  // the round stores the branch name; the select wants its id (a typed-in branch stays as text)
-  const branchIdOf = (name?: string) => (name ? BRANCHES.find((b) => b.name === name)?.id ?? name : "");
-  const [branch, setBranch] = useState(branchIdOf(src?.branch ?? (lockedCarrier ? supplier.carrierBranch : undefined)));
+  // the select holds a branch id; a lot's branch is found by id, else by name; a typed-in branch stays as text
+  const branchIdOf = (id?: string, name?: string) =>
+    (id && branches.some((b) => b.id === id) ? id : name ? branches.find((b) => b.name === name)?.id ?? name : "");
+  const [branch, setBranch] = useState(
+    src ? branchIdOf(edit ? src.branchId : undefined, src.branch) : lockedCarrier ? branchIdOf(supplier.carrierBranchId, supplier.carrierBranch) : "",
+  );
+  const picked = branches.find((b) => b.id === branch);
 
   const isThaipost = carrier === "thaipost";
   // Freemium: a free SUP account can only ship via ไปรษณีย์ไทย; other carriers unlock with Pro.
@@ -234,7 +242,7 @@ export default function RoundForm({
 
   // Distance = recipient address − origin branch (Thai Post doc 9 Oct 2026), recomputed whenever
   // the branch, address, pin or province changes — unless the user typed a distance themselves.
-  const originBranch = findBranch(branch);
+  const originBranch = picked?.lat != null && picked?.lng != null ? { lat: picked.lat, lng: picked.lng, name: picked.name } : picked ? undefined : findBranch(branch);
   const origin = originBranch
     ? { lat: originBranch.lat, lng: originBranch.lng, label: originBranch.name }
     : supplier.gpsLat && supplier.gpsLng ? { lat: supplier.gpsLat, lng: supplier.gpsLng, label: branch ? "ที่ตั้งฟาร์ม (ไม่ทราบพิกัดของสาขานี้)" : "ที่ตั้งฟาร์ม (ยังไม่เลือกสาขาต้นทาง)" } : null;
@@ -251,7 +259,7 @@ export default function RoundForm({
   }, [dist.km, distEdited]);
 
   const carrierLabel = CARRIERS.find((c) => c.key === carrier)!.label;
-  const branchName = (id: string) => BRANCHES.find((b) => b.id === id)?.name ?? id;
+  const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? id;
   const reviewPairs = (): Record<string, string> => ({
     ชนิด: flowerType, พันธุ์: variety,
     จำนวน: flowerCount ? `${Number(flowerCount).toLocaleString()} ${UNIT_LABEL[unit]}` : "",
@@ -343,6 +351,7 @@ export default function RoundForm({
           provider: isThaipost ? undefined : provider,
           postalCode: isThaipost ? postalCode.trim() : undefined,
           branch: branchName(branch),
+          branchId: picked?.id, // the branch (and carrier company) this lot goes to
           basketIds: pk.basketIds,
           shippedWeightKg: packedKg,
           expectedAgeDays: isFlower && ageDays ? Number(ageDays) : undefined,
@@ -701,7 +710,7 @@ export default function RoundForm({
           )}
           <div>
             <label className={labelCls}>สาขาต้นทาง{req}</label>
-            <SelectOther value={branch} onChange={(v) => { setBranch(v); setErrs((x) => ({ ...x, branch: "" })); }} options={BRANCHES.map((b) => ({ value: b.id, label: b.name }))} placeholder="เลือกสาขาต้นทาง" className={inputCls} invalid={!!errs.branch} otherPlaceholder="ชื่อสาขาต้นทาง" />
+            <SelectOther value={branch} onChange={(v) => { setBranch(v); setErrs((x) => ({ ...x, branch: "" })); }} options={branches.map((b) => ({ value: b.id, label: `${b.name} · ${b.company}` }))} placeholder="เลือกสาขาต้นทาง" className={inputCls} invalid={!!errs.branch} otherPlaceholder="ชื่อสาขาต้นทาง" />
             <Err msg={errs.branch} />
           </div>
         </div>

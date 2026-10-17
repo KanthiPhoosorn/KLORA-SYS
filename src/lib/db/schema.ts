@@ -8,6 +8,9 @@
 
 import { pgTable, text, integer, doublePrecision, boolean, bigint, jsonb } from "drizzle-orm/pg-core";
 import type {
+  OrgStatus,
+  BranchStatus,
+  BranchEvent,
   SupplierStatus,
   BatchStatus,
   ShipmentStatus,
@@ -71,6 +74,7 @@ export const suppliers = pgTable("suppliers", {
   carrierOrg: text("carrier_org"),
   carrierCompany: text("carrier_company"),
   carrierBranch: text("carrier_branch"),
+  carrierBranchId: text("carrier_branch_id"), // → logistic_branches.id
   carrierLink: text("carrier_link"),
   productPhotos: jsonb("product_photos").$type<Record<string, string>>(), // product type → "/api/media/<id>"
 });
@@ -98,6 +102,7 @@ export const carrierLinks = pgTable("carrier_links", {
   company: text("company"),
   carrierKey: text("carrier_key").notNull().$type<CarrierKey>(),
   branch: text("branch"),
+  branchId: text("branch_id"), // → logistic_branches.id
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull(),
   revokedAt: text("revoked_at"),
@@ -166,6 +171,7 @@ export const batches = pgTable("batches", {
   exportRecordedAt: text("export_recorded_at"),
   exportRecordedBy: text("export_recorded_by"),
   carrierOrg: text("carrier_org"), // the carrier org this lot was created for (bound farms)
+  branchId: text("branch_id"), // สาขาต้นทาง → logistic_branches.id — the branch (and so the company) this lot belongs to
   innerMaterials: jsonb("inner_materials").$type<InnerMaterialLine[]>(),
   originAirport: text("origin_airport"),
   destAirport: text("dest_airport"),
@@ -221,6 +227,53 @@ export const users = pgTable("users", {
   salt: text("salt").notNull(),
   createdAt: text("created_at").notNull(),
   status: text("status").$type<"active" | "suspended">(), // null = active (legacy rows)
+  branchId: text("branch_id"), // logistic accounts: their branch (→ logistic_branches.id)
+});
+
+// Logistic companies and their branches (scripts/add-logistic-orgs.ts, doc tab "Logistic" 17 Oct 2026).
+export const logisticOrgs = pgTable("logistic_orgs", {
+  orgCode: text("org_code").primaryKey(), // CID-NNNN
+  company: text("company").notNull(),
+  providerType: text("provider_type").$type<CarrierKey>().notNull(),
+  phone: text("phone"),
+  taxId: text("tax_id"),
+  address: text("address"),
+  subdistrict: text("subdistrict"),
+  district: text("district"),
+  province: text("province"),
+  postcode: text("postcode"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  status: text("status").$type<OrgStatus>().notNull(),
+  rejectReason: text("reject_reason"),
+  joinToken: text("join_token"), // the one branch sign-up link of the company (null = closed)
+  joinCreatedAt: text("join_created_at"),
+  joinCreatedBy: text("join_created_by"),
+  createdAt: text("created_at").notNull(),
+  decidedAt: text("decided_at"),
+  decidedBy: text("decided_by"),
+});
+
+export const logisticBranches = pgTable("logistic_branches", {
+  id: text("id").primaryKey(), // LBR-NNNN
+  orgCode: text("org_code").notNull(),
+  name: text("name").notNull(),
+  isHq: boolean("is_hq").notNull(),
+  phone: text("phone"),
+  address: text("address"),
+  subdistrict: text("subdistrict"),
+  district: text("district"),
+  province: text("province"),
+  postcode: text("postcode"),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  status: text("status").$type<BranchStatus>().notNull(),
+  adminUserId: text("admin_user_id"),
+  rejectReason: text("reject_reason"),
+  history: jsonb("history").$type<BranchEvent[]>().notNull(),
+  createdAt: text("created_at").notNull(),
+  decidedAt: text("decided_at"),
+  decidedBy: text("decided_by"),
 });
 
 export const members = pgTable("members", {

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth";
-import { getSuppliers, getBatches, getPrints, getRatings } from "@/lib/store";
+import { getSuppliers, getPrints, getRatings } from "@/lib/store";
+import { logisticAccess, myLots, getBranches } from "@/lib/logistic-org";
+import { branchRows } from "@/lib/branch-rows";
 import RatingsCard from "@/components/RatingsCard";
 import { MetricCard, Card, Donut, DONUT_COLORS } from "@/components/ui";
 import BranchTable, { type BranchRow } from "@/components/BranchTable";
@@ -8,7 +10,7 @@ import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { isSameBangkokDay } from "@/lib/format";
 import { VEHICLE_PROFILE, FUEL_EF } from "@/lib/transport-ef";
 import { DESTINATIONS } from "@/lib/geo";
-import { Printer, Search, MapPin, Truck, Package, Cloud, Boxes, Snowflake, Globe, Users } from "lucide-react";
+import { Printer, Search, MapPin, Truck, Package, Cloud, Boxes, Snowflake, Globe, Users, ArrowLeft } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
 import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
 import { categoryOf } from "@/lib/produce";
@@ -22,10 +24,18 @@ const vehLabel = (k?: string) => (k && VEHICLE_PROFILE[k]?.label) || "—";
 const fuelLabel = (k?: string) => (k && FUEL_EF[k]?.label) || "—";
 const transportOf = (b: Batch) => b.carbonBreakdown?.transport ?? 0;
 
-export default async function LogisticDashboard({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
+export default async function LogisticDashboard({ searchParams }: { searchParams: Promise<{ cat?: string; branch?: string }> }) {
   const user = await requireRole("logistic");
-  const cat = parseCat((await searchParams).cat);
-  const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
+  const sp = await searchParams;
+  const cat = parseCat(sp.cat);
+  // Only this account's lots: a branch its own, the head office its company's — or one branch's own
+  // dashboard (?branch=…, from ข้อมูลรายสาขา) — doc "Logistic", 17 Oct 2026.
+  const access = await logisticAccess(user);
+  const orgBranches = access.hq && access.org ? await getBranches(access.org.orgCode) : [];
+  const viewing = sp.branch ? orgBranches.find((b) => b.id === sp.branch) ?? null : null;
+  const [suppliers, allBatches, allPrints] = await Promise.all([getSuppliers(), myLots(user, viewing?.id), getPrints()]);
+  const lotIds = new Set(allBatches.map((b) => b.id));
+  const prints = allPrints.filter((p) => p.batchId && lotIds.has(p.batchId));
   // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every figure; units never mix — a single
   // category reports per-stem or per-kg, "ทั้งหมด" counts shipments and reports CO₂e per shipment.
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
@@ -58,7 +68,7 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
   const cutoff = Date.now() - 30 * 86400000;
   const activeProducers = new Set(
     computed.filter((b) => new Date(b.createdAt).getTime() >= cutoff).map((b) => b.supplierId),
-  ).size || suppliers.length;
+  ).size || new Set(computed.map((b) => b.supplierId)).size;
 
   // Donut — สัดส่วนปริมาณดอกไม้รับเข้าตามฟาร์ม (นับจำนวนดอก)
   const perFarm = suppliers
@@ -87,25 +97,8 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
 
   const rows = [...computed].sort((a, b) => b.id.localeCompare(a.id));
 
-  // Branch comparison (ข้อมูลรายสาขา)
-  const branchMap = new Map<string, Batch[]>();
-  for (const b of computed) {
-    const key = b.branch || "ไม่ระบุสาขา";
-    (branchMap.get(key) ?? branchMap.set(key, []).get(key)!).push(b);
-  }
-  const branchRows: BranchRow[] = [...branchMap.entries()].map(([branch, list]) => {
-    const flowers = list.reduce((n, b) => n + b.flowerCount, 0);
-    const co2eTotal = list.reduce((n, b) => n + b.co2ePerFlower * b.flowerCount, 0);
-    return {
-      province: provinceOf(branch),
-      branch,
-      rounds: list.length,
-      flowers,
-      transportCo2e: list.reduce((n, b) => n + transportOf(b), 0),
-      avgPerStem: flowers ? co2eTotal / flowers : 0,
-      trend: null,
-    };
-  }).sort((a, b) => b.rounds - a.rounds);
+  // Branch comparison (ข้อมูลรายสาขา) — the head office's company view only
+  const perBranch: BranchRow[] = access.hq && !viewing ? branchRows(computed, orgBranches) : [];
 
   const Tile = ({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) => (
     <div className="rounded-xl bg-white/80 p-4">
@@ -117,6 +110,12 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
 
   return (
     <div className="space-y-6">
+      {viewing ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[14px] text-slate-700">
+          <span>แดชบอร์ดของ <b className="font-semibold text-slate-900">{viewing.name}</b> · ข้อมูลเหมือนที่สาขานี้เห็น{viewing.status === "disabled" ? " (ปิดการใช้งานแล้ว)" : ""}</span>
+          <Link href="/logistic/branches" className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline"><ArrowLeft size={15} /> กลับไปข้อมูลรายสาขา</Link>
+        </div>
+      ) : null}
       {/* Overview banner */}
       <div className="relative overflow-hidden rounded-2xl p-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -249,13 +248,15 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
       </div>
 
       {/* buyers' ratings of this carrier from the QR page (Thai Post doc §15) */}
-      <RatingsCard ratings={user.orgCode ? await getRatings({ carrierKeys: [user.orgCode] }) : []} show="transport" />
+      <RatingsCard ratings={(await getRatings()).filter((r) => lotIds.has(r.batchId))} show="transport" />
 
       {/* ข้อมูลรายสาขา (head-office view) */}
-      <div className="space-y-3 pt-2">
-        <h2 className="text-lg font-bold text-slate-800">รายละเอียดสาขา</h2>
-        <BranchTable rows={branchRows} />
-      </div>
+      {perBranch.length ? (
+        <div className="space-y-3 pt-2">
+          <h2 className="text-lg font-bold text-slate-800">รายละเอียดสาขา</h2>
+          <BranchTable rows={perBranch} />
+        </div>
+      ) : null}
     </div>
   );
 }

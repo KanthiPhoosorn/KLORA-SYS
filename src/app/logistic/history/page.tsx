@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/auth";
-import { getBatches, getPrints } from "@/lib/store";
+import { getPrints } from "@/lib/store";
+import { myLots } from "@/lib/logistic-org";
 import LogisticHistory, { type PrintRow, type ShipRow, type ShipState } from "@/components/LogisticHistory";
 import { quantityLabel } from "@/lib/produce";
 
@@ -10,8 +11,11 @@ import { categoryOf } from "@/lib/produce";
 
 export default async function LogisticHistoryPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const cat = parseCat((await searchParams).cat);
-  await requireRole("logistic");
-  const [allBatches, prints] = await Promise.all([getBatches(), getPrints()]);
+  const user = await requireRole("logistic");
+  // only this account's lots — its branch, or its whole company for the head office (doc "Logistic", 17 Oct 2026)
+  const [allBatches, allPrints] = await Promise.all([myLots(user), getPrints()]);
+  const lotIds = new Set(allBatches.map((b) => b.id));
+  const prints = allPrints.filter((p) => p.batchId && lotIds.has(p.batchId));
   const mixed = new Set(allBatches.map(categoryOf)).size > 1;
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
 

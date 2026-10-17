@@ -1,9 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface BranchRow {
+  id?: string;
+  /** the branch's own dashboard */
+  href?: string;
+  status?: string;
   province: string;
   branch: string;
   rounds: number;
@@ -73,7 +78,10 @@ export default function BranchTable({ rows }: { rows: BranchRow[] }) {
                 filtered.map((r, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                     <td className="px-5 py-3 text-slate-700">{r.province}</td>
-                    <td className="px-5 py-3 text-slate-700" title={String(r.branch)}><span className="cell-clip">{r.branch}</span></td>
+                    <td className="px-5 py-3 text-slate-700" title={String(r.branch)}>
+                      {r.href ? <Link href={r.href} className="cell-clip font-medium text-blue-700 underline-offset-2 hover:underline">{r.branch}</Link> : <span className="cell-clip">{r.branch}</span>}
+                      {r.status === "disabled" ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">ปิดการใช้งาน</span> : null}
+                    </td>
                     <td className="px-5 py-3 text-right tabular">{r.rounds.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.flowers.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.transportCo2e.toFixed(1)}</td>

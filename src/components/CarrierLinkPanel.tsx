@@ -3,22 +3,18 @@
 import { useEffect, useState } from "react";
 import { Copy, Check, Link2, Loader2, Plus, Share2 } from "lucide-react";
 import Modal from "@/components/Modal";
-import SelectOther from "@/components/SelectOther";
-import { CARRIERS, carrierKeyFromCompany, carrierLabel } from "@/lib/carriers";
-import { BRANCHES } from "@/lib/branches";
-import type { CarrierKey, CarrierLink } from "@/lib/types";
+import { carrierLabel } from "@/lib/carriers";
+import type { CarrierLink } from "@/lib/types";
 
 type Row = CarrierLink & { farms: { id: string; code?: string; name: string }[] };
-const inputCls = "w-full rounded-[8px] border border-gray-300 bg-white px-3 py-2.5 text-[13px] text-slate-800 outline-none focus:border-blue-500";
-const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
 
 // "+ ชวนผู้ผลิต" on รายการรับเข้าจากผู้ผลิต (10 Oct 2026): the carrier makes a sign-up link for its farms
 // (link · QR · LINE). A farm joining through it ships only with this carrier.
-export default function CarrierLinkPanel({ org }: { org: { code?: string; company?: string; branch?: string } }) {
+// 17 Oct 2026 (doc "Logistic"): no "รูปแบบการจัดส่ง" / "สาขาต้นทาง" to pick — the link is locked to the
+// signed-in account's company type and branch.
+export default function CarrierLinkPanel({ org }: { org: { code?: string; company?: string; branch?: string; provider?: string } }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [kind, setKind] = useState<CarrierKey>(carrierKeyFromCompany(org.company));
-  const [branch, setBranch] = useState(org.branch ?? "");
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState("");
@@ -37,7 +33,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
 
   async function create() {
     setBusy("new"); setErr(null);
-    const r = await fetch("/api/carrier-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ carrierKey: kind, branch }) });
+    const r = await fetch("/api/carrier-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) setErr(d.error || "สร้างลิงก์ไม่สำเร็จ"); else await load();
     setBusy(null);
@@ -70,16 +66,10 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
             <p className="text-[13px] leading-relaxed text-slate-500">
               สร้างลิงก์หรือ QR Code เพื่อเชิญผู้ผลิตเข้าร่วมระบบ โดยสินค้าจะถูกจัดส่งผ่านผู้ให้บริการขนส่งและสาขาต้นทางที่เลือกไว้
             </p>
-            <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-              <div>
-                <label className={labelCls}>รูปแบบการจัดส่ง</label>
-                <select value={kind} onChange={(e) => setKind(e.target.value as CarrierKey)} className={inputCls}>
-                  {CARRIERS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>สาขาต้นทาง</label>
-                <SelectOther value={branch} onChange={setBranch} options={BRANCHES.map((b) => ({ value: b.name, label: b.name }))} placeholder="ไม่ระบุสาขา" className={inputCls} />
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
+              <div className="text-[13px] leading-relaxed text-slate-600">
+                <p>ผู้ให้บริการขนส่ง <b className="font-semibold text-slate-800">{org.company ?? "—"}</b>{org.provider ? <> · {org.provider}</> : null}</p>
+                <p>สาขาต้นทาง <b className="font-semibold text-slate-800">{org.branch ?? "—"}</b> <span className="text-slate-400">(สาขาของบัญชีที่เข้าระบบ)</span></p>
               </div>
               <button type="button" onClick={create} disabled={busy === "new"} className="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap rounded-[8px] bg-blue-600 px-5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">
                 {busy === "new" ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} สร้างลิงก์

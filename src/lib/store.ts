@@ -7,7 +7,7 @@
 import { eq, and, or, desc, sql, isNull, inArray, notInArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
-import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media, packPhotos } from "./db/schema";
+import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media, packPhotos, logisticOrgs } from "./db/schema";
 import { mergeFactors, airFreightCarbon, type Factors } from "./factors";
 import { mergeCatalog, rowsCarbon, type PackCatalog, type PackRow } from "./packaging-catalog";
 import { innerMaterialsTotals } from "./inner-materials";
@@ -374,10 +374,10 @@ export async function getRatings(f: { supplierId?: string; carrierKeys?: string[
 type CarrierLinkRow = typeof carrierLinks.$inferSelect;
 const linkOf = (r: CarrierLinkRow): CarrierLink => clean<CarrierLink>(r);
 
-export async function createCarrierLink(input: { orgCode: string; company?: string; carrierKey: CarrierKey; branch?: string; createdBy: string }): Promise<CarrierLink> {
+export async function createCarrierLink(input: { orgCode: string; company?: string; carrierKey: CarrierKey; branch?: string; branchId?: string; createdBy: string }): Promise<CarrierLink> {
   const [row] = await db.insert(carrierLinks).values({
     token: randomBytes(6).toString("base64url"),
-    orgCode: input.orgCode, company: input.company ?? null, carrierKey: input.carrierKey, branch: input.branch ?? null,
+    orgCode: input.orgCode, company: input.company ?? null, carrierKey: input.carrierKey, branch: input.branch ?? null, branchId: input.branchId ?? null,
     createdBy: input.createdBy, createdAt: new Date().toISOString(),
   }).returning();
   return linkOf(row);
@@ -402,7 +402,7 @@ export async function useCarrierLink(token: string): Promise<CarrierLink | null>
   return row ? linkOf(row) : null;
 }
 /** The farm fields a link sets — always taken from the stored link, never from the request. */
-export const bindingOf = (l: CarrierLink) => ({ signupVia: l.carrierKey, carrierOrg: l.orgCode, carrierCompany: l.company ?? undefined, carrierBranch: l.branch ?? undefined, carrierLink: l.token });
+export const bindingOf = (l: CarrierLink) => ({ signupVia: l.carrierKey, carrierOrg: l.orgCode, carrierCompany: l.company ?? undefined, carrierBranch: l.branch ?? undefined, carrierBranchId: l.branchId ?? undefined, carrierLink: l.token });
 
 export async function getSuppliers(): Promise<Supplier[]> {
   const rows = await db.select().from(suppliers);
@@ -418,7 +418,12 @@ export async function getSupplier(id: string): Promise<Supplier | null> {
 async function nextCidNumber(): Promise<number> {
   const [s] = await db.select({ code: suppliers.code }).from(suppliers).where(sql`${suppliers.code} like 'CID-%'`).orderBy(desc(suppliers.code)).limit(1);
   const [u] = await db.select({ code: users.orgCode }).from(users).where(sql`${users.orgCode} like 'CID-%'`).orderBy(desc(users.orgCode)).limit(1);
-  return Math.max(codeNumber(s?.code), codeNumber(u?.code)) + 1;
+  const [o] = await db.select({ code: logisticOrgs.orgCode }).from(logisticOrgs).orderBy(desc(logisticOrgs.orgCode)).limit(1);
+  return Math.max(codeNumber(s?.code), codeNumber(u?.code), codeNumber(o?.code)) + 1;
+}
+/** A fresh CID for a new logistic company (+attempt on a clash). */
+export async function newOrgCode(attempt = 0): Promise<string> {
+  return formatCid((await nextCidNumber()) + attempt);
 }
 
 export async function addSupplier(input: SupplierInput): Promise<Supplier> {
@@ -506,6 +511,7 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     provider: input.provider,
     postalCode: input.postalCode,
     branch: input.branch,
+    branchId: input.branchId,
     boxMaterial: input.boxMaterial,
     weightKg: input.weightKg,
     basketIds: (input.basketIds ?? []).filter(Boolean),

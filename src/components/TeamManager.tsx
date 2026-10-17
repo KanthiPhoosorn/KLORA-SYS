@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Search, Loader2, MoreHorizontal, User, Building2, X, CheckCircle2, ChevronLeft, ChevronRight, Link2, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -85,13 +85,18 @@ function Counter({ label, value, icon }: { label: string; value: number; icon: s
 }
 
 export default function TeamManager({
-  members, invites, orgName, accent = "pink", joinedAt,
+  members, invites, orgName, accent = "pink", joinedAt, extraTab, title, subtitle,
 }: {
+  title?: string; subtitle?: string;
   members: Member[]; invites: Invite[]; orgName: string; accent?: Accent; joinedAt?: string;
+  /** one more tab after the two (logistic head office: "สาขา"), with a red count */
+  extraTab?: { label: string; badge?: number; content: React.ReactNode };
 }) {
   const router = useRouter();
   const T = THEME[accent];
-  const [tab, setTab] = useState<"members" | "invites">("members");
+  const [tab, setTab] = useState<"members" | "invites" | "extra">("members");
+  // /logistic/settings#branches opens the branch tab
+  useEffect(() => { if (extraTab && window.location.hash === "#branches") setTab("extra"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [invQ, setInvQ] = useState("");
@@ -187,8 +192,8 @@ export default function TeamManager({
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">จัดการองค์กร</h1>
-          <p className="mt-0.5 text-[13px] text-slate-400">จัดการสมาชิก บทบาท และคำเชิญภายในองค์กร</p>
+          <h1 className="text-2xl font-bold text-slate-900">{title ?? "จัดการองค์กร"}</h1>
+          <p className="mt-0.5 text-[13px] text-slate-400">{subtitle ?? "จัดการสมาชิก บทบาท และคำเชิญภายในองค์กร"}</p>
         </div>
         <button onClick={() => setInviteOpen(true)} className={`inline-flex items-center gap-2 rounded-[10px] border px-5 py-2.5 text-sm font-semibold ${T.outlineBtn}`}>
           <UserPlus size={16} /> เชิญสมาชิก
@@ -218,9 +223,15 @@ export default function TeamManager({
             {t === "members" ? "สมาชิก" : `คำเชิญที่รอตอบกลับ (${pending.length})`}
           </button>
         ))}
+        {extraTab ? (
+          <button onClick={() => setTab("extra")} className={`-mb-px inline-flex items-center gap-1.5 border-b-2 py-2.5 text-sm font-medium ${tab === "extra" ? T.tabActive : "border-transparent text-slate-500 hover:text-slate-800"}`}>
+            {extraTab.label}
+            {extraTab.badge ? <span className="min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[11px] font-semibold leading-5 text-white">{extraTab.badge}</span> : null}
+          </button>
+        ) : null}
       </div>
 
-      {tab === "members" ? (
+      {tab === "extra" && extraTab ? extraTab.content : tab === "members" ? (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>

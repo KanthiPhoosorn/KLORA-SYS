@@ -5,6 +5,7 @@ import { getInvites, addInvite, getSupplier } from "@/lib/store";
 import { sendInviteEmail } from "@/lib/email";
 import { siteOrigin } from "@/lib/origin";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
+import { logisticWriteRefusal, logisticAccess } from "@/lib/logistic-org";
 import type { Invite, MemberRole } from "@/lib/types";
 
 // The join token is a secret for the invitee only — never echo it to the inviter's browser.
@@ -22,6 +23,9 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   // This sends mail to an arbitrary address — cap it like /forgot (per caller and per target).
+  // a branch waiting for approval cannot invite yet
+  const refusal = await logisticWriteRefusal(user);
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
   const byIp = await rateLimit(`invites:ip:${clientIp(req)}`, 20, 60 * 60 * 1000);
   if (!byIp.allowed) return tooMany(byIp.retryAfter);
   let body: { email?: string; role?: string };
@@ -36,7 +40,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "อีเมลนี้มีคำเชิญที่รอตอบรับอยู่แล้ว" }, { status: 409 });
   const role: MemberRole = body.role === "org_admin" ? "org_admin" : "member";
   const inv = await addInvite(org, email, role);
-  const orgName = user.role === "kyn" ? "KYN" : (user.supplierId && (await getSupplier(user.supplierId))?.farmName) || user.company || user.username;
+  const la = user.role === "logistic" ? await logisticAccess(user) : null;
+  const orgName = user.role === "kyn" ? "KYN" : la?.org ? `${la.org.company}${la.branch && !la.branch.isHq ? ` · ${la.branch.name}` : ""}` : (user.supplierId && (await getSupplier(user.supplierId))?.farmName) || user.company || user.username;
   const { sent } = await sendInviteEmail(email, orgName, role, `${siteOrigin(req)}/join/${inv.token}`);
   return NextResponse.json({ ...pub(inv), emailSent: sent }, { status: 201 });
 }

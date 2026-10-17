@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useCooldown, retryAfterOf } from "@/lib/use-cooldown";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 type Accent = "pink" | "blue" | "purple";
@@ -89,6 +90,7 @@ export default function LoginForm({
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wait = useCooldown(); // 5 wrong tries → locked, counting down
   // Surface an OAuth failure passed back on the URL (read client-side; the page stays static).
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("error");
@@ -110,6 +112,7 @@ export default function LoginForm({
         body: JSON.stringify({ login: fd.get("login"), password: fd.get("password") }),
       });
       const data = await res.json();
+      if (res.status === 429) wait.start(retryAfterOf(res, data));
       if (!res.ok) throw new Error(data.error || "เข้าสู่ระบบไม่สำเร็จ");
       const next = new URLSearchParams(window.location.search).get("next");
       router.push(next && /^\/c\/[A-Za-z0-9_-]{4,32}$/.test(next) ? next : data.redirect || "/app");
@@ -167,11 +170,16 @@ export default function LoginForm({
             <Link href="/forgot" className={`text-black underline ${S.meta}`}>ลืมรหัสผ่าน?</Link>
           </div>
 
-          {error ? <p className={`rounded-[5px] px-3 py-2 text-[12px] ${ac.err}`}>{error}</p> : null}
+          {error ? (
+            <p role="alert" className={`rounded-[5px] px-3 py-2 text-[12px] ${ac.err}`}>
+              {error}
+              {wait.left > 0 ? <span className="mt-1 block font-semibold">ลองใหม่ได้ในอีก <span className="tabular-nums">{wait.label}</span> นาที</span> : null}
+            </p>
+          ) : null}
 
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || wait.left > 0}
             className={`flex w-full items-center justify-center gap-2 ${S.btn} ${ac.btn} font-medium text-white transition hover:opacity-90 disabled:opacity-60`}
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}

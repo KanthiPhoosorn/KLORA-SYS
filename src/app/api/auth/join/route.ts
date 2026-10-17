@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInviteByToken, getUserByLogin, getUsers, addUser, addMember, updateInvite, getSupplier, addNotification } from "@/lib/store";
 import { KYN_ORG, isFarmOrg } from "@/lib/api-guard";
+import { getBranch, getOrg } from "@/lib/logistic-org";
 import { hashPassword, setSessionCookie, homeForRole } from "@/lib/auth";
 import { clientIp, rateLimit, tooMany } from "@/lib/rate-limit";
 import type { UserRole } from "@/lib/types";
@@ -45,7 +46,19 @@ export async function POST(req: Request) {
   let company: string | undefined;
   let branch: string | undefined;
   let orgCode: string | undefined;
-  if (isFarmOrg(invite.supplierId)) {
+  let branchId: string | undefined;
+  if (invite.supplierId.startsWith("LBR-")) {
+    // invited by a logistic branch → an account in that branch of that company
+    const b = await getBranch(invite.supplierId);
+    const org = b ? await getOrg(b.orgCode) : null;
+    if (!b || !org || b.status === "rejected") return NextResponse.json({ error: "ไม่พบองค์กรที่เชิญ" }, { status: 404 });
+    role = "logistic";
+    supplierId = undefined;
+    company = org.company;
+    branch = b.name;
+    orgCode = org.orgCode;
+    branchId = b.id;
+  } else if (isFarmOrg(invite.supplierId)) {
     if (!(await getSupplier(invite.supplierId))) return NextResponse.json({ error: "ไม่พบองค์กรที่เชิญ" }, { status: 404 });
   } else if (invite.supplierId === KYN_ORG) {
     role = "kyn";
@@ -61,7 +74,7 @@ export async function POST(req: Request) {
   }
 
   const { hash, salt } = hashPassword(password);
-  const user = await addUser({ role, supplierId, company, branch, orgCode, email: invite.email, username, passwordHash: hash, salt });
+  const user = await addUser({ role, supplierId, company, branch, orgCode, branchId, email: invite.email, username, passwordHash: hash, salt });
   await addMember({ supplierId: invite.supplierId, name: username, email: invite.email, role: invite.role, lastActiveAt: new Date().toISOString() });
   await updateInvite(invite.id, "accepted");
   if (isFarmOrg(invite.supplierId)) {

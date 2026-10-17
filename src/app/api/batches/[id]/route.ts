@@ -11,7 +11,8 @@ import { normalizeAwb } from "@/lib/tracking";
 import { guard, forbidden } from "@/lib/api-guard";
 import { unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
-import { lockRound, withoutBound, carrierRefusal } from "@/lib/carrier-lock";
+import { lockRound, withoutBound } from "@/lib/carrier-lock";
+import { lotRefusal, placeRound } from "@/lib/logistic-org";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
 const SHIPMENT_TH: Record<ShipmentStatus, string> = { cutting: "รอจัดส่ง", in_transit: "กำลังขนส่ง", delivered: "ส่งถึงปลายทางแล้ว" };
@@ -45,6 +46,9 @@ export async function PATCH(
   }
   const id = batch.id; // the current LOT code even when called with an old BAT id
   if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
+  // a carrier acts only on its own lots, and only while its company and branch are active
+  const notMine = await lotRefusal(g.user, batch);
+  if (notMine) return NextResponse.json({ error: notMine }, { status: 403 });
 
   // ยกเลิกรายการ (farm / KYN) — only while waiting to be printed; a soft cancel kept for history,
   // out of every total, and its reusable packaging gives the trip back (Thai Post doc §5.6).
@@ -78,8 +82,6 @@ export async function PATCH(
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
   const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType", "innerMaterials"];
   if (TRANSPORT.some((k) => k in body)) {
-    const refused = carrierRefusal(g.user, batch);
-    if (refused) return NextResponse.json({ error: refused }, { status: 403 });
     const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
     const patch: Record<string, unknown> = {};
     if ("shippedWeightKg" in body) patch.shippedWeightKg = num(body.shippedWeightKg);
@@ -213,6 +215,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const sup = await getSupplier(batch.supplierId);
   const locked = sup ? lockRound(sup, f, batch.carrier) : null;
   if (locked) return NextResponse.json({ error: locked }, { status: 400 });
+  // the lot keeps its branch unless the farm picked another (a branch since closed may stay on its own lot)
+  const where = await placeRound(f, body.branchId ?? (f.branch === batch.branch ? batch.branchId : undefined), sup?.carrierOrg ?? undefined, batch.branchId);
+  if (where) return NextResponse.json({ error: where }, { status: 400 });
 
   const changes: { field: string; label: string; from: string; to: string }[] = EDIT_LABELS
     .filter(([k]) => shown(f[k]) !== shown((batch as unknown as Record<string, unknown>)[k]))

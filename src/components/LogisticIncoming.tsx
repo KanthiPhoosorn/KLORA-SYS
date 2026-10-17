@@ -24,7 +24,7 @@ const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
 
 // Logistic "รายการรับเข้าจากผู้ผลิต" — Figma high-fi: lavender table header, plain คงเหลือ,
 // per-row pencil that opens a cancel-confirm.
-export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; org: { code?: string; company?: string; branch?: string } }) {
+export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; org: { code?: string; company?: string; branch?: string; provider?: string } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");

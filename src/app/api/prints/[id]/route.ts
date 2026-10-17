@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { updatePrint, addNotification, addBatchEvent } from "@/lib/store";
+import { updatePrint, addNotification, addBatchEvent, getPrints, getBatch } from "@/lib/store";
+import { lotRefusal, logisticWriteRefusal } from "@/lib/logistic-org";
 import { guard } from "@/lib/api-guard";
 
 // PATCH /api/prints/[id] (logistic / KYN) — { cancelled: true } marks a misprint cancelled
@@ -16,6 +17,11 @@ export async function PATCH(
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  }
+  if (g.user.role === "logistic") {
+    const print = (await getPrints()).find((p) => p.id === id);
+    const refused = (await logisticWriteRefusal(g.user)) ?? (await lotRefusal(g.user, print?.batchId ? await getBatch(print.batchId) : null));
+    if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   }
   const updated = await updatePrint(id, { cancelled: body.cancelled !== false });
   if (!updated) {

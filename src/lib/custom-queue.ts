@@ -2,7 +2,6 @@
 import { queueCustomEntry } from "./store";
 import { OTHER_KIND, type ResourceLines } from "./resource-types";
 import { PROVIDERS } from "./carriers";
-import { BRANCHES } from "./branches";
 import { DESTINATIONS } from "./geo";
 import { GRADE_OPTIONS } from "./produce";
 import { VEHICLE_FUELS } from "./master-data";
@@ -20,12 +19,13 @@ export async function queueResourceOthers(lines: ResourceLines | null | undefine
 }
 
 /** Typed-in ("อื่นๆ") values of a round → KYN's review queue. */
-export async function queueRoundOthers(b: { grade?: string; destination?: string; provider?: string; branch?: string; ageDays?: number }, ctx: { supplierId?: string; userId?: string; batchId?: string }) {
+export async function queueRoundOthers(b: { grade?: string; destination?: string; provider?: string; branch?: string; branchId?: string; ageDays?: number }, ctx: { supplierId?: string; userId?: string; batchId?: string }) {
   const q = (field: string, value?: string, known?: string[]) => (value && known && !known.includes(value) ? queueCustomEntry({ field, value, ...ctx }) : undefined);
   await q("grade", b.grade, GRADE_OPTIONS);
   await q("destination", b.destination, [...DESTINATIONS.map((d) => d.name), "ต่างประเทศ"]);
   await q("provider", b.provider, PROVIDERS);
-  await q("branch", b.branch, BRANCHES.flatMap((x) => [x.id, x.name]));
+  // a typed-in สาขาต้นทาง with no branch record (no carrier sees the lot until KYN sorts it out)
+  if (!b.branchId) await q("branch", b.branch, []);
 }
 
 /** Typed-in transport values the carrier entered on /logistic/new → KYN's review queue. */

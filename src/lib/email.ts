@@ -75,3 +75,34 @@ export function sendInviteEmail(to: string, orgName: string, role: string, joinU
     ),
   });
 }
+
+// A branch's sign-up decided by its head office (doc "Logistic", 17 Oct 2026).
+export function sendBranchDecisionEmail(to: string, company: string, branch: string, approved: boolean, loginUrl: string, reason?: string) {
+  return sendEmail({
+    to,
+    subject: approved ? `สาขา${branch.replace(/^สาขา/, "")} ได้รับการอนุมัติแล้ว · Corta` : `การลงทะเบียน${branch} ไม่ได้รับการอนุมัติ · Corta`,
+    html: wrap(
+      approved
+        ? `<p><strong>${esc(company)}</strong> อนุมัติ <strong>${esc(branch)}</strong> แล้ว สาขาเริ่มใช้งานได้ทันที</p>` +
+          `<p><a href="${esc(loginUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:600">เข้าสู่ระบบ</a></p>`
+        : `<p>สำนักงานใหญ่ของ <strong>${esc(company)}</strong> ไม่อนุมัติการลงทะเบียน <strong>${esc(branch)}</strong></p>` +
+          (reason ? `<p>เหตุผล: ${esc(reason)}</p>` : "") +
+          `<p style="color:#64748b;font-size:13px">หากมีข้อสงสัย กรุณาติดต่อสำนักงานใหญ่ของบริษัท</p>`,
+    ),
+  });
+}
+
+// A company's self sign-up checked by KYN.
+export function sendCompanyDecisionEmail(to: string, company: string, approved: boolean, loginUrl: string, reason?: string) {
+  return sendEmail({
+    to,
+    subject: approved ? `${company} เริ่มใช้งาน Corta ได้แล้ว` : `การลงทะเบียน ${company} ไม่ผ่านการตรวจสอบ · Corta`,
+    html: wrap(
+      approved
+        ? `<p>ผู้ดูแลระบบตรวจสอบการลงทะเบียน <strong>${esc(company)}</strong> เรียบร้อยแล้ว บัญชีเริ่มใช้งานได้ทันที</p>` +
+          `<p><a href="${esc(loginUrl)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:600">เข้าสู่ระบบ</a></p>`
+        : `<p>การลงทะเบียน <strong>${esc(company)}</strong> ไม่ผ่านการตรวจสอบ</p>` + (reason ? `<p>เหตุผล: ${esc(reason)}</p>` : "") +
+          `<p style="color:#64748b;font-size:13px">หากมีข้อสงสัย กรุณาติดต่อ KYN</p>`,
+    ),
+  });
+}

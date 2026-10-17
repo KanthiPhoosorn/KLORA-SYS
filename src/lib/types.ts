@@ -68,6 +68,7 @@ export interface Supplier {
   carrierOrg?: string; // bound through a carrier's link: that org (CID-…) is the only carrier
   carrierCompany?: string;
   carrierBranch?: string;
+  carrierBranchId?: string; // → LogisticBranch.id
   carrierLink?: string;
   productPhotos?: Record<string, string>; // product type → "/api/media/<id>" (QR page hero photo)
 }
@@ -95,10 +96,61 @@ export interface CarrierLink {
   company?: string;
   carrierKey: CarrierKey;
   branch?: string;
+  branchId?: string;
   createdBy?: string;
   createdAt: string;
   revokedAt?: string;
   uses: number;
+}
+
+// Logistic companies → branches → accounts (doc tab "Logistic", 17 Oct 2026).
+/** active · pending (signed up alone, KYN has not checked it) · rejected · suspended (by KYN) */
+export type OrgStatus = "active" | "pending" | "rejected" | "suspended";
+/** pending (registered through the company link) · active · rejected · disabled (by the head office) */
+export type BranchStatus = "pending" | "active" | "rejected" | "disabled";
+export interface BranchEvent { at: string; text: string; by?: string }
+export interface LogisticOrg {
+  orgCode: string; // CID-NNNN
+  company: string;
+  providerType: CarrierKey; // ประเภทผู้ให้บริการขนส่ง
+  phone?: string;
+  taxId?: string;
+  address?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  postcode?: string;
+  lat?: number;
+  lng?: number;
+  status: OrgStatus;
+  rejectReason?: string;
+  joinToken?: string;
+  joinCreatedAt?: string;
+  joinCreatedBy?: string;
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+export interface LogisticBranch {
+  id: string; // LBR-NNNN
+  orgCode: string;
+  name: string;
+  isHq: boolean;
+  phone?: string;
+  address?: string;
+  subdistrict?: string;
+  district?: string;
+  province?: string;
+  postcode?: string;
+  lat?: number;
+  lng?: number;
+  status: BranchStatus;
+  adminUserId?: string;
+  rejectReason?: string;
+  history: BranchEvent[];
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
 }
 
 // รูปแบบการจัดส่ง (KYN spec §1.2) — also the "?via=" value of carrier-specific signup links
@@ -254,6 +306,7 @@ export interface Batch {
   exportRecordedAt?: string; // ISO — เมื่อผู้ขนส่งบันทึกข้อมูลการจัดส่ง
   exportRecordedBy?: string; // User.id ของผู้บันทึก
   carrierOrg?: string; // the carrier org this lot was created for (farm bound by a carrier link)
+  branchId?: string; // สาขาต้นทาง → LogisticBranch.id — whose lot this is on the carrier side
   innerMaterials?: InnerMaterialLine[]; // วัสดุภายในกล่อง/ห่อหุ้ม/ผูกยึด (KYN packaging master)
   originAirport?: string; // ส่งต่างประเทศ: สนามบินต้นทาง (IATA)
   destAirport?: string; // ส่งต่างประเทศ: สนามบินปลายทาง (IATA)
@@ -338,6 +391,7 @@ export interface User {
   salt: string; // hex
   createdAt: string; // ISO
   status?: "active" | "suspended"; // KYN can suspend a login; undefined = active
+  branchId?: string; // logistic accounts: their branch (→ LogisticBranch.id)
 }
 
 // Team management (จัดการระบบ) — members + invites, scoped to an org (supplierId).
@@ -406,6 +460,7 @@ export type BatchInput = Pick<
   provider?: string;
   postalCode?: string;
   branch?: string;
+  branchId?: string;
   boxMaterial?: string;
   weightKg?: number;
   basketIds?: string[];

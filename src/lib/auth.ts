@@ -6,6 +6,7 @@ import { scryptSync, randomBytes, timingSafeEqual, createHmac } from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUsers, getSupplier } from "./store";
+import { logisticAccess } from "./logistic-org";
 import type { User, UserRole } from "./types";
 
 const SECRET =
@@ -104,6 +105,8 @@ export async function getCurrentUser(): Promise<User | null> {
   const users = await getUsers();
   const user = users.find((u) => u.id === userId) ?? null;
   if (!user || user.status === "suspended") return null;
+  // a disabled branch / suspended company locks its logistic logins out at once
+  if (user.role === "logistic" && (await logisticAccess(user)).state === "blocked") return null;
   // A suspended farm locks out its logins at once, not only at the next password login.
   if (user.role === "supplier" && user.supplierId) {
     const sup = await getSupplier(user.supplierId);
@@ -125,6 +128,12 @@ export async function requireRole(role: UserRole): Promise<User> {
   const user = await getCurrentUser();
   if (!user) redirect(loginForRole(role));
   if (user.role !== role) redirect(homeForRole(user.role));
+  // a logistic branch / company still waiting for approval sees only the waiting page — no portal page
+  // runs for it (doc "Logistic", 17 Oct 2026)
+  if (role === "logistic") {
+    const state = (await logisticAccess(user)).state;
+    if (state === "branch_pending" || state === "org_pending") redirect("/logistic/waiting");
+  }
   return user;
 }
 

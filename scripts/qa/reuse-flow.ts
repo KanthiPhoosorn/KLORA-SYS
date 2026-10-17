@@ -2,19 +2,26 @@
 // carbon spread over design life; single-use charged in full. Throw-away farm, self-cleaning.
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
+import { qaCarrier, cleanupQaCarriers } from "./qa-carrier";
+// the farm drops its lots at a QA carrier's head office (สาขาต้นทาง) — a carrier only works on its own
+// branches' lots (doc "Logistic", 17 Oct 2026), so the carrier here is that QA company, not the Thai Post demo
+let DROP_AT = "";
+const withBranch = (path: string, method: string, body: unknown) =>
+  path === "/api/batches" && method === "POST" && DROP_AT && body && typeof body === "object" && !("branchId" in body) && !("supplierId" in body) ? { ...(body as object), branchId: DROP_AT } : body;
 import { packagingItemCarbon, basketCarbonPerUse } from "../../src/lib/carbon-kyn";
 import { mergeFactors } from "../../src/lib/factors";
 import { validateRows, rowsToPayload, rowsFromBatch, rowFor, type PackRowState } from "../../src/components/PackagingLines";
 import { DEFAULT_CATALOG } from "../../src/lib/packaging-catalog";
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36); const EMAIL = `qa-reuse-${TS}@klora-qa.test`;
 const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return `${Buffer.from(p).toString("base64url")}.${createHmac("sha256", process.env.KLORA_SESSION_SECRET!).update(p).digest("base64url")}`; };
-const api = async (path: string, method: string, body?: unknown, cookie?: string) => { const r = await fetch(BASE + path, { method, headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: `klora_session=${cookie}` } : {}) }, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})), cookie: /klora_session=([^;]+)/.exec(r.headers.get("set-cookie") || "")?.[1] }; };
+const api = async (path: string, method: string, body?: unknown, cookie?: string) => { const r = await fetch(BASE + path, { method, headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: `klora_session=${cookie}` } : {}) }, body: body ? JSON.stringify(withBranch(path, method, body)) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})), cookie: /klora_session=([^;]+)/.exec(r.headers.get("set-cookie") || "")?.[1] }; };
 let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${n}${note ? "  — " + note : ""}`); };
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 (async () => {
   const sql = neon(process.env.DATABASE_URL!);
   await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1'`;
-  const lg = mint("USR-0002");
+  const QC = await qaCarrier(sql, "reu-c", TS); DROP_AT = QC.branchId;
+  const lg = QC.cookie;
   let supId = ""; let userId = "";
   const assetIds: string[] = [];
   try {
@@ -90,7 +97,7 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
     if (assetIds.length) await sql`DELETE FROM packaging_assets WHERE id = ANY(${assetIds})`;
     if (supId) { await sql`DELETE FROM notifications WHERE supplier_id = ${supId}`; await sql`DELETE FROM batches WHERE supplier_id = ${supId}`; await sql`DELETE FROM suppliers WHERE id = ${supId}`; }
     await sql`DELETE FROM rate_limits WHERE key = 'pkg-assets:user:USR-0002' OR key IN (SELECT 'pkg-assets:user:' || id FROM users WHERE email = ${EMAIL})`;
-    await sql`DELETE FROM users WHERE email = ${EMAIL}`; await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
+    await sql`DELETE FROM users WHERE email = ${EMAIL}`; await cleanupQaCarriers(sql); await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
     void userId;
   }
   console.log(fails ? `${fails} failed` : "all passed");

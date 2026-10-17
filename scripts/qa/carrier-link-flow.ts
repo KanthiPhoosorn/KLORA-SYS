@@ -4,12 +4,14 @@
 // Two QA carrier orgs + QA farms; self-cleaning.   npx tsx --env-file=.env.local scripts/qa/carrier-link-flow.ts
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
+import { qaCarrier, cleanupQaCarriers } from "./qa-carrier";
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36);
 const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return `${Buffer.from(p).toString("base64url")}.${createHmac("sha256", process.env.KLORA_SESSION_SECRET!).update(p).digest("base64url")}`; };
 const api = async (path: string, method: string, body?: unknown, cookie?: string) => { const r = await fetch(BASE + path, { method, redirect: "manual", headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: `klora_session=${cookie}` } : {}) }, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})), cookie: /klora_session=([^;]+)/.exec(r.headers.get("set-cookie") || "")?.[1] }; };
 let fails = 0; const log = (n: string, ok: boolean, note = "") => { if (!ok) fails++; console.log(`${ok ? "PASS" : "FAIL"}  ${n}${note ? "  — " + note : ""}`); };
 const EMAILS: string[] = [];
-const carrier = async (tag: string) => { const email = `qa-cl-${tag}-${TS}@klora-qa.test`; EMAILS.push(email); const r = await api("/api/auth/register-logistic", "POST", { username: `qa_cl_${tag}_${TS}`, email, company: `QA Carrier ${tag} ${TS}`, branch: "สาขาเชียงใหม่", password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!" }); return { cookie: r.cookie!, id: r.json.userId as string }; };
+// a QA carrier company (real sign-up + KYN approval); its link is its head office's (17 Oct 2026: no type/branch to pick)
+const carrier = async (sql: Parameters<typeof qaCarrier>[0], tag: string, type: string) => { const c = await qaCarrier(sql, `cl-${tag}`, TS, { providerType: type }); EMAILS.push(c.email); return { cookie: c.cookie, id: c.userId }; };
 const farm = async (tag: string, extra: Record<string, unknown> = {}) => { const email = `qa-cl-${tag}-${TS}@klora-qa.test`; EMAILS.push(email); const r = await api("/api/auth/register", "POST", { farmName: `QA CL Farm ${tag} ${TS}`, address: "อ.แม่ริม จ.เชียงใหม่", gps: "18.91, 98.94", contactName: "QA", flowerType: "มะม่วง", email, username: `qa_cl_${tag}_${TS}`, password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!", ...extra }); return { status: r.status, cookie: r.cookie, id: r.json.supplier?.id as string, error: r.json.error as string | undefined }; };
 const ROUND = { productCategory: "fruit", productType: "มะม่วง", unit: "kg", quantity: 40, cutDate: "2026-10-09", distanceKm: 300, destination: "กรุงเทพฯ", shippedWeightKg: 45, packagingItems: [] };
 
@@ -18,7 +20,7 @@ const ROUND = { productCategory: "fruit", productType: "มะม่วง", uni
   await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1'`;
   const farmIds: string[] = []; const orgs: string[] = [];
   try {
-    const A = await carrier("a"); const B = await carrier("b");
+    const A = await carrier(sql, "a", "private"); const B = await carrier(sql, "b", "thaipost");
     const [ua] = await sql`SELECT org_code, company FROM users WHERE id = ${A.id}`; const [ub] = await sql`SELECT org_code FROM users WHERE id = ${B.id}`;
     orgs.push(ua.org_code, ub.org_code);
     log("two QA carrier orgs", !!ua.org_code && !!ub.org_code && ua.org_code !== ub.org_code, `${ua.org_code} ${ub.org_code}`);
@@ -27,7 +29,7 @@ const ROUND = { productCategory: "fruit", productType: "มะม่วง", uni
     log("no links yet", (await api("/api/carrier-links", "GET", undefined, A.cookie)).json.length === 0);
     const mk = await api("/api/carrier-links", "POST", { carrierKey: "private", branch: "สาขาเชียงใหม่" }, A.cookie);
     const token = mk.json.token as string;
-    log("link created (type + branch + org)", mk.status === 201 && /^[A-Za-z0-9_-]{6,}$/.test(token) && mk.json.orgCode === ua.org_code && mk.json.branch === "สาขาเชียงใหม่", `${mk.status} ${token}`);
+    log("link created (company type + the account's branch + org)", mk.status === 201 && /^[A-Za-z0-9_-]{6,}$/.test(token) && mk.json.orgCode === ua.org_code && mk.json.carrierKey === "private" && mk.json.branch === "สำนักงานใหญ่", `${mk.status} ${token} ${mk.json.branch}`);
     log("a farm cannot make links", (await api("/api/carrier-links", "POST", {}, mint("USR-0001"))).status === 403);
     const land = await fetch(`${BASE}/c/${token}`); const landHtml = (await land.text()).replace(/<!-- -->/g, "");
     log("/c/<token> invites to sign up or sign in", land.status === 200 && landHtml.includes(ua.company) && landHtml.includes("สมัครใช้งาน") && landHtml.includes(`next=${encodeURIComponent(`/c/${token}`)}`));
@@ -35,14 +37,14 @@ const ROUND = { productCategory: "fruit", productType: "มะม่วง", uni
     // a new farm signs up through it (the request's own via is ignored)
     const F1 = await farm("f1", { carrierLink: token, via: "thaipost" }); farmIds.push(F1.id);
     const [s1] = await sql`SELECT signup_via, carrier_org, carrier_company, carrier_branch, carrier_link FROM suppliers WHERE id = ${F1.id}`;
-    log("farm bound from the stored link", F1.status === 201 && s1.signup_via === "private" && s1.carrier_org === ua.org_code && s1.carrier_company === ua.company && s1.carrier_branch === "สาขาเชียงใหม่" && s1.carrier_link === token, JSON.stringify(s1));
+    log("farm bound from the stored link", F1.status === 201 && s1.signup_via === "private" && s1.carrier_org === ua.org_code && s1.carrier_company === ua.company && s1.carrier_branch === "สำนักงานใหญ่" && s1.carrier_link === token, JSON.stringify(s1));
     log("link use counted + farm listed", (await api("/api/carrier-links", "GET", undefined, A.cookie)).json[0]?.farms?.length === 1 && (await sql`SELECT uses FROM carrier_links WHERE token = ${token}`)[0].uses === 1);
 
     // the farm ships only with this carrier
     log("another carrier refused", (await api("/api/batches", "POST", { ...ROUND, carrier: "ไปรษณีย์ไทย" }, F1.cookie)).status === 400);
     const ok = await api("/api/batches", "POST", { ...ROUND, carrier: "ขนส่งเอกชน", provider: "Kerry Express" }, F1.cookie);
     const lot = ok.json.id as string;
-    log("bound carrier accepted: provider = company, branch filled, lot carries the org, calculated", ok.status === 201 && ok.json.provider === ua.company && ok.json.branch === "สาขาเชียงใหม่" && ok.json.carrierOrg === ua.org_code && ok.json.status === "computed", `${ok.status} ${ok.json.provider} ${ok.json.branch} ${ok.json.carrierOrg} ${ok.json.status}`);
+    log("bound carrier accepted: provider = company, branch filled, lot carries the org, calculated", ok.status === 201 && ok.json.provider === ua.company && ok.json.branch === "สำนักงานใหญ่" && !!ok.json.branchId && ok.json.carrierOrg === ua.org_code && ok.json.status === "computed", `${ok.status} ${ok.json.provider} ${ok.json.branch} ${ok.json.carrierOrg} ${ok.json.status}`);
     log("company/branch not sent to KYN's อื่นๆ queue", (await sql`SELECT count(*)::int n FROM custom_entries WHERE supplier_id = ${F1.id}`)[0].n === 0);
     log("edit to another carrier refused", (await api(`/api/batches/${lot}`, "PUT", { ...ROUND, carrier: "ไปรษณีย์ไทย" }, F1.cookie)).status === 400);
     log("another carrier org cannot print the lot", (await api("/api/prints", "POST", { supplierId: F1.id, batchId: lot }, B.cookie)).status === 403);
@@ -60,7 +62,7 @@ const ROUND = { productCategory: "fruit", productType: "มะม่วง", uni
     log("a carrier cannot attach", (await api(`/api/carrier-links/${token}/attach`, "POST", undefined, B.cookie)).status === 403);
 
     // closing a link
-    log("another org cannot close it", (await api(`/api/carrier-links/${token}`, "PATCH", { revoke: true }, B.cookie)).status === 404);
+    log("another org cannot close it", [403, 404].includes((await api(`/api/carrier-links/${token}`, "PATCH", { revoke: true }, B.cookie)).status));
     log("owner closes it", (await api(`/api/carrier-links/${token}`, "PATCH", { revoke: true }, A.cookie)).status === 200);
     const F3 = await farm("f3", { carrierLink: token });
     if (F3.id) farmIds.push(F3.id);
@@ -94,6 +96,7 @@ const ROUND = { productCategory: "fruit", productType: "มะม่วง", uni
     if (og.length) await sql`DELETE FROM carrier_links WHERE org_code = ANY(${og})`;
     await sql`DELETE FROM rate_limits WHERE key IN (SELECT 'carrier-links:user:' || id FROM users WHERE email = ANY(${EMAILS}))`;
     await sql`DELETE FROM users WHERE email = ANY(${EMAILS})`;
+    await cleanupQaCarriers(sql);
     await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
   }
   console.log(fails ? `${fails} failed` : "all passed");

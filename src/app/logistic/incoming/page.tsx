@@ -1,5 +1,7 @@
 import { requireRole } from "@/lib/auth";
-import { getSuppliers, getBatches, getPrints } from "@/lib/store";
+import { getSuppliers, getPrints } from "@/lib/store";
+import { myLots, logisticAccess } from "@/lib/logistic-org";
+import { carrierLabel } from "@/lib/carriers";
 import LogisticIncoming, { type IncomingRow } from "@/components/LogisticIncoming";
 import { thaiDateShort } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
@@ -12,7 +14,9 @@ import { categoryOf } from "@/lib/produce";
 export default async function LogisticIncomingPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const cat = parseCat((await searchParams).cat);
   const user = await requireRole("logistic");
-  const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
+  const access = await logisticAccess(user);
+  // only this account's lots — its branch, or its whole company for the head office (doc "Logistic", 17 Oct 2026)
+  const [suppliers, allBatches, prints] = await Promise.all([getSuppliers(), myLots(user), getPrints()]);
   const mixed = new Set(allBatches.map(categoryOf)).size > 1;
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
   const byId = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
@@ -42,7 +46,7 @@ export default async function LogisticIncomingPage({ searchParams }: { searchPar
   return (
     <div className="space-y-6">
       {mixed ? <CategoryFilter value={cat} basePath="/logistic/incoming" accent="blue" /> : null}
-      <LogisticIncoming rows={rows} org={{ code: user.orgCode, company: user.company, branch: user.branch }} />
+      <LogisticIncoming rows={rows} org={{ code: user.orgCode, company: access.org?.company ?? user.company, branch: access.branch?.name ?? user.branch, provider: carrierLabel(access.org?.providerType) || undefined }} />
     </div>
   );
 }

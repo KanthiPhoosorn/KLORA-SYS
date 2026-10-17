@@ -1,6 +1,6 @@
 // The carrier lock (10 Oct 2026): a farm bound through a carrier's sign-up link ships only with that carrier.
 // Enforced on the server for the farm's rounds (create + edit) and for the carrier side (print, export).
-import type { Batch, Supplier } from "./types";
+import type { Supplier } from "./types";
 import type { RoundFields } from "./round-parse";
 import { boundCarrier } from "./carriers";
 
@@ -29,9 +29,5 @@ export function withoutBound<T extends { provider?: string; branch?: string }>(s
   if (!bound) return b;
   return { ...b, provider: b.provider === bound.company ? undefined : b.provider, branch: b.branch === bound.branch ? undefined : b.branch };
 }
-
-/** Carrier side: a lot made for a bound farm belongs to that carrier org only. */
-export function carrierRefusal(user: { role: string; orgCode?: string }, lot: Pick<Batch, "carrierOrg"> | null | undefined): string | null {
-  if (!lot?.carrierOrg || user.role !== "logistic" || user.orgCode === lot.carrierOrg) return null;
-  return "ล็อตนี้เป็นของฟาร์มที่ส่งกับผู้ขนส่งรายอื่น — ดำเนินการไม่ได้";
-}
+// The carrier side (which lots a carrier may print / record) is in logistic-org.ts lotRefusal: a lot belongs
+// to the branch the farm drops it at, and through it to that carrier company.

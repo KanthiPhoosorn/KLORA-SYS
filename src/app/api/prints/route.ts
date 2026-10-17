@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getPrints, addPrint, getBatch, addBatchEvent } from "@/lib/store";
 import { guard } from "@/lib/api-guard";
-import { carrierRefusal } from "@/lib/carrier-lock";
+import { lotRefusal, logisticWriteRefusal, myLots } from "@/lib/logistic-org";
 
 // Print logs are an operator concern (logistic / KYN) — never public.
 export async function GET() {
   const g = await guard(["logistic", "kyn"]);
   if (g.deny) return g.deny;
   const prints = await getPrints();
-  return NextResponse.json(prints);
+  if (g.user.role !== "logistic") return NextResponse.json(prints);
+  const mine = new Set((await myLots(g.user)).map((b) => b.id));
+  return NextResponse.json(prints.filter((p) => p.batchId && mine.has(p.batchId)));
 }
 
 // POST /api/prints — Thai Post logs a QR label print (feeds the KYN Shipment/QR log).
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
   let destination = body.destination ? String(body.destination) : undefined;
   const lot = asked ? await getBatch(asked) : null;
   if (asked && !lot) return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
-  const refused = carrierRefusal(g.user, lot);
+  const refused = (await logisticWriteRefusal(g.user)) ?? (await lotRefusal(g.user, lot));
   if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   // store the current LOT code even when an old BAT id was sent — print lookups and the history key on it
   const batchId = lot?.id;

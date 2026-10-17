@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { getSupplier, getBatchesBySupplier, getCatalog, getBatch, activePrintOf, getPackPhotos } from "@/lib/store";
 import RoundForm from "@/components/RoundForm";
+import { originBranches } from "@/lib/logistic-org";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +23,14 @@ export default async function NewRoundPage({ searchParams }: { searchParams: Pro
     if (!edit || edit.supplierId !== supplier.id || edit.cancelledAt || (await activePrintOf(edit.id))) redirect("/app/history");
   }
   const packPhotos = edit ? await getPackPhotos(edit.id) : [];
+  // สาขาต้นทาง: the real branches of registered carriers (only the bound carrier's for a bound farm)
+  const branches = await originBranches(supplier.carrierOrg, edit?.branchId);
   const varietyOptions = Array.from(new Set(batches.map((b) => b.variety).filter((v): v is string => !!v)));
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">{edit ? `แก้ไขรอบส่งออก · ${edit.id}` : copyFrom ? `กรอกข้อมูลรอบส่งออกใหม่ · คัดลอกจาก ${copyFrom.id}` : "กรอกข้อมูลรอบส่งออกใหม่"}</h1>
-      <RoundForm supplier={supplier} varietyOptions={varietyOptions} catalog={catalog} edit={edit ?? undefined} copyFrom={copyFrom ?? undefined} packPhotos={packPhotos} />
+      <RoundForm supplier={supplier} varietyOptions={varietyOptions} catalog={catalog} edit={edit ?? undefined} copyFrom={copyFrom ?? undefined} packPhotos={packPhotos} branches={branches} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { getBatch, getSupplier } from "@/lib/store";
+import { lotScope, logisticAccess } from "@/lib/logistic-org";
 import { quantityLabel, categoryOf } from "@/lib/produce";
 import { asLabelSize } from "@/lib/labels";
 import LabelSheet, { type LabelData } from "@/components/LabelSheet";
@@ -21,6 +22,8 @@ function shortThai(iso: string) {
 export default async function PrintLabelsPage({ searchParams }: { searchParams: Promise<{ ids?: string }> }) {
   const user = await getCurrentUser();
   if (!user || (user.role !== "logistic" && user.role !== "kyn")) redirect("/logistic/login");
+  if (user.role === "logistic" && (await logisticAccess(user)).state !== "active") redirect("/logistic");
+  const mine = await lotScope(user); // a carrier prints only its own branches' lots
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "corta.tech";
   const origin = `${h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https")}://${host}`;
@@ -29,7 +32,7 @@ export default async function PrintLabelsPage({ searchParams }: { searchParams: 
   for (const id of ids) {
     const b = await getBatch(id);
     const s = b ? await getSupplier(b.supplierId) : null;
-    if (!b || !s) continue;
+    if (!b || !s || !mine(b)) continue;
     const flower = categoryOf(b) === "flower";
     const type = b.productType || s.flowerType || "";
     const product = flower ? b.variety || type : [type, b.variety && b.variety !== type ? b.variety : ""].join("");

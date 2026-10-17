@@ -3,6 +3,7 @@
 // QA carrier + QA farm; self-cleaning.   npx tsx --env-file=.env.local scripts/qa/rating-flow.ts
 import { neon } from "@neondatabase/serverless";
 import { createHmac } from "crypto";
+import { qaCarrier, cleanupQaCarriers } from "./qa-carrier";
 const BASE = "http://localhost:3123"; const TS = Date.now().toString(36);
 const mint = (u: string) => { const p = `${u}:${Date.now() + 3600_000}`; return `${Buffer.from(p).toString("base64url")}.${createHmac("sha256", process.env.KLORA_SESSION_SECRET!).update(p).digest("base64url")}`; };
 const api = async (path: string, method: string, body?: unknown, cookie?: string, raw?: string) => { const r = await fetch(BASE + path, { method, redirect: "manual", headers: { "Content-Type": "application/json", ...(raw ? { Cookie: raw } : cookie ? { Cookie: `klora_session=${cookie}` } : {}) }, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})), set: r.headers.get("set-cookie") || "" }; };
@@ -17,12 +18,12 @@ const TRANSPORT_ONLY = `กล่องบุบตอนส่ง QA ${TS}`;
   await sql`DELETE FROM rate_limits WHERE key LIKE '%:ip:::1'`;
   let supId = "";
   try {
-    const C = await api("/api/auth/register-logistic", "POST", { username: `qa_rt_c_${TS}`, email: EC, company: `QA ขนส่ง ${TS}`, branch: "สาขาเชียงใหม่", password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!" });
-    const cCookie = /klora_session=([^;]+)/.exec(C.set)![1];
+    const C = await qaCarrier(sql, "rt-c", TS, { email: EC });
+    const cCookie = C.cookie;
     const [cu] = await sql`SELECT org_code, company FROM users WHERE email = ${EC}`;
     const F = await api("/api/auth/register", "POST", { farmName: `QA Rating Farm ${TS}`, address: "อ.แม่ริม จ.เชียงใหม่", gps: "18.91, 98.94", contactName: "QA", flowerType: "มะม่วง", email: EF, username: `qa_rt_f_${TS}`, password: "QaPassw0rd!", confirmPassword: "QaPassw0rd!" });
     const fCookie = /klora_session=([^;]+)/.exec(F.set)![1]; supId = F.json.supplier.id;
-    const b = await api("/api/batches", "POST", { productCategory: "fruit", productType: "มะม่วง", unit: "kg", quantity: 40, cutDate: "2026-10-09", distanceKm: 300, destination: "กรุงเทพฯ", carrier: "ขนส่งเอกชน", provider: "Kerry Express", shippedWeightKg: 45, packagingItems: [] }, fCookie);
+    const b = await api("/api/batches", "POST", { productCategory: "fruit", productType: "มะม่วง", unit: "kg", quantity: 40, cutDate: "2026-10-09", distanceKm: 300, destination: "กรุงเทพฯ", carrier: "ขนส่งเอกชน", provider: "Kerry Express", shippedWeightKg: 45, packagingItems: [], branchId: C.branchId }, fCookie); // dropped at the QA carrier's head office
     const lot = b.json.id as string;
     log("fixture lot", b.status === 201 && !!lot, lot);
 
@@ -79,6 +80,7 @@ const TRANSPORT_ONLY = `กล่องบุบตอนส่ง QA ${TS}`;
       await sql`DELETE FROM suppliers WHERE id = ${supId}`;
     }
     await sql`DELETE FROM users WHERE email IN (${EC}, ${EF})`;
+    await cleanupQaCarriers(sql);
     await sql`DELETE FROM rate_limits WHERE key LIKE 'ratings:ip:%' OR key LIKE '%:ip:::1' OR key LIKE 'login:acct:qa_%'`;
   }
   console.log(fails ? `${fails} failed` : "all passed");

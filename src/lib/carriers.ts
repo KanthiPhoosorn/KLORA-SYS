@@ -9,6 +9,8 @@ export const CARRIERS: { key: CarrierKey; label: string }[] = [
   { key: "sorting_center", label: "ศูนย์คัดแยกสินค้า" },
   { key: "exporter", label: "ผู้ส่งออก" },
 ];
+/** "เพิ่มข้อมูลรอบส่งออก" (the carrier records the export itself) is only for these provider types (doc "Logistic", 17 Oct 2026). */
+export const RECORDS_EXPORTS: CarrierKey[] = ["sorting_center", "exporter"];
 /** Private parcel providers offered when the carrier is not Thai Post (+ "อื่นๆ (ระบุ)"). */
 export const PROVIDERS = ["Nim Express", "Kerry Express", "Flash Express", "J&T Express", "SCG Express", "DHL Express"];
 
