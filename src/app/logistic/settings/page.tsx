@@ -1,7 +1,7 @@
 import { requireRole } from "@/lib/auth";
-import { getMembers, getInvites, getBatches } from "@/lib/store";
+import { getMembers, getInvites } from "@/lib/store";
 import { orgOf } from "@/lib/api-guard";
-import { logisticAccess, getBranches, orgUsers } from "@/lib/logistic-org";
+import { logisticAccess, getBranches, orgUsers, myLots } from "@/lib/logistic-org";
 import TeamManager from "@/components/TeamManager";
 import BranchManager, { type BranchView } from "@/components/BranchManager";
 
@@ -20,7 +20,7 @@ export default async function LogisticSettingsPage() {
 
   let extraTab: { label: string; badge?: number; content: React.ReactNode } | undefined;
   if (access.hq && access.org) {
-    const [branches, people, lots] = await Promise.all([getBranches(access.org.orgCode), orgUsers(access.org.orgCode), getBatches()]);
+    const [branches, people, lots] = await Promise.all([getBranches(access.org.orgCode), orgUsers(access.org.orgCode), myLots(user)]);
     const thisMonth = monthOf(new Date().toISOString());
     const views: BranchView[] = branches
       .filter((b) => b.status !== "rejected")

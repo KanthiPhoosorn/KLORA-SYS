@@ -133,16 +133,39 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
 
     // --- 6. disable: the branch is locked out at once, its lots stay with the head office ------------------
     log("disable branch", (await api(`/api/logistic/branches/${cUser.branch_id}`, "PATCH", { action: "disable" }, aCookie)).status === 200);
+    log("a disabled branch's producer link stops", (await page(`/c/${link.json.token}`)).text.includes("ลิงก์นี้ถูกปิดแล้ว"));
     log("disabled branch: session ends, login refused", (await page("/logistic", cCookie)).status === 307 && (await api("/api/auth/login", "POST", { login: `qa-loc-${TS}@klora-qa.test`, password: QA_PASSWORD })).status === 403);
     log("its lots stay in the head office's figures", (await ids(aCookie)).includes(lot));
     log("enable again", (await api(`/api/logistic/branches/${cUser.branch_id}`, "PATCH", { action: "enable" }, aCookie)).status === 200 && (await page("/logistic", cCookie)).status === 200);
     const ed = await api(`/api/logistic/branches/${cUser.branch_id}`, "PATCH", { action: "edit", name: "สาขาเชียงราย QA2", phone: "053000002" }, aCookie);
     log("head office edits a branch (name follows to its accounts)", ed.status === 200 && (await sql`SELECT branch FROM users WHERE id = ${cUser.id}`)[0].branch === "สาขาเชียงราย QA2");
+    log("…and to its lots and producer links", (await sql`SELECT branch FROM batches WHERE id = ${lot}`)[0].branch === "สาขาเชียงราย QA2" && (await sql`SELECT branch FROM carrier_links WHERE token = ${link.json.token}`)[0].branch === "สาขาเชียงราย QA2");
+
+    // only ศูนย์คัดแยกสินค้า / ผู้ส่งออก record exports — the API says so too, not just the menu
+    log("ไปรษณีย์ไทย type: export record refused by the API", (await api(`/api/batches/${lot}`, "PATCH", { shippedWeightKg: 50, vehicleKey: "van" }, aCookie)).status === 403 && (await api("/api/batches", "POST", { ...round, supplierId: farmId }, aCookie)).status === 403);
+
+    // a company KYN suspends: its branches take no new lots, its accounts cannot sign in
+    const [bHq] = await sql`SELECT branch_id FROM users WHERE email = ${`qa-lob-${TS}@klora-qa.test`}`;
+    log("KYN suspends a company", (await api(`/api/logistic/companies/${(await sql`SELECT org_code FROM users WHERE email = ${`qa-lob-${TS}@klora-qa.test`}`)[0].org_code}`, "PATCH", { action: "suspend" }, KYN)).status === 200);
+    log("a suspended company's branch takes no lots; its login is refused", (await api("/api/batches", "POST", { ...round, branchId: bHq.branch_id }, fCookie)).status === 400 && (await api("/api/auth/login", "POST", { login: `qa-lob-${TS}@klora-qa.test`, password: QA_PASSWORD })).status === 403);
+    await api(`/api/logistic/companies/${(await sql`SELECT org_code FROM users WHERE email = ${`qa-lob-${TS}@klora-qa.test`}`)[0].org_code}`, "PATCH", { action: "activate" }, KYN);
+
+    // the head office invites a colleague: the invite page names the company, joining puts them in that branch
+    const invEmail = `qa-loi-${TS}@klora-qa.test`;
+    log("head office invites by email", (await api("/api/invites", "POST", { email: invEmail }, aCookie)).status === 201);
+    const [colleague] = await sql`SELECT token, supplier_id FROM invites WHERE email = ${invEmail}`;
+    const joinPage = await page(`/join/${colleague.token}`);
+    log("invite page names the company (no 'ไม่พบองค์กรที่เชิญ')", colleague.supplier_id === aUser.branch_id && joinPage.text.includes(`QA ขนส่ง loa ${TS}`) && !joinPage.text.includes("ไม่พบองค์กรที่เชิญ"));
+    const joined = await api("/api/auth/join", "POST", { token: colleague.token, username: `qa_loi_${TS}`, password: QA_PASSWORD, confirmPassword: QA_PASSWORD });
+    const [ju] = await sql`SELECT role, org_code, branch_id FROM users WHERE email = ${invEmail}`;
+    log("joining puts the colleague in that branch of that company", joined.status === 201 && ju?.role === "logistic" && ju.org_code === aUser.org_code && ju.branch_id === aUser.branch_id, JSON.stringify(ju));
 
     // --- 7. five wrong passwords lock the login with a countdown ----------------------------------------------
     const who = `qa_loa_${TS}`;
     const tries: number[] = [];
-    for (let i = 0; i < 5; i++) tries.push((await api("/api/auth/login", "POST", { login: who, password: "wrong-pass-1" })).status);
+    let fifth = 0;
+    for (let i = 0; i < 5; i++) { const t = await api("/api/auth/login", "POST", { login: who, password: "wrong-pass-1" }); tries.push(t.status); fifth = Number(t.json.retryAfter ?? 0); }
+    log("the lock runs a full 5 minutes from the fifth wrong try", fifth === 300, String(fifth));
     const locked = await api("/api/auth/login", "POST", { login: who, password: QA_PASSWORD });
     log("5 wrong logins → locked (429 + retryAfter), even the right password waits", JSON.stringify(tries) === "[401,401,401,401,429]" && locked.status === 429 && locked.json.retryAfter > 200 && locked.json.locked === true, `${JSON.stringify(tries)} ${locked.status} ${locked.json.retryAfter}`);
     await sql`DELETE FROM rate_limits WHERE key = ${`login:fail:${who}`}`;

@@ -70,6 +70,11 @@ export async function peekRate(key: string, max: number, windowMs: number): Prom
   return { allowed, retryAfter: allowed ? 0 : Math.max(1, Math.ceil((until - now) / 1000)), count: row.count, until };
 }
 
+/** Start a key's window again from now (a lock that lasts its full time from the last hit). */
+export async function restartRate(key: string, count: number): Promise<void> {
+  await db.update(rateLimits).set({ count, windowStart: Date.now() }).where(eq(rateLimits.key, key));
+}
+
 /** Forget a key's window (a successful login clears its failed attempts). */
 export async function resetRate(key: string): Promise<void> {
   await db.delete(rateLimits).where(eq(rateLimits.key, key));

@@ -8,8 +8,9 @@ export const metadata = { title: "ลงทะเบียน · Logistic · Cor
 // แบบที่ 1, 17 Oct 2026); through KYN's invite link (?invite=…) the company is active at once.
 export const dynamic = "force-dynamic";
 
-export default async function LogisticRegisterPage({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {
-  const asked = ((await searchParams).invite ?? "").toUpperCase();
+export default async function LogisticRegisterPage({ searchParams }: { searchParams: Promise<{ invite?: string | string[] }> }) {
+  const raw = (await searchParams).invite;
+  const asked = String((Array.isArray(raw) ? raw[0] : raw) ?? "").toUpperCase();
   const inv = asked ? await getCompanyInvite() : null;
   const invite = inv && inv.token === asked ? asked : undefined;
   return (

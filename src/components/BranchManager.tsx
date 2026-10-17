@@ -35,9 +35,9 @@ export interface BranchView {
   month: { rounds: number; weightKg: number; co2e: number };
 }
 
-const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "—");
-const fmtShort = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "—");
-const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
+const fmtShort = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
+const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 const fullAddress = (b: BranchView) => {
   const bkk = b.province === "กรุงเทพมหานคร";
   return [b.address, b.subdistrict && `${bkk ? "แขวง" : "ตำบล"}${b.subdistrict}`, b.district && `${bkk ? "เขต" : "อำเภอ"}${b.district}`, b.province && (bkk ? b.province : `จังหวัด${b.province}`), b.postcode].filter(Boolean).join(" ") || "—";
@@ -93,7 +93,8 @@ export default function BranchManager({ company, join, branches }: {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = `/api/qr?data=${encodeURIComponent(url)}&m=2`;
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; }).catch(() => null);
+    const loaded = await new Promise((res, rej) => { img.onload = res; img.onerror = rej; }).then(() => true, () => false);
+    if (!loaded) { setErr("โหลด QR ไม่สำเร็จ ลองใหม่อีกครั้ง"); return; }
     const c = document.createElement("canvas");
     c.width = c.height = 1024;
     const ctx = c.getContext("2d");

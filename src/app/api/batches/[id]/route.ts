@@ -12,7 +12,7 @@ import { guard, forbidden } from "@/lib/api-guard";
 import { unitsOf, perUnitLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
 import { lockRound, withoutBound } from "@/lib/carrier-lock";
-import { lotRefusal, placeRound } from "@/lib/logistic-org";
+import { lotRefusal, placeRound, exportRefusal } from "@/lib/logistic-org";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
 const SHIPMENT_TH: Record<ShipmentStatus, string> = { cutting: "รอจัดส่ง", in_transit: "กำลังขนส่ง", delivered: "ส่งถึงปลายทางแล้ว" };
@@ -82,6 +82,8 @@ export async function PATCH(
   // Logistic/Exporter enriches a received batch with precise transport data, then recomputes.
   const TRANSPORT = ["shippedWeightKg", "vehicleKey", "fuelKey", "isReeferUsed", "destination", "distanceKm", "packagingItems", "shipType", "innerMaterials"];
   if (TRANSPORT.some((k) => k in body)) {
+    const noExports = await exportRefusal(g.user);
+    if (noExports) return NextResponse.json({ error: noExports }, { status: 403 });
     const num = (v: unknown) => (v != null && v !== "" ? Number(v) : undefined);
     const patch: Record<string, unknown> = {};
     if ("shippedWeightKg" in body) patch.shippedWeightKg = num(body.shippedWeightKg);

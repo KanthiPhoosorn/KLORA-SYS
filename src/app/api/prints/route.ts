@@ -10,7 +10,8 @@ export async function GET() {
   const prints = await getPrints();
   if (g.user.role !== "logistic") return NextResponse.json(prints);
   const mine = new Set((await myLots(g.user)).map((b) => b.id));
-  return NextResponse.json(prints.filter((p) => p.batchId && mine.has(p.batchId)));
+  // a label printed without a lot belongs to the company that printed it
+  return NextResponse.json(prints.filter((p) => (p.batchId ? mine.has(p.batchId) : p.orgCode === g.user.orgCode)));
 }
 
 // POST /api/prints — Thai Post logs a QR label print (feeds the KYN Shipment/QR log).

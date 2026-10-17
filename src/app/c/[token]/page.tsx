@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Truck } from "lucide-react";
 import { getCarrierLink, getSupplier } from "@/lib/store";
+import { linkUsable } from "@/lib/logistic-org";
 import { getCurrentUser } from "@/lib/auth";
 import { carrierLabel } from "@/lib/carriers";
 import AttachCarrier from "@/components/AttachCarrier";
@@ -14,7 +15,7 @@ export const metadata = { title: "ชวนส่งสินค้าผ่า�
 export default async function CarrierLinkPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const [link, user] = await Promise.all([getCarrierLink(token), getCurrentUser()]);
-  const open = link && !link.revokedAt ? link : null;
+  const open = link && !link.revokedAt && (await linkUsable(link)) ? link : null; // a closed branch / suspended company: the link stops
   const company = open?.company ?? (open ? carrierLabel(open.carrierKey) : "");
   const farm = user?.role === "supplier" && user.supplierId ? await getSupplier(user.supplierId) : null;
 

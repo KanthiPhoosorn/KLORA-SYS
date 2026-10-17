@@ -23,7 +23,7 @@ export interface CompanyView {
   lots: number;
 }
 
-const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "—");
+const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
 const STATUS: Record<OrgStatus, [string, string]> = {
   active: ["ใช้งาน", "bg-emerald-50 text-emerald-700"],
   pending: ["รอตรวจสอบ", "bg-amber-50 text-amber-700"],

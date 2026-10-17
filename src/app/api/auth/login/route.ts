@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUserByLogin, getSupplier } from "@/lib/store";
 import { verifyPassword, setSessionCookie, homeForRole } from "@/lib/auth";
-import { clientIp, rateLimit, tooMany, peekRate, resetRate, lockedOut } from "@/lib/rate-limit";
+import { clientIp, rateLimit, tooMany, peekRate, resetRate, restartRate, lockedOut } from "@/lib/rate-limit";
 import { logisticAccess } from "@/lib/logistic-org";
 
 // POST /api/auth/login — { login (username or email), password }
@@ -36,7 +36,11 @@ export async function POST(req: Request) {
   // Same error for unknown user vs wrong password (don't leak which).
   if (!user || !verifyPassword(password, user.salt, user.passwordHash)) {
     const fail = await rateLimit(failKey, FAIL_MAX, FAIL_WINDOW);
-    if (fail.count >= FAIL_MAX) return lockedOut(Math.max(1, Math.ceil((fail.until - Date.now()) / 1000)), "ใส่ชื่อผู้ใช้หรือรหัสผ่านผิดเกิน 5 ครั้ง กรุณารอสักครู่แล้วลองใหม่");
+    if (fail.count >= FAIL_MAX) {
+      // the lock runs a full 5 minutes from this (fifth) wrong try, not from the first
+      await restartRate(failKey, FAIL_MAX);
+      return lockedOut(FAIL_WINDOW / 1000, "ใส่ชื่อผู้ใช้หรือรหัสผ่านผิดเกิน 5 ครั้ง กรุณารอสักครู่แล้วลองใหม่");
+    }
     const left = FAIL_MAX - fail.count;
     return NextResponse.json(
       { error: `ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง${left <= 2 ? ` (ลองได้อีก ${left} ครั้ง)` : ""}` },

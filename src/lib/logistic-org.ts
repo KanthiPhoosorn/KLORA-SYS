@@ -4,12 +4,14 @@
 //     and stay pending until the head office approves them.
 //   - Every lot belongs to the branch the farm drops it at (สาขาต้นทาง). A branch account sees its own
 //     branch's lots, a head-office account its whole company's — a new company starts empty.
+import { cache } from "react";
 import { eq, asc } from "drizzle-orm";
 import { randomInt } from "crypto";
 import { db } from "./db";
-import { logisticOrgs, logisticBranches, users, appSettings } from "./db/schema";
+import { logisticOrgs, logisticBranches, users, appSettings, batches, carrierLinks, suppliers } from "./db/schema";
 import type { LogisticOrg, LogisticBranch, BranchEvent, User, Batch } from "./types";
 import { getBatches } from "./store";
+import { RECORDS_EXPORTS } from "./carriers";
 
 const clean = <T>(row: Record<string, unknown>): T => {
   const out: Record<string, unknown> = {};
@@ -124,12 +126,15 @@ export interface LogisticAccess {
   hq: boolean;
 }
 
-/** Where a logistic account stands: its company and branch, and whether it may work. */
+/** Where a logistic account stands: its company and branch, and whether it may work. Looked up once per
+ *  request (a page asks several times: session, layout, page, lot scope). An account with no branch is
+ *  never the head office — it sees nothing until it has one. */
 export async function logisticAccess(user: Pick<User, "role" | "orgCode" | "branchId">): Promise<LogisticAccess> {
-  const org = await getOrg(user.orgCode);
-  let branch = await getBranch(user.branchId);
-  if (!branch && org) branch = (await getBranches(org.orgCode)).find((b) => b.isHq) ?? null; // an account made before branches
-  const hq = !!branch?.isHq;
+  return accessFor(user.orgCode ?? null, user.branchId ?? null);
+}
+const accessFor = cache(async (orgCode: string | null, branchId: string | null): Promise<LogisticAccess> => {
+  const [org, branch] = await Promise.all([getOrg(orgCode), getBranch(branchId)]);
+  const hq = !!branch?.isHq && branch.orgCode === org?.orgCode;
   if (!org) return { state: "active", org: null, branch, hq: false };
   if (org.status === "suspended") return { state: "blocked", reason: "บัญชีบริษัทนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN", org, branch, hq };
   if (org.status === "rejected") return { state: "blocked", reason: `การลงทะเบียนบริษัทไม่ผ่านการตรวจสอบ${org.rejectReason ? ` — ${org.rejectReason}` : ""}`, org, branch, hq };
@@ -138,7 +143,7 @@ export async function logisticAccess(user: Pick<User, "role" | "orgCode" | "bran
   if (org.status === "pending") return { state: "org_pending", org, branch, hq };
   if (branch?.status === "pending") return { state: "branch_pending", org, branch, hq };
   return { state: "active", org, branch, hq };
-}
+});
 
 /** Write APIs: a logistic account may change data only while its company and branch are active. */
 export async function logisticWriteRefusal(user: Pick<User, "role" | "orgCode" | "branchId">): Promise<string | null> {
@@ -192,7 +197,8 @@ export async function placeRound(fields: { branch?: string; branchId?: string },
   const id = typeof asked === "string" ? asked.trim() : "";
   if (id) {
     const b = await getBranch(id);
-    if (!b || (b.status !== "active" && b.id !== keep)) return "สาขาต้นทางนี้ใช้งานไม่ได้ กรุณาเลือกสาขาอื่น";
+    const live = b && b.status === "active" && (await getOrg(b.orgCode))?.status === "active";
+    if (!b || (!live && b.id !== keep)) return "สาขาต้นทางนี้ใช้งานไม่ได้ กรุณาเลือกสาขาอื่น";
     if (boundOrg && b.orgCode !== boundOrg) return "ฟาร์มนี้ส่งได้เฉพาะสาขาของผู้ขนส่งที่ผูกไว้";
     fields.branchId = b.id;
     fields.branch = b.name;
@@ -201,7 +207,8 @@ export async function placeRound(fields: { branch?: string; branchId?: string },
   const name = (fields.branch ?? "").trim();
   fields.branchId = undefined;
   if (!name) return null;
-  const hits = (await getBranches(boundOrg)).filter((b) => b.status === "active" && b.name === name);
+  const liveOrgs = new Set((await getOrgs()).filter((o) => o.status === "active").map((o) => o.orgCode));
+  const hits = (await getBranches(boundOrg)).filter((b) => b.status === "active" && liveOrgs.has(b.orgCode) && b.name === name);
   if (hits.length === 1) fields.branchId = hits[0].id; // a typed name that is exactly one branch
   return null;
 }
@@ -216,4 +223,41 @@ export async function originBranches(boundOrg?: string | null, keep?: string | n
     .filter((b) => b.id === keep || (b.status === "active" && live.has(b.orgCode)))
     .map((b) => ({ id: b.id, name: b.name, company: live.get(b.orgCode) ?? orgs.find((o) => o.orgCode === b.orgCode)?.company ?? b.orgCode, lat: b.lat, lng: b.lng }))
     .sort((a, b) => a.company.localeCompare(b.company, "th") || Number(b.name === "สำนักงานใหญ่") - Number(a.name === "สำนักงานใหญ่") || a.name.localeCompare(b.name, "th"));
+}
+
+/** A branch's new name, everywhere it is written: its accounts, its lots, its producer links, bound farms. */
+export async function renameBranchEverywhere(id: string, name: string): Promise<void> {
+  await db.update(users).set({ branch: name }).where(eq(users.branchId, id));
+  await db.update(batches).set({ branch: name }).where(eq(batches.branchId, id));
+  await db.update(carrierLinks).set({ branch: name }).where(eq(carrierLinks.branchId, id));
+  await db.update(suppliers).set({ carrierBranch: name }).where(eq(suppliers.carrierBranchId, id));
+}
+
+/** A producer link works only while its company and its branch do (a closed branch's link stops too). */
+export async function linkUsable(link: { orgCode: string; branchId?: string | null }): Promise<boolean> {
+  const org = await getOrg(link.orgCode);
+  if (org && org.status !== "active") return false;
+  const b = link.branchId ? await getBranch(link.branchId) : null;
+  return !b || b.status === "active";
+}
+
+/** "เพิ่มข้อมูลรอบส่งออก" (recording an export, or a round for a farm) is for ศูนย์คัดแยกสินค้า / ผู้ส่งออก only. */
+export async function exportRefusal(user: Pick<User, "role" | "orgCode" | "branchId">): Promise<string | null> {
+  if (user.role !== "logistic") return null;
+  const a = await logisticAccess(user);
+  if (a.org && !RECORDS_EXPORTS.includes(a.org.providerType)) return "บันทึกรอบส่งออกได้เฉพาะศูนย์คัดแยกสินค้าและผู้ส่งออก";
+  return null;
+}
+
+/** Postgres unique violation (a code / name taken by a sign-up a moment earlier) */
+export const isUniqueViolation = (e: unknown): boolean => {
+  const x = e as { code?: string; cause?: { code?: string } } | null;
+  return x?.code === "23505" || x?.cause?.code === "23505";
+};
+/** Undo a sign-up that failed half way: the company (its branches go with it) / one branch. */
+export async function dropOrg(code: string): Promise<void> {
+  await db.delete(logisticOrgs).where(eq(logisticOrgs.orgCode, code));
+}
+export async function dropBranch(id: string): Promise<void> {
+  await db.delete(logisticBranches).where(eq(logisticBranches.id, id));
 }

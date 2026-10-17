@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api-guard";
-import { logisticAccess, getBranch, getBranches, updateBranch, branchUsers } from "@/lib/logistic-org";
-import { getUsers, updateUser } from "@/lib/store";
+import { logisticAccess, getBranch, getBranches, updateBranch, renameBranchEverywhere } from "@/lib/logistic-org";
+import { getUsers } from "@/lib/store";
 import { placeOf } from "@/lib/places";
 import { parseLatLng } from "@/lib/latlng";
 import { phoneOk } from "@/lib/signup-rules";
@@ -87,8 +87,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       if (!Object.keys(patch).length) return NextResponse.json({ branch });
       const b = await updateBranch(id, patch, { text: "แก้ไขข้อมูลสาขา", by });
-      // the accounts of the branch show its name
-      if (patch.name) for (const u of await branchUsers(id)) await updateUser(u.id, { branch: patch.name });
+      // its accounts, lots, producer links and bound farms show the new name
+      if (patch.name) await renameBranchEverywhere(id, patch.name);
       return NextResponse.json({ branch: b });
     }
     default:

@@ -34,7 +34,7 @@ export async function qaCarrier(sql: NeonQueryFunction<false, false>, tag: strin
 
 /** Remove QA companies (their branches go with them), their accounts and their rate-limit keys. */
 export async function cleanupQaCarriers(sql: NeonQueryFunction<false, false>) {
-  const orgs = await sql`SELECT org_code FROM logistic_orgs WHERE company LIKE 'QA %'`;
+  const orgs = await sql`SELECT org_code FROM logistic_orgs WHERE company LIKE 'QA ขนส่ง %'`; // only what qaCarrier / the UI test make
   const codes = orgs.map((o) => String(o.org_code));
   if (codes.length) {
     const branches = await sql`SELECT id FROM logistic_branches WHERE org_code = ANY(${codes})`;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getMembers, updateMember, removeMember } from "@/lib/store";
 import { orgOf } from "@/lib/api-guard";
+import { logisticWriteRefusal } from "@/lib/logistic-org";
 import type { MemberRole } from "@/lib/types";
 
 // PATCH /api/members/[id] — { role } ; DELETE removes the member.
@@ -12,6 +13,8 @@ async function ownsMember(user: { supplierId?: string; id: string }, id: string)
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  const waiting = await logisticWriteRefusal(user); // a branch / company still waiting for approval cannot write yet
+  if (waiting) return NextResponse.json({ error: waiting }, { status: 403 });
   const { id } = await params;
   let body: { role?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
@@ -26,6 +29,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
+  const waiting = await logisticWriteRefusal(user); // a branch / company still waiting for approval cannot write yet
+  if (waiting) return NextResponse.json({ error: waiting }, { status: 403 });
   const { id } = await params;
   if (!(await ownsMember(user, id))) return NextResponse.json({ error: "ไม่พบสมาชิก" }, { status: 404 });
   const ok = await removeMember(id);

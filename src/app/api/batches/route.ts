@@ -7,7 +7,7 @@ import type { BatchStatus } from "@/lib/types";
 import { parseRound } from "@/lib/round-parse";
 import { queueRoundOthers, queuePackagingOthers } from "@/lib/custom-queue";
 import { lockRound, withoutBound } from "@/lib/carrier-lock";
-import { myLots, logisticWriteRefusal, logisticAccess, placeRound } from "@/lib/logistic-org";
+import { myLots, logisticWriteRefusal, logisticAccess, placeRound, exportRefusal } from "@/lib/logistic-org";
 
 // GET /api/batches[?supplierId=] — signed-in only. A farm account only ever sees its own rounds;
 // logistic / KYN may list every farm (optionally filtered).
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     supplierId = user.supplierId;
     sup = await getSupplier(supplierId);
   } else if (user.role === "logistic" && body.supplierId) {
-    const refusal = await logisticWriteRefusal(user);
+    const refusal = (await logisticWriteRefusal(user)) ?? (await exportRefusal(user));
     if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
     sup = await getSupplier(String(body.supplierId));
     if (!sup) return NextResponse.json({ error: "ไม่พบฟาร์มที่เลือก" }, { status: 400 });

@@ -181,7 +181,7 @@ export default function RoundForm({
   const branchIdOf = (id?: string, name?: string) =>
     (id && branches.some((b) => b.id === id) ? id : name ? branches.find((b) => b.name === name)?.id ?? name : "");
   const [branch, setBranch] = useState(
-    src ? branchIdOf(edit ? src.branchId : undefined, src.branch) : lockedCarrier ? branchIdOf(supplier.carrierBranchId, supplier.carrierBranch) : "",
+    src ? branchIdOf(src.branchId, src.branch) : lockedCarrier ? branchIdOf(supplier.carrierBranchId, supplier.carrierBranch) : "",
   );
   const picked = branches.find((b) => b.id === branch);
 

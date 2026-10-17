@@ -35,7 +35,7 @@ export default async function LogisticDashboard({ searchParams }: { searchParams
   const viewing = sp.branch ? orgBranches.find((b) => b.id === sp.branch) ?? null : null;
   const [suppliers, allBatches, allPrints] = await Promise.all([getSuppliers(), myLots(user, viewing?.id), getPrints()]);
   const lotIds = new Set(allBatches.map((b) => b.id));
-  const prints = allPrints.filter((p) => p.batchId && lotIds.has(p.batchId));
+  const prints = allPrints.filter((p) => (p.batchId ? lotIds.has(p.batchId) : p.orgCode === user.orgCode));
   // Category filter (ทั้งหมด / ดอกไม้ / ผลไม้ / ผัก) scopes every figure; units never mix — a single
   // category reports per-stem or per-kg, "ทั้งหมด" counts shipments and reports CO₂e per shipment.
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);

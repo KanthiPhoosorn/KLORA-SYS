@@ -71,6 +71,7 @@ export async function POST(req: Request) {
     company = inviter.company;
     branch = inviter.branch;
     orgCode = inviter.orgCode; // same organisation → same CID
+    branchId = inviter.branchId; // …and the same branch (never head office by default)
   }
 
   const { hash, salt } = hashPassword(password);

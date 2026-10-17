@@ -10,6 +10,7 @@ import { asCarrierKey } from "@/lib/carriers";
 import { parseResourceLines, linesToLegacy } from "@/lib/resource-types";
 import { queueResourceOthers, queueProductOthers } from "@/lib/custom-queue";
 import { getCarrierLink, useCarrierLink, bindingOf } from "@/lib/store";
+import { linkUsable } from "@/lib/logistic-org";
 
 // POST /api/auth/register — creates a farm profile + a login account in one step,
 // issues a SUP ID, and signs the new user in.
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
   // via / org values are ignored when a token is present.
   const linkToken = body.carrierLink ? String(body.carrierLink) : "";
   const link = linkToken ? await getCarrierLink(linkToken) : null;
-  if (linkToken && (!link || link.revokedAt)) {
+  if (linkToken && (!link || link.revokedAt || !(await linkUsable(link)))) {
     return NextResponse.json({ error: "ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว — ขอลิงก์ใหม่จากผู้ขนส่ง หรือสมัครแบบปกติ" }, { status: 400 });
   }
 

@@ -15,7 +15,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
   // only this account's lots — its branch, or its whole company for the head office (doc "Logistic", 17 Oct 2026)
   const [allBatches, allPrints] = await Promise.all([myLots(user), getPrints()]);
   const lotIds = new Set(allBatches.map((b) => b.id));
-  const prints = allPrints.filter((p) => p.batchId && lotIds.has(p.batchId));
+  const prints = allPrints.filter((p) => (p.batchId ? lotIds.has(p.batchId) : p.orgCode === user.orgCode));
   const mixed = new Set(allBatches.map(categoryOf)).size > 1;
   const batches = cat === "all" ? allBatches : allBatches.filter((b) => categoryOf(b) === cat);
 

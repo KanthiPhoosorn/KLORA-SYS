@@ -9,7 +9,11 @@ export function useCooldown() {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (until <= Date.now()) return;
-    const t = setInterval(() => setNow(Date.now()), 250);
+    const t = setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      if (n >= until) clearInterval(t); // done — no more re-renders
+    }, 250);
     return () => clearInterval(t);
   }, [until]);
   const left = Math.max(0, Math.ceil((until - now) / 1000));

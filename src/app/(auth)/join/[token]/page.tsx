@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getInviteByToken, getSupplier, getUsers } from "@/lib/store";
 import { isFarmOrg } from "@/lib/api-guard";
+import { getBranch, getOrg } from "@/lib/logistic-org";
 import JoinForm from "@/components/auth/JoinForm";
 import AuthLogo from "@/components/auth/AuthLogo";
 
@@ -14,7 +15,13 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const invite = await getInviteByToken(token);
   let orgName = "";
   if (invite?.status === "pending") {
-    orgName = isFarmOrg(invite.supplierId)
+    const branch = invite.supplierId.startsWith("LBR-") ? await getBranch(invite.supplierId) : null; // a logistic branch's team
+    const org = branch && branch.status !== "rejected" ? await getOrg(branch.orgCode) : null;
+    orgName = org
+      ? `${org.company}${branch && !branch.isHq ? ` · ${branch.name}` : ""}`
+      : invite.supplierId.startsWith("LBR-")
+        ? ""
+        : isFarmOrg(invite.supplierId)
       ? (await getSupplier(invite.supplierId))?.farmName ?? ""
       : invite.supplierId === "KYN"
         ? "KYN"

@@ -34,12 +34,16 @@ export default function AddressFields({ value, onChange, errs, clearErr, address
   useEffect(() => {
     setDistricts([]);
     if (!value.province) return;
-    fetch(`/api/places?province=${encodeURIComponent(value.province)}`).then((r) => r.json()).then((j) => setDistricts(j.districts ?? [])).catch(() => {});
+    let current = true;
+    fetch(`/api/places?province=${encodeURIComponent(value.province)}`).then((r) => r.json()).then((j) => { if (current) setDistricts(j.districts ?? []); }).catch(() => {});
+    return () => { current = false; };
   }, [value.province]);
   useEffect(() => {
     setSubs([]);
     if (!value.province || !value.district) return;
-    fetch(`/api/places?province=${encodeURIComponent(value.province)}&district=${encodeURIComponent(value.district)}`).then((r) => r.json()).then((j) => setSubs(j.subdistricts ?? [])).catch(() => {});
+    let current = true;
+    fetch(`/api/places?province=${encodeURIComponent(value.province)}&district=${encodeURIComponent(value.district)}`).then((r) => r.json()).then((j) => { if (current) setSubs(j.subdistricts ?? []); }).catch(() => {});
+    return () => { current = false; };
   }, [value.province, value.district]);
 
   const sub = subs.find((s) => s.name === value.subdistrict);

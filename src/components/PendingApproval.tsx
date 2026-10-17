@@ -15,7 +15,7 @@ export default function PendingApproval({ kind, company, branch, registeredAt, p
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const day = new Date(registeredAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+  const day = new Date(registeredAt).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" });
   async function logout() {
     setBusy(true);
     await fetch("/api/auth/logout", { method: "POST" });

@@ -20,7 +20,8 @@ export async function PATCH(
   }
   if (g.user.role === "logistic") {
     const print = (await getPrints()).find((p) => p.id === id);
-    const refused = (await logisticWriteRefusal(g.user)) ?? (await lotRefusal(g.user, print?.batchId ? await getBatch(print.batchId) : null));
+    const notOurs = print && !print.batchId && print.orgCode !== g.user.orgCode ? "รายการพิมพ์นี้เป็นของผู้ขนส่งรายอื่น" : null;
+    const refused = (await logisticWriteRefusal(g.user)) ?? notOurs ?? (await lotRefusal(g.user, print?.batchId ? await getBatch(print.batchId) : null));
     if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   }
   const updated = await updatePrint(id, { cancelled: body.cancelled !== false });

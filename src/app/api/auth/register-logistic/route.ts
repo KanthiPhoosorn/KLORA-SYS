@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { addUser, getUserByLogin, newOrgCode } from "@/lib/store";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { clientIp, rateLimit, lockedOut } from "@/lib/rate-limit";
-import { addOrg, addBranch, updateBranch, getCompanyInvite } from "@/lib/logistic-org";
+import { addOrg, addBranch, updateBranch, getCompanyInvite, isUniqueViolation, dropOrg } from "@/lib/logistic-org";
 import { checkCompany, checkPlace, checkAdmin, firstError } from "@/lib/logistic-signup";
 import type { LogisticOrg } from "@/lib/types";
 
@@ -42,10 +42,15 @@ export async function POST(req: Request) {
         status: viaKyn ? "active" : "pending",
         decidedAt: viaKyn ? now : undefined, decidedBy: viaKyn ? "KYN (ลิงก์เชิญ)" : undefined,
       });
-    } catch { /* the code was just taken — next one */ }
+    } catch (e) {
+      if (!isUniqueViolation(e)) { console.error("[register-logistic] company", e); return NextResponse.json({ error: "ลงทะเบียนไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 500 }); }
+      // the code was just taken by another sign-up — next one
+    }
   }
   if (!org) return NextResponse.json({ error: "สร้างรหัสบริษัทไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 500 });
 
+  // the head office and the admin login go with the company — if either fails, nothing is left behind
+  try {
   const hq = await addBranch({
     orgCode: org.orgCode, name: "สำนักงานใหญ่", isHq: true, phone: place.phone,
     address: place.address, subdistrict: place.subdistrict, district: place.district, province: place.province, postcode: place.postcode,
@@ -59,6 +64,11 @@ export async function POST(req: Request) {
   });
   await updateBranch(hq.id, { adminUserId: user.id });
   await setSessionCookie(user.id);
-
   return NextResponse.json({ userId: user.id, orgCode: org.orgCode, status: org.status, redirect: "/logistic" }, { status: 201 });
+  } catch (e) {
+    await dropOrg(org.orgCode).catch(() => undefined);
+    if (isUniqueViolation(e)) return NextResponse.json({ error: "มีการลงทะเบียนพร้อมกันพอดี กรุณากดลงทะเบียนอีกครั้ง" }, { status: 409 }); // an account id taken a moment earlier
+    console.error("[register-logistic]", e);
+    return NextResponse.json({ error: "ลงทะเบียนไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 500 });
+  }
 }

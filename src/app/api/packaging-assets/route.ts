@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/api-guard";
 import { listPackagingAssets, createPackagingAsset, getSupplier, getCatalog } from "@/lib/store";
 import { rateLimit, tooMany } from "@/lib/rate-limit";
+import { logisticWriteRefusal } from "@/lib/logistic-org";
 import type { PackagingAsset } from "@/lib/types";
 
 // legacy kinds of the 22 Sep form + every packaging kind of KYN's catalog
@@ -19,6 +20,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const g = await guard();
   if (g.deny) return g.deny;
+  const waiting = await logisticWriteRefusal(g.user); // a branch / company still waiting for approval cannot write yet
+  if (waiting) return NextResponse.json({ error: waiting }, { status: 403 });
   const lim = await rateLimit(`pkg-assets:user:${g.user.id}`, 60, 60 * 60 * 1000);
   if (!lim.allowed) return tooMany(lim.retryAfter);
   let body: Record<string, unknown>;
