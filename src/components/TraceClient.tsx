@@ -225,7 +225,6 @@ export function FarmSheet({ name, address, photo, story, standards, children }: 
               )) : <span className="block text-[12.5px] text-slate-500">ยังไม่มีข้อมูลใบรับรองมาตรฐาน</span>}
             </span>
           </div>
-          <button type="button" onClick={() => setOpen(false)} className="mt-5 w-full rounded-xl bg-[#EE2C34] py-3 text-[15px] font-semibold text-white active:opacity-90">ปิด</button>
         </div>
       </div>
     </>

@@ -4,6 +4,7 @@ import { orgOf } from "@/lib/api-guard";
 import { logisticAccess, getBranches, orgUsers, myLots } from "@/lib/logistic-org";
 import TeamManager from "@/components/TeamManager";
 import BranchManager, { type BranchView } from "@/components/BranchManager";
+import CompanyNameEdit from "@/components/CompanyNameEdit";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function LogisticSettingsPage() {
           id: b.id, name: b.name, isHq: b.isHq, status: b.status, phone: b.phone, address: b.address, subdistrict: b.subdistrict,
           district: b.district, province: b.province, postcode: b.postcode, lat: b.lat, lng: b.lng,
           createdAt: b.createdAt, decidedAt: b.decidedAt, decidedBy: b.decidedBy, rejectReason: b.rejectReason, history: b.history,
+          // on ข้อมูลรายสาขา: active branches, and disabled ones that still have lots (lib/branch-rows.ts)
+          listed: b.status === "active" || (b.status === "disabled" && lots.some((l) => l.branchId === b.id)),
           admin: admin ? { name: admin.username, email: admin.email } : undefined,
           members: mine.map((u) => ({ name: u.username, email: u.email, admin: u.id === b.adminUserId })).sort((x, y) => Number(y.admin) - Number(x.admin)),
           month: {
@@ -49,5 +52,6 @@ export default async function LogisticSettingsPage() {
     };
   }
   return <TeamManager members={members} invites={invites} orgName={orgName} accent="blue" joinedAt={user.createdAt} extraTab={extraTab}
+    orgAction={access.hq && access.org && access.state === "active" ? <CompanyNameEdit company={access.org.company} /> : undefined}
     title="จัดการระบบ" subtitle={access.hq ? "จัดการสมาชิก คำเชิญ และสาขาของบริษัท" : "จัดการสมาชิกและคำเชิญของสาขา"} />;
 }

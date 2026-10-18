@@ -4,7 +4,7 @@ import { FACTORS, transportCarbon, basketCarbonForRound, basketReuseCounts } fro
 import { MetricCard, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
-import { thaiDateShort } from "@/lib/format";
+import { thaiDateShort, DASH } from "@/lib/format";
 import { Leaf, Trophy, TrendingDown, TrendingUp, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Batch } from "@/lib/types";
 import { batchCo2e, quantityLabel, categoryOf, perUnitLabel, ageLabel } from "@/lib/produce";
@@ -54,7 +54,7 @@ export default async function CarbonDashboardPage({ searchParams }: { searchPara
   const perShipment = cat === "all" && mixed;
   const avgCo2e = computed.length
     ? perShipment ? computed.reduce((n, b) => n + batchCo2e(b), 0) / computed.length : computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
-    : 0;
+    : null; // nothing to divide by → "–"
   const avgLabel = perShipment ? "CO₂e เฉลี่ยต่อ Shipment" : `CO₂e เฉลี่ย${computed[0] ? perUnitLabel(computed[0]) : cat === "fruit" || cat === "vegetable" ? "ต่อกก." : "ต่อดอก"}`;
 
   // Rank among producers (lower avg = better) — ALWAYS within one product category: a flower
@@ -139,7 +139,7 @@ export default async function CarbonDashboardPage({ searchParams }: { searchPara
       {mixed ? <CategoryFilter value={cat} basePath="/app/dashboard" accent="pink" /> : null}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard label={avgLabel} value={avgCo2e.toFixed(perShipment ? 2 : 4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={avgLabel} value={avgCo2e == null ? DASH : avgCo2e.toFixed(perShipment ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         {ranks.length > 1 ? (
           <Card className="p-5">
             <div className="flex items-start justify-between">
@@ -161,7 +161,7 @@ export default async function CarbonDashboardPage({ searchParams }: { searchPara
             <div>
               <div className="text-sm font-medium text-slate-500">เปลี่ยนแปลงจากเดือนก่อน</div>
               <div className="mt-1 flex items-center gap-1.5 text-3xl font-bold tabular">
-                {mom == null ? <span className="text-slate-400">—</span> : mom <= 0 ? (
+                {mom == null ? <span className="text-slate-400">{DASH}</span> : mom <= 0 ? (
                   <span className="flex items-center gap-1 text-emerald-600"><TrendingDown size={24} /> {mom.toFixed(0)} %</span>
                 ) : (
                   <span className="flex items-center gap-1 text-red-500"><TrendingUp size={24} /> +{mom.toFixed(0)} %</span>

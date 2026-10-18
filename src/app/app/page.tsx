@@ -4,7 +4,7 @@ import RatingsCard from "@/components/RatingsCard";
 import { MetricCard, BarChart, Card } from "@/components/ui";
 import ProLock from "@/components/ProLock";
 import ShipmentStepper from "@/components/ShipmentStepper";
-import { buildMonthSeries, thaiDateShort } from "@/lib/format";
+import { buildMonthSeries, thaiDateShort, DASH } from "@/lib/format";
 import { Truck, Cloud, Package, Clock } from "lucide-react";
 import ShipmentsTable from "@/components/ShipmentsTable";
 import { toShipRows } from "@/lib/ship-rows";
@@ -47,7 +47,7 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
     ? cat === "all" && mixed
       ? totalCo2e / computed.length
       : computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
-    : 0;
+    : null; // nothing to divide by → "–"
   const avgLabel = cat === "all" && mixed ? "CO2e เฉลี่ยต่อ Shipment" : `CO2e เฉลี่ย${computed[0] ? perUnitLabel(computed[0]) : cat === "flower" || cat === "all" ? "ต่อดอก" : "ต่อกก."}`;
   const pending = batches.filter((b) => b.status === "submitted").length;
 
@@ -77,7 +77,7 @@ export default async function SupplierOverview({ searchParams }: { searchParams:
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard label="จำนวนรอบการส่งออก" value={batches.length} unit="รอบ" tone="green" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="CO2e สะสม" value={totalCo2e.toFixed(0)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label={avgLabel} value={avgCo2e.toFixed(cat === "all" && mixed ? 2 : 4)} unit="กิโลกรัม" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={avgLabel} value={avgCo2e == null ? DASH : avgCo2e.toFixed(cat === "all" && mixed ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="รอคำนวณ" value={pending} unit="รายการ" tone="orange" icon={<Clock size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 

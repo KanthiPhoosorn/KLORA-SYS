@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 
 // ข้อมูลรายสาขา — the head office compares its branches (doc "Logistic", 17 Oct 2026): active branches and
 // disabled ones that still have history; a branch name opens that branch's own dashboard.
-export default async function LogisticBranchesPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
-  const cat = parseCat((await searchParams).cat);
+export default async function LogisticBranchesPage({ searchParams }: { searchParams: Promise<{ cat?: string; b?: string }> }) {
+  const sp = await searchParams;
+  const cat = parseCat(sp.cat);
   const user = await requireRole("logistic");
   const access = await logisticAccess(user);
   if (!access.hq || !access.org) redirect("/logistic"); // a branch sees only itself — its overview
@@ -28,7 +29,7 @@ export default async function LogisticBranchesPage({ searchParams }: { searchPar
         </p>
         {mixed ? <div className="mt-3"><CategoryFilter value={cat} basePath="/logistic/branches" accent="blue" /></div> : null}
       </div>
-      <BranchTable rows={branchRows(lots, branches)} />
+      <BranchTable rows={branchRows(lots, branches)} initialBranch={branches.find((b) => b.id === sp.b)?.name} />
     </div>
   );
 }

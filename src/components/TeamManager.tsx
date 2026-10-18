@@ -85,10 +85,12 @@ function Counter({ label, value, icon }: { label: string; value: number; icon: s
 }
 
 export default function TeamManager({
-  members, invites, orgName, accent = "pink", joinedAt, extraTab, title, subtitle,
+  members, invites, orgName, accent = "pink", joinedAt, extraTab, title, subtitle, orgAction,
 }: {
   title?: string; subtitle?: string;
   members: Member[]; invites: Invite[]; orgName: string; accent?: Accent; joinedAt?: string;
+  /** shown under the org name (logistic head office: แก้ไขชื่อบริษัท) */
+  orgAction?: React.ReactNode;
   /** one more tab after the two (logistic head office: "สาขา"), with a red count */
   extraTab?: { label: string; badge?: number; content: React.ReactNode };
 }) {
@@ -207,6 +209,7 @@ export default function TeamManager({
           <div>
             <div className="text-lg font-bold text-slate-900">{orgName}</div>
             <div className="text-[13px] text-slate-500">เข้าร่วมเมื่อ {joinLabel(joinedAt)}</div>
+            {orgAction ? <div className="mt-1">{orgAction}</div> : null}
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">

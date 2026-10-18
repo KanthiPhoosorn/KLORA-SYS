@@ -228,6 +228,8 @@ export function Donut({
   centerValue?: ReactNode;
   centerUnit?: string;
 }) {
+  // nothing to share out → the same "ยังไม่มีข้อมูล" as the other cards, not an empty ring with a number
+  if (!segments.some((s) => s.pct > 0)) return <p className="text-sm text-slate-400">ยังไม่มีข้อมูล</p>;
   let acc = 0;
   const stops = segments
     .map((s) => {

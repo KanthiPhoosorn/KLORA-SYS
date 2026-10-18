@@ -47,6 +47,8 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     log("KYN approves the company", kynApprove.status === 200 && kynApprove.json.org?.status === "active");
     const aHome = await page("/logistic", aCookie);
     log("new company starts empty — none of the other companies' lots", aHome.text.includes("ภาพรวมการขนส่ง") && !/LOT-26\d\d-\d{4}/.test(aHome.text));
+    log("header: the company's name over สำนักงานใหญ่ (no 'โรงคัดแยกพัสดุ')", aHome.text.includes(`QA ขนส่ง loa ${TS}`) && aHome.text.includes("สำนักงานใหญ่") && !aHome.text.includes("โรงคัดแยกพัสดุ"));
+    log("empty dashboard: – for averages and shares, ยังไม่มีข้อมูล (no 100% / 0%, 0.0000, '1 ดอก' donut)", !aHome.text.includes("100%<span") && !aHome.text.includes("0.0000") &&(aHome.text.match(/ยังไม่มีข้อมูล/g) ?? []).length >= 5);
     log("API: new company lists no lots", Array.isArray((await api("/api/batches", "GET", undefined, aCookie)).json) && (await api("/api/batches", "GET", undefined, aCookie)).json.length === 0);
     log("ไปรษณีย์ไทย type: no 'เพิ่มข้อมูลรอบส่งออก' menu, page redirects", !aHome.text.includes("เพิ่มข้อมูลรอบส่งออก") && redirected(await page("/logistic/new", aCookie)));
     log("approved company: the waiting page sends it on", redirected(await page("/logistic/waiting", aCookie)));
@@ -120,15 +122,21 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     log("Thai Post demo still sees its own history (10 lots), not TTT's", (await ids(THAIPOST)).filter((x) => /^LOT-26(07|08|09)/.test(x)).length >= 10 && !(await ids(THAIPOST)).includes("LOT-2610-0011"));
     log("another company cannot print it; the branch can", (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, bCookie)).status === 403 && (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, cCookie)).status === 201);
     const branches = await page("/logistic/branches", aCookie);
-    log("ข้อมูลรายสาขา: active branches, linking to each dashboard", branches.text.includes("สาขาเชียงราย QA") && branches.text.includes(`/logistic?branch=${cUser.branch_id}`) && !branches.text.includes("สาขาแม่สาย QA"));
-    const dash = await page(`/logistic?branch=${cUser.branch_id}`, aCookie);
-    log("head office opens one branch's dashboard", dash.text.includes("แดชบอร์ดของ") && dash.text.includes("สาขาเชียงราย QA") && dash.text.includes(lot));
-    log("another company cannot open that branch", !(await page(`/logistic?branch=${cUser.branch_id}`, bCookie)).text.includes(lot));
+    log("ข้อมูลรายสาขา: active branches, linking to each dashboard under ข้อมูลรายสาขา", branches.text.includes("สาขาเชียงราย QA") && branches.text.includes(`/logistic/branches/${cUser.branch_id}`) && !branches.text.includes("สาขาแม่สาย QA"));
+    const dash = await page(`/logistic/branches/${cUser.branch_id}`, aCookie);
+    log("head office opens one branch's dashboard", dash.status === 200 && dash.text.includes("แดชบอร์ดของ") && dash.text.includes("สาขาเชียงราย QA") && dash.text.includes(lot));
+    log("the old ?branch= link goes there", redirected(await page(`/logistic?branch=${cUser.branch_id}`, aCookie)));
+    log("another company cannot open that branch", !(await page(`/logistic/branches/${cUser.branch_id}`, bCookie)).text.includes(lot) && !(await page(`/logistic?branch=${cUser.branch_id}`, bCookie)).text.includes(lot));
+    log("a branch cannot open the branch dashboards", redirected(await page(`/logistic/branches/${cUser.branch_id}`, cCookie)));
+    const picked = await page(`/logistic/branches?b=${cUser.branch_id}`, aCookie);
+    log("'ดูในหน้าข้อมูลรายสาขา' (?b=) opens ข้อมูลรายสาขา with that branch picked", /<option value="สาขาเชียงราย QA" selected="">/.test(picked.text), (/<option[^>]*selected[^>]*>[^<]*/.exec(picked.text) ?? [""])[0]);
 
     // --- 5. the producer link is the account's own branch -----------------------------------------------------
     const link = await api("/api/carrier-links", "POST", { carrierKey: "exporter", branch: "สาขาอื่น" }, cCookie);
     log("producer link: company type + the account's branch (body ignored)", link.status === 201 && link.json.carrierKey === "thaipost" && link.json.branch === "สาขาเชียงราย QA" && link.json.branchId === cUser.branch_id, `${link.json.carrierKey} ${link.json.branch}`);
     const inc = await page("/logistic/incoming", cCookie);
+    const brRename = await api("/api/logistic/company", "PATCH", { company: "ชื่อใหม่" }, cCookie);
+    log("a branch cannot rename its company", brRename.status === 403);
     log("link panel has no type / branch pickers", !inc.text.includes("เลือกสาขาต้นทาง") && !inc.text.includes(">รูปแบบการจัดส่ง<"));
 
     // --- 6. disable: the branch is locked out at once, its lots stay with the head office ------------------
@@ -140,6 +148,15 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     const ed = await api(`/api/logistic/branches/${cUser.branch_id}`, "PATCH", { action: "edit", name: "สาขาเชียงราย QA2", phone: "053000002" }, aCookie);
     log("head office edits a branch (name follows to its accounts)", ed.status === 200 && (await sql`SELECT branch FROM users WHERE id = ${cUser.id}`)[0].branch === "สาขาเชียงราย QA2");
     log("…and to its lots and producer links", (await sql`SELECT branch FROM batches WHERE id = ${lot}`)[0].branch === "สาขาเชียงราย QA2" && (await sql`SELECT branch FROM carrier_links WHERE token = ${link.json.token}`)[0].branch === "สาขาเชียงราย QA2");
+
+    // the head office renames its company: the header, its accounts and its producer links follow
+    const newName = `QA ขนส่ง loa ${TS} ใหม่`;
+    log("head office renames the company", (await api("/api/logistic/company", "PATCH", { company: newName }, aCookie)).status === 200);
+    const orgNow = (await sql`SELECT company FROM logistic_orgs WHERE org_code = ${aUser.org_code}`)[0].company;
+    const people = (await sql`SELECT DISTINCT company FROM users WHERE org_code = ${aUser.org_code}`).map((r) => r.company);
+    log("…the new name reaches its accounts and producer links", orgNow === newName && people.length === 1 && people[0] === newName && (await sql`SELECT company FROM carrier_links WHERE token = ${link.json.token}`)[0].company === newName, `${orgNow} ${JSON.stringify(people)}`);
+    log("…and the header and จัดการระบบ", (await page("/logistic", aCookie)).text.includes(newName) && (await page("/logistic/settings", aCookie)).text.includes(newName));
+    await api("/api/logistic/company", "PATCH", { company: `QA ขนส่ง loa ${TS}` }, aCookie); // later checks look for the first name
 
     // only ศูนย์คัดแยกสินค้า / ผู้ส่งออก record exports — the API says so too, not just the menu
     log("ไปรษณีย์ไทย type: export record refused by the API", (await api(`/api/batches/${lot}`, "PATCH", { shippedWeightKg: 50, vehicleKey: "van" }, aCookie)).status === 403 && (await api("/api/batches", "POST", { ...round, supplierId: farmId }, aCookie)).status === 403);

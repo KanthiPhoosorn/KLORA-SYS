@@ -132,6 +132,33 @@ const selectWhenReady = async (p: Page, name: string, value: string) => {
     const active = await text(p);
     log("active branch window: this month, members, history, disable", active.includes("สรุปการใช้งานเดือนนี้") && active.includes("ดูในหน้าข้อมูลรายสาขา") && active.includes("สมาชิก (1)") && active.includes("อนุมัติสาขา") && active.includes("ปิดการใช้งานสาขา"));
     await p.keyboard.press("Escape");
+    // the head office's own window closes with the X only — no second "ปิด" button (doc "Logistic", 18 Oct)
+    await clickText(p, "สำนักงานใหญ่");
+    await p.waitForSelector('[role="dialog"][aria-label="สำนักงานใหญ่"]', { timeout: 8000 });
+    const closers = (await p.evaluate(`Array.from(document.querySelectorAll('[role="dialog"] button')).map((b) => (b.getAttribute("aria-label") || b.innerText).trim()).filter((t) => t === "ปิด")`)) as string[];
+    log("head office window: the X is the only close", closers.length === 1 && !!(await p.$('[role="dialog"] button[aria-label="ปิด"] svg')), JSON.stringify(closers));
+    await p.keyboard.press("Escape");
+    // "ดูในหน้าข้อมูลรายสาขา" → ข้อมูลรายสาขา with the branch picked → its dashboard, the menu staying on ข้อมูลรายสาขา
+    const activeNav = () => p.evaluate(`document.querySelector("aside a.bg-blue-600")?.innerText.trim() ?? ""`) as Promise<string>;
+    await clickText(p, "สาขาเชียงราย UI");
+    await p.waitForSelector('[role="dialog"][aria-label="สาขาเชียงราย UI"]', { timeout: 8000 });
+    await clickText(p, "ดูในหน้าข้อมูลรายสาขา", '[role="dialog"]');
+    await p.waitForFunction(`location.pathname === "/logistic/branches"`, { timeout: 15000 }).catch(() => null);
+    await waitText(p, "เปรียบเทียบจำนวนรอบ");
+    const pickedName = await p.evaluate(`document.querySelector("main select")?.value ?? ""`);
+    log("'ดูในหน้าข้อมูลรายสาขา' opens ข้อมูลรายสาขา (menu there) with the branch picked", (await activeNav()) === "ข้อมูลรายสาขา" && pickedName === "สาขาเชียงราย UI", `${await activeNav()} · ${pickedName}`);
+    await clickText(p, "สาขาเชียงราย UI");
+    await p.waitForFunction(`location.pathname.startsWith("/logistic/branches/LBR-")`, { timeout: 15000 }).catch(() => null);
+    log("…then the branch name opens its dashboard, still under ข้อมูลรายสาขา", await waitText(p, "แดชบอร์ดของ สาขาเชียงราย UI") && (await activeNav()) === "ข้อมูลรายสาขา", await activeNav());
+    // KYN changes the provider type while this tab is open: coming back to the tab updates the menu
+    const hasExport = async () => ((await p.evaluate(`document.querySelector("aside").innerText`)) as string).includes("เพิ่มข้อมูลรอบส่งออก");
+    const before = await hasExport();
+    await fetch(`${BASE}/api/logistic/companies/${u.org_code}`, { method: "PATCH", headers: { "Content-Type": "application/json", Cookie: `klora_session=${mint("USR-0003")}` }, body: JSON.stringify({ action: "type", providerType: "thaipost" }) });
+    await sleep(16000); // the tab re-reads at most every 15 s
+    await p.evaluate(`window.dispatchEvent(new Event("focus"))`);
+    const gone = await p.waitForFunction(`!document.querySelector("aside").innerText.includes("เพิ่มข้อมูลรอบส่งออก")`, { timeout: 15000 }).then(() => true, () => false);
+    log("KYN sets ไปรษณีย์ไทย → back on the open tab, 'เพิ่มข้อมูลรอบส่งออก' goes without a reload", before && gone);
+    void hasExport;
 
     // --- 4. five wrong logins: message + countdown -------------------------------------------------------------
     await sql`DELETE FROM rate_limits WHERE key LIKE 'login:%' AND (key LIKE '%:::1' OR key LIKE '%127.0.0.1' OR key LIKE '%qa_%')`;

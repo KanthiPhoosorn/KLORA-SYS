@@ -2,7 +2,7 @@ import { MetricCard, Card, BarChart } from "@/components/ui";
 import ExportCsvButton from "@/components/ExportCsvButton";
 import { Truck, Leaf, Cloud, Clock } from "lucide-react";
 import ReportTabs, { type ReportData } from "@/components/ReportTabs";
-import { buildMonthSeries } from "@/lib/format";
+import { buildMonthSeries, DASH } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
 import { batchCo2e, quantityLabel } from "@/lib/produce";
 
@@ -22,7 +22,7 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
 
   const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
   const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
-  const avgCo2e = computed.length ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length : 0;
+  const avgCo2e = computed.length ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length : null; // none → "–"
 
   const flowerSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.flowerCount, 5);
   const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => batchCo2e(b), 5);
@@ -30,7 +30,7 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
   const province = [...groupBy(computed, (b) => b.destination ?? "—")].map(([p, bs]) => {
     const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
     const co2e = bs.reduce((n, b) => n + batchCo2e(b), 0);
-    return { province: p, rounds: bs.length, flowers, km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perFlower: flowers ? co2e / flowers : 0 };
+    return { province: p, rounds: bs.length, flowers, km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perFlower: flowers ? co2e / flowers : null };
   }).sort((a, b) => b.flowers - a.flowers);
 
   const typeTotal = totalFlowers || 1;
@@ -96,7 +96,7 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label="จำนวน Shipment" value={computed.length.toLocaleString()} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e == null ? DASH : avgCo2e.toFixed(4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="รอประมาณผล" value={submitted} unit="รายการ" tone="orange" icon={<Clock size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>

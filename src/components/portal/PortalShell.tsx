@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   LayoutGrid,
   PlusCircle,
@@ -75,7 +75,24 @@ export default function PortalShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const a = ACCENT[accent];
+
+  // The layout (menu, header) is not re-rendered on client navigation, so a change made elsewhere — KYN
+  // setting the provider type, which decides "เพิ่มข้อมูลรอบส่งออก" — would only show after a reload.
+  // Coming back to the tab re-reads it (at most every 15 s).
+  const lastRefresh = useRef(0);
+  useEffect(() => {
+    lastRefresh.current = Date.now();
+    const back = () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastRefresh.current < 15_000) return;
+      lastRefresh.current = Date.now();
+      router.refresh();
+    };
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => { document.removeEventListener("visibilitychange", back); window.removeEventListener("focus", back); };
+  }, [router]);
 
   // Phones (< md) have no sidebar: the top bar shows the Corta logo and a ☰ button that opens the same
   // menu as a drawer (Thai Post doc 9 Oct 2026 §1 logo top-left on every system, §8 nothing crammed).

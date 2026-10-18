@@ -33,6 +33,8 @@ export interface BranchView {
   admin?: { name: string; email: string };
   members: { name: string; email: string; admin: boolean }[];
   month: { rounds: number; weightKg: number; co2e: number };
+  /** shown on ข้อมูลรายสาขา (active, or disabled with lots) */
+  listed?: boolean;
 }
 
 const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
@@ -336,7 +338,8 @@ function BranchSheet({ b, busy, onClose, onApprove, onReject, onToggle, onSave }
                 <div key={k} className="rounded-xl bg-slate-50 px-3 py-3"><p className="text-[12px] text-slate-500">{k}</p><p className="mt-1 text-[19px] font-bold text-slate-900">{v}</p></div>
               ))}
             </div>
-            <Link href={`/logistic?branch=${b.id}`} className="mt-2 inline-block text-[13px] text-blue-700 underline underline-offset-2">ดูในหน้าข้อมูลรายสาขา</Link>
+            {/* to ข้อมูลรายสาขา with this branch picked — its dashboard is one click from there (doc "Logistic", 18 Oct 2026) */}
+            {b.listed ? <Link href={`/logistic/branches?b=${b.id}`} className="mt-2 inline-block text-[13px] text-blue-700 underline underline-offset-2">ดูในหน้าข้อมูลรายสาขา</Link> : null}
           </section>
         ) : null}
 
@@ -406,18 +409,19 @@ function BranchSheet({ b, busy, onClose, onApprove, onReject, onToggle, onSave }
           </>
         )}
       </div>
-      <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
-        {pending ? (
-          <>
-            <button type="button" onClick={onReject} className="rounded-[10px] border border-red-300 px-5 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50">ไม่อนุมัติ</button>
-            <button type="button" onClick={onApprove} disabled={busy === `${b.id}-approve`} className="inline-flex items-center gap-1.5 rounded-[10px] bg-blue-600 px-5 py-2.5 text-[14px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">{busy === `${b.id}-approve` ? <Loader2 size={15} className="animate-spin" /> : null} อนุมัติสาขา</button>
-          </>
-        ) : b.isHq ? (
-          <button type="button" onClick={onClose} className="rounded-[10px] border border-slate-300 px-5 py-2.5 text-[14px] text-slate-700 hover:bg-slate-50">ปิด</button>
-        ) : (
-          <button type="button" onClick={onToggle} disabled={!!busy} className="rounded-[10px] border border-slate-300 px-5 py-2.5 text-[14px] text-slate-700 hover:bg-slate-50 disabled:opacity-60">{b.status === "active" ? "ปิดการใช้งานสาขา" : "เปิดการใช้งานสาขา"}</button>
-        )}
-      </div>
+      {/* closing is the X only (doc "Logistic", 18 Oct 2026) — the head office's own window has no footer */}
+      {pending || !b.isHq ? (
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          {pending ? (
+            <>
+              <button type="button" onClick={onReject} className="rounded-[10px] border border-red-300 px-5 py-2.5 text-[14px] font-medium text-red-600 hover:bg-red-50">ไม่อนุมัติ</button>
+              <button type="button" onClick={onApprove} disabled={busy === `${b.id}-approve`} className="inline-flex items-center gap-1.5 rounded-[10px] bg-blue-600 px-5 py-2.5 text-[14px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">{busy === `${b.id}-approve` ? <Loader2 size={15} className="animate-spin" /> : null} อนุมัติสาขา</button>
+            </>
+          ) : (
+            <button type="button" onClick={onToggle} disabled={!!busy} className="rounded-[10px] border border-slate-300 px-5 py-2.5 text-[14px] text-slate-700 hover:bg-slate-50 disabled:opacity-60">{b.status === "active" ? "ปิดการใช้งานสาขา" : "เปิดการใช้งานสาขา"}</button>
+          )}
+        </div>
+      ) : null}
     </Overlay>
   );
 }

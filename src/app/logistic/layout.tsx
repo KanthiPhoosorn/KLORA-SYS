@@ -23,12 +23,15 @@ export default async function LogisticLayout({ children }: { children: React.Rea
     { href: "/logistic/history", label: "ประวัติ", icon: "file" },
     { href: "/logistic/settings", label: "จัดการระบบ", icon: "users" },
   ];
-  const where = [access.org?.company ?? user.company, access.branch && !access.branch.isHq ? access.branch.name : access.branch?.isHq ? "สำนักงานใหญ่" : ""].filter(Boolean).join(" · ");
+  // Header: the company on top, "สำนักงานใหญ่" or the branch below — like the farm's name on the farm side
+  // (doc "Logistic", 18 Oct 2026; it used to say "โรงคัดแยกพัสดุ" for every company)
+  const company = access.org?.company ?? user.company ?? user.username;
+  const where = access.branch ? (access.branch.isHq ? "สำนักงานใหญ่" : access.branch.name) : user.branch ?? "";
 
   const header = (
     <>
       <div className="hidden min-w-0 sm:block">
-        <div className="truncate text-lg font-semibold text-slate-800">โรงคัดแยกพัสดุ</div>
+        <div className="truncate text-lg font-semibold text-slate-800">{company}</div>
         {where ? <div className="truncate text-[12px] text-slate-500">{where}</div> : null}
       </div>
       <div className="ml-auto flex items-center gap-4">

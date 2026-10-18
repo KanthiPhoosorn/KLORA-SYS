@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { DASH } from "@/lib/format";
 import { Bar } from "@/components/ui";
 
 export interface DiscardRow {
@@ -9,7 +10,7 @@ export interface DiscardRow {
   discarded: number; remaining: number; rate: number; wastedCo2e: number;
 }
 export interface ReportData {
-  province: { province: string; rounds: number; flowers: number; km: number; perFlower: number }[];
+  province: { province: string; rounds: number; flowers: number; km: number; perFlower: number | null }[];
   types: { type: string; flowers: number; avg: number; pct: number }[];
   freshness: { label: string; count: number; pct: number }[];
   ranking: { name: string; rounds: number; avg: number }[];
@@ -61,7 +62,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
                 </tr></thead>
                 <tbody>{data.province.map((p) => (
                   <tr key={p.province} className="border-b border-slate-50 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td><td className="px-3 py-2 text-right tabular">{p.flowers.toLocaleString()}</td><td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td><td className="px-3 py-2 text-right tabular">{p.perFlower.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td><td className="px-3 py-2 text-right tabular">{p.flowers.toLocaleString()}</td><td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td><td className="px-3 py-2 text-right tabular">{p.perFlower == null ? DASH : p.perFlower.toFixed(3)}</td>
                   </tr>))}</tbody>
               </table>
             </div>

@@ -5,7 +5,7 @@
 //   - Every lot belongs to the branch the farm drops it at (สาขาต้นทาง). A branch account sees its own
 //     branch's lots, a head-office account its whole company's — a new company starts empty.
 import { cache } from "react";
-import { eq, asc } from "drizzle-orm";
+import { and, eq, asc } from "drizzle-orm";
 import { randomInt } from "crypto";
 import { db } from "./db";
 import { logisticOrgs, logisticBranches, users, appSettings, batches, carrierLinks, suppliers } from "./db/schema";
@@ -231,6 +231,17 @@ export async function renameBranchEverywhere(id: string, name: string): Promise<
   await db.update(batches).set({ branch: name }).where(eq(batches.branchId, id));
   await db.update(carrierLinks).set({ branch: name }).where(eq(carrierLinks.branchId, id));
   await db.update(suppliers).set({ carrierBranch: name }).where(eq(suppliers.carrierBranchId, id));
+}
+
+/** The head office renames its company: every stored copy of the name follows — its accounts, its producer
+ *  links, the farms bound to it and their lots' provider (doc "Logistic", 18 Oct 2026). */
+export async function renameCompanyEverywhere(orgCode: string, name: string): Promise<void> {
+  const old = await getOrg(orgCode);
+  await updateOrg(orgCode, { company: name });
+  await db.update(users).set({ company: name }).where(eq(users.orgCode, orgCode));
+  await db.update(carrierLinks).set({ company: name }).where(eq(carrierLinks.orgCode, orgCode));
+  await db.update(suppliers).set({ carrierCompany: name }).where(eq(suppliers.carrierOrg, orgCode));
+  if (old?.company) await db.update(batches).set({ provider: name }).where(and(eq(batches.carrierOrg, orgCode), eq(batches.provider, old.company)));
 }
 
 /** A producer link works only while its company and its branch do (a closed branch's link stops too). */

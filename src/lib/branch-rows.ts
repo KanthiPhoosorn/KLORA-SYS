@@ -15,14 +15,14 @@ export function branchRows(lots: Batch[], branches: LogisticBranch[]): BranchRow
       const units = list.reduce((n, l) => n + unitsOf(l), 0);
       return {
         id: b.id,
-        href: `/logistic?branch=${b.id}`,
+        href: `/logistic/branches/${b.id}`,
         province: b.province ?? "—",
         branch: b.name,
         status: b.status,
         rounds: list.length,
         flowers: units,
         transportCo2e: list.reduce((n, l) => n + (l.carbonBreakdown?.transport ?? 0), 0),
-        avgPerStem: units ? list.reduce((n, l) => n + batchCo2e(l), 0) / units : 0,
+        avgPerStem: units ? list.reduce((n, l) => n + batchCo2e(l), 0) / units : null, // nothing to divide by → "–"
         trend: null,
       };
     })

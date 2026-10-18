@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { DASH } from "@/lib/format";
 
 export interface BranchRow {
   id?: string;
@@ -14,13 +15,14 @@ export interface BranchRow {
   rounds: number;
   flowers: number;
   transportCo2e: number;
-  avgPerStem: number;
+  avgPerStem: number | null; // null = no units to divide by
   trend: number | null; // % change vs previous period (null = ยังไม่มีฐานเปรียบเทียบ)
 }
 
 // "ข้อมูลรายสาขา" — head-office view: compare every branch, filter by สาขา / จังหวัด.
-export default function BranchTable({ rows }: { rows: BranchRow[] }) {
-  const [branch, setBranch] = useState("");
+// `initialBranch` pre-picks one branch (from its window in จัดการระบบ › สาขา › "ดูในหน้าข้อมูลรายสาขา").
+export default function BranchTable({ rows, initialBranch = "" }: { rows: BranchRow[]; initialBranch?: string }) {
+  const [branch, setBranch] = useState(initialBranch);
   const [province, setProvince] = useState("");
 
   const provinces = useMemo(() => Array.from(new Set(rows.map((r) => r.province).filter((p) => p && p !== "—"))), [rows]);
@@ -85,7 +87,7 @@ export default function BranchTable({ rows }: { rows: BranchRow[] }) {
                     <td className="px-5 py-3 text-right tabular">{r.rounds.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.flowers.toLocaleString()}</td>
                     <td className="px-5 py-3 text-right tabular">{r.transportCo2e.toFixed(1)}</td>
-                    <td className="px-5 py-3 text-right tabular">{r.avgPerStem.toFixed(4)}</td>
+                    <td className="px-5 py-3 text-right tabular">{r.avgPerStem == null ? DASH : r.avgPerStem.toFixed(4)}</td>
                     <td className="px-5 py-3 text-right tabular">
                       {r.trend == null ? (
                         <span className="text-slate-300">—</span>

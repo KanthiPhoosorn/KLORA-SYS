@@ -50,6 +50,16 @@ export function thaiDateTime(iso: string): string {
   return `${p.d} ${THAI_MONTHS[p.mo]} ${hh}:${mi}`;
 }
 
+// "2026-10-19" — the Bangkok calendar day of an ISO datetime (slice(0, 10) gives the UTC day).
+export function bangkokDay(iso: string): string {
+  const p = parts(iso);
+  return p ? `${p.y}-${String(p.mo + 1).padStart(2, "0")}-${String(p.d).padStart(2, "0")}` : iso.slice(0, 10);
+}
+
+// An average or a percentage whose divisor is 0 shows this dash, never 0 / 0.0000 / 100% (doc "Logistic",
+// 18 Oct 2026: ถ้าตัวหารเป็น 0 ให้แสดงขีด (–) เหมือนกันทั้งระบบ).
+export const DASH = "–";
+
 // True when two ISO/date values fall on the same Bangkok calendar day.
 export function isSameBangkokDay(a: string, b: string): boolean {
   const pa = parts(a);

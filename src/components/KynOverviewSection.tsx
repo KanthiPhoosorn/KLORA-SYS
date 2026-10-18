@@ -4,6 +4,7 @@ import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { Truck, Package, Cloud, Leaf, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Supplier, Batch } from "@/lib/types";
 import { batchCo2e, quantityLabel } from "@/lib/produce";
+import { DASH } from "@/lib/format";
 
 export default function KynOverviewSection({
   suppliers,
@@ -20,7 +21,7 @@ export default function KynOverviewSection({
   const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
   const avgCo2e = computed.length
     ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
-    : 0;
+    : null; // nothing to divide by → "–"
 
   const perFarm = suppliers
     .map((s) => ({
@@ -46,7 +47,7 @@ export default function KynOverviewSection({
         <MetricCard label="จำนวนแบตช์" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="จำนวนดอกทั้งหมด" value={totalFlowers.toLocaleString()} unit="ดอก" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e.toFixed(4)} unit="กิโลกรัม" tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e == null ? DASH : avgCo2e.toFixed(4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
