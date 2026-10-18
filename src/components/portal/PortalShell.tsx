@@ -60,7 +60,6 @@ const ACCENT: Record<Accent, { brand: string; active: string; dot: string }> = {
 
 export default function PortalShell({
   accent,
-  brand,
   items,
   header,
   footer,
@@ -68,7 +67,6 @@ export default function PortalShell({
   children,
 }: {
   accent: Accent;
-  brand: string;
   items: PortalNavItem[];
   header: ReactNode;
   footer?: ReactNode;
@@ -90,9 +88,9 @@ export default function PortalShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [navOpen]);
 
-  // Corta wordmark — the same for every portal (role lives in the menu, not the brand)
+  // Corta wordmark only — the same for every portal; "Supplier / Logistic / KYN" are internal names, never shown
   const logo = (className: string) => (
-    <Link href={items[0]?.href ?? "/"} className={className} aria-label={`Corta ${brand}`.trim()}>
+    <Link href={items[0]?.href ?? "/"} className={className} aria-label="Corta">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
     </Link>

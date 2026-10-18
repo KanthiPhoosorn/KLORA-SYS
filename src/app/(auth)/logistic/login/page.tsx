@@ -1,7 +1,7 @@
 import Link from "next/link";
 import LoginForm from "@/components/LoginForm";
 
-export const metadata = { title: "เข้าสู่ระบบ · Logistic · Corta" };
+export const metadata = { title: "เข้าสู่ระบบ · Corta" };
 
 // Logistic portal login — blue-themed variant of the shared login (matches the Figma Logistic auth frame).
 // Lives in the (auth) group so it is NOT wrapped by the guarded /logistic portal layout.
@@ -13,7 +13,6 @@ export default function LogisticLoginPage() {
         <Link href="/logistic/login" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-brand-blue">Logistic</span>
         </Link>
         <div className="flex items-center gap-5 text-sm text-slate-600">
           <span className="h-6 w-px bg-gray-200" />

@@ -59,7 +59,7 @@ export default async function SupplierLayout({
   );
 
   return (
-    <PortalShell accent="pink" brand="Supplier" items={items} header={header} footer={footer} account={{ label: "ID", id: supplier.code ?? supplier.id }}>
+    <PortalShell accent="pink" items={items} header={header} footer={footer} account={{ label: "ID", id: supplier.code ?? supplier.id }}>
       {children}
     </PortalShell>
   );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import LogisticSignupForm from "@/components/LogisticSignupForm";
 import { getCompanyInvite } from "@/lib/logistic-org";
 
-export const metadata = { title: "ลงทะเบียน · Logistic · Corta" };
+export const metadata = { title: "ลงทะเบียน · Corta" };
 
 // Logistic portal register — same blue chrome as the login. The form is the company sign-up (doc "Logistic"
 // แบบที่ 1, 17 Oct 2026); through KYN's invite link (?invite=…) the company is active at once.
@@ -20,7 +20,6 @@ export default async function LogisticRegisterPage({ searchParams }: { searchPar
         <Link href="/logistic/login" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-brand-blue">Logistic</span>
         </Link>
         <div className="flex items-center gap-5 text-sm text-slate-600">
           <span className="h-6 w-px bg-gray-200" />

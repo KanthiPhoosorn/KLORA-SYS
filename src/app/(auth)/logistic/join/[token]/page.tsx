@@ -3,7 +3,7 @@ import { LinkIcon } from "lucide-react";
 import LogisticSignupForm from "@/components/LogisticSignupForm";
 import { orgByJoinToken } from "@/lib/logistic-org";
 
-export const metadata = { title: "ลงทะเบียนสาขา · Logistic · Corta" };
+export const metadata = { title: "ลงทะเบียนสาขา · Corta" };
 export const dynamic = "force-dynamic";
 
 // /logistic/join/<token> — a branch signs up through its company's link (doc "Logistic" แบบที่ 2, 17 Oct
@@ -18,7 +18,6 @@ export default async function BranchJoinPage({ params }: { params: Promise<{ tok
         <Link href="/logistic/login" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-brand-blue">Logistic</span>
         </Link>
         <Link href="/logistic/login" className="text-sm text-slate-600 hover:text-brand-blue">เข้าสู่ระบบ</Link>
       </header>

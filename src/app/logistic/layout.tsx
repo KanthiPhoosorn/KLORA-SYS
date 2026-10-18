@@ -42,7 +42,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
   );
 
   return (
-    <PortalShell accent="blue" brand="Logistic" items={items} header={header} account={{ label: "ID", id: user.orgCode ?? user.username }}>
+    <PortalShell accent="blue" items={items} header={header} account={{ label: "ID", id: user.orgCode ?? user.username }}>
       {children}
     </PortalShell>
   );

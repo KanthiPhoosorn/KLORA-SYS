@@ -4,7 +4,7 @@ import { logisticAccess } from "@/lib/logistic-org";
 import { carrierLabel } from "@/lib/carriers";
 import PendingApproval from "@/components/PendingApproval";
 
-export const metadata = { title: "รอการอนุมัติ · Logistic · Corta" };
+export const metadata = { title: "รอการอนุมัติ · Corta" };
 export const dynamic = "force-dynamic";
 
 // /logistic/waiting — the only page a logistic account sees while it waits (doc "Logistic", 17 Oct 2026):

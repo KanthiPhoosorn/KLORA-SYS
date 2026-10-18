@@ -1,7 +1,7 @@
 import Link from "next/link";
 import LoginForm from "@/components/LoginForm";
 
-export const metadata = { title: "เข้าสู่ระบบ · KYN · Corta" };
+export const metadata = { title: "เข้าสู่ระบบ · Corta" };
 
 // KYN console login — purple-themed variant (matches the Figma KYN auth frame #90).
 // Lives in the (auth) group so it is NOT wrapped by the guarded /kyn portal layout.
@@ -13,7 +13,6 @@ export default function KynLoginPage() {
         <Link href="/kyn/login" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/corta-logo.png" alt="Corta" className="h-7 w-auto" />
-          <span className="rounded-md bg-brand-purple-light px-2 py-0.5 text-[12px] font-semibold text-brand-purple">KYN</span>
         </Link>
         <div className="flex items-center gap-5 text-sm text-slate-600">
           <span className="h-6 w-px bg-gray-200" />
@@ -27,7 +26,7 @@ export default function KynLoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/figma/kyn-login-hero.webp"
-            alt="ภาพรวมระบบ KYN"
+            alt="ภาพรวมระบบ"
             className="w-full object-contain"
           />
         </div>
