@@ -203,6 +203,9 @@ export const batches = pgTable("batches", {
   grade: text("grade"),
   ethyleneUsed: boolean("ethylene_used"),
   ethyleneNote: text("ethylene_note"),
+  // ผลไม้/ผัก: optional count next to the weight (doc "Logistic", 18 Oct 2026) — never used in any carbon maths
+  pieceCount: integer("piece_count"),
+  pieceUnit: text("piece_unit"), // ผล / ลูก / หวี / หัว / ต้น / มัด / กล่อง / ชิ้น
   entryDate: text("entry_date").notNull(),
   co2ePerFlower: doublePrecision("co2e_per_flower").notNull(),
   ageDays: integer("age_days").notNull(),

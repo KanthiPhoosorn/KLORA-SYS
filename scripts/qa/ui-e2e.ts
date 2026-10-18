@@ -107,10 +107,13 @@ window.qa = {
     const lists = async () => ev<{ packs: string[]; inner: string[] }>(`({ packs: qa.opts(qa.find(qa.row(0), "select", "บรรจุภัณฑ์")), inner: qa.opts(qa.find(qa.row(0), "select", "ชนิดวัสดุ")) })`);
     await act(`qa.cat("ดอกไม้")`, 400);
     const fl = await lists();
+    const flNoPieces = await ev<boolean>(`!document.querySelector('input[name="pieceCount"]')`);
     log("4.7 flowers: long flower box + water bucket, no bulk / crate / foam / bag", has(fl.packs, ["carton", "flowerbox", "basket", "bucket", "pallet", "other"]) && lacks(fl.packs, ["nopack", "crate", "foam", "plasticbag"]), fl.packs.join(","));
     log("4.7 flowers' inner materials: sleeve / tube / floral foam, no fruit net / pulp tray / ice", has(fl.inner, ["none", "sleeve", "tube", "floralfoam", "other"]) && lacks(fl.inner, ["epe", "pulp", "ice"]), fl.inner.join(","));
     await act(`qa.cat("ผลไม้")`, 400);
     const fr = await lists();
+    const frPieces = await ev<boolean>(`!!document.querySelector('input[name="pieceCount"]') && Array.from(document.querySelector('select[name="pieceUnit"]').options).map((o) => o.value).includes("ผล") && document.body.innerText.includes("(ไม่บังคับ)")`);
+    log("fruit: an optional จำนวน + unit next to the weight; flowers have none", flNoPieces && frPieces);
     log("4.7 fruit: bulk + crate / foam / wood / bamboo / mesh, no flower box / bucket", has(fr.packs, ["nopack", "crate", "foam", "wood", "bamboo", "mesh", "other"]) && lacks(fr.packs, ["flowerbox", "bucket", "plasticbag"]), fr.packs.join(","));
     log("4.7 fruit's inner materials: foam net / pulp tray / ice, no sleeve / tube", has(fr.inner, ["epe", "pulp", "ice"]) && lacks(fr.inner, ["sleeve", "tube", "floralfoam"]), fr.inner.join(","));
     await act(`qa.sel(qa.row(0), "บรรจุภัณฑ์", "nopack")`);

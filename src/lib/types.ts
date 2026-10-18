@@ -331,6 +331,8 @@ export interface Batch {
   grade?: string; // เกรด A / B / C / export
   ethyleneUsed?: boolean; // ใช้ก๊าซเอทิลีน/สารยับยั้งการสุก
   ethyleneNote?: string; // ปริมาณ/รายละเอียด
+  pieceCount?: number; // ผลไม้/ผัก: จำนวน (ไม่บังคับ) — shown only, never in carbon maths
+  pieceUnit?: string; // its unit — PIECE_UNITS
 
   // --- KYN full-spec inputs (ถ้ามีครบ ระบบจะใช้เครื่องคำนวณชุดใหม่) ---
   packagingItems?: PackagingLine[]; // บรรจุภัณฑ์พร้อมมิติ W×L×H
@@ -480,6 +482,8 @@ export type BatchInput = Pick<
   grade?: string;
   ethyleneUsed?: boolean;
   ethyleneNote?: string;
+  pieceCount?: number;
+  pieceUnit?: string;
   expectedAgeDays?: number;
 };
 

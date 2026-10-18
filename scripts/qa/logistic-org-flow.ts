@@ -111,11 +111,12 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     const fCookie = cookieOf(F.set); farmId = F.json.supplier?.id ?? "";
     const newRound = await page("/app/new", fCookie);
     log("farm form lists the new active branch (not the pending/rejected one)", newRound.text.includes("สาขาเชียงราย QA") && !newRound.text.includes("สาขาแม่สาย QA"));
-    const round = { productCategory: "fruit", productType: "มะม่วง", variety: "น้ำดอกไม้", grade: "A", unit: "kg", quantity: 40, cutDate: "2026-10-15", distanceKm: 120, destination: "กรุงเทพฯ", destinationAddress: "99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110", carrier: "ไปรษณีย์ไทย", postalCode: "57000", shippedWeightKg: 45, packagingItems: [] };
+    const round = { productCategory: "fruit", productType: "มะม่วง", variety: "น้ำดอกไม้", grade: "A", unit: "kg", quantity: 40, pieceCount: 120, pieceUnit: "ผล", cutDate: "2026-10-15", distanceKm: 120, destination: "กรุงเทพฯ", destinationAddress: "99/1 ถ.สุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110", carrier: "ไปรษณีย์ไทย", postalCode: "57000", shippedWeightKg: 45, packagingItems: [] };
     const refused = await api("/api/batches", "POST", { ...round, branchId: dUser.branch_id }, fCookie);
     log("a lot cannot go to a rejected branch", refused.status === 400);
     const lotR = await api("/api/batches", "POST", { ...round, branchId: cUser.branch_id, branch: "anything" }, fCookie);
     const lot = String(lotR.json.id ?? "");
+    log("fruit lot keeps its optional count (120 ผล) beside the weight", lotR.json.pieceCount === 120 && lotR.json.pieceUnit === "ผล" && lotR.json.quantity === 40, `${lotR.json.pieceCount} ${lotR.json.pieceUnit}`);
     log("farm lot → that branch (name from the record)", lotR.status === 201 && lotR.json.branchId === cUser.branch_id && lotR.json.branch === "สาขาเชียงราย QA", `${lotR.json.branchId} ${lotR.json.branch}`);
     const ids = async (c: string) => ((await api("/api/batches", "GET", undefined, c)).json as { id: string }[]).map((b) => b.id);
     log("branch and its head office see it; another company and Thai Post do not", (await ids(cCookie)).includes(lot) && (await ids(aCookie)).includes(lot) && !(await ids(bCookie)).includes(lot) && !(await ids(THAIPOST)).includes(lot));

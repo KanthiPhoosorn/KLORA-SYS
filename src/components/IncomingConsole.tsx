@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, type Tone } from "@/components/ui";
-import { unitsOf, quantityLabel } from "@/lib/produce";
+import { unitsOf, quantityLabel, pieceLabel } from "@/lib/produce";
 import {
   computeCarbon, basketCarbonForRound, basketReuseCounts, sourceBreakdown,
 } from "@/lib/carbon";
@@ -198,6 +198,7 @@ export default function IncomingConsole({
                     ["วันที่ตัดดอก", thaiDateShort(open.cutDate)],
                     ["อายุหลังตัด", `${open.ageDays} วัน`],
                     [open.productCategory && open.productCategory !== "flower" ? "น้ำหนักสินค้า" : "จำนวนดอก", quantityLabel(open)],
+                    ...(pieceLabel(open) ? [["จำนวน", pieceLabel(open)]] : []),
                     ["ปลายทาง", open.destination || "—"],
                     ...(open.destinationAddress ? [["ที่อยู่ปลายทาง", open.destinationAddress]] : []),
                     ...(open.destLat != null && open.destLng != null ? [["พิกัดปลายทาง", `${open.destLat.toFixed(4)}, ${open.destLng.toFixed(4)}`]] : []),

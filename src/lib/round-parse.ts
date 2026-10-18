@@ -3,6 +3,7 @@
 import type { BatchInput } from "./types";
 import { asCategory, asUnit, asRipeness } from "./produce-parse";
 import { parsePackagingItems, basketIdsOf } from "./packaging-parse";
+import { PIECE_UNITS, defaultPieceUnit } from "./produce";
 
 export type RoundFields = Omit<BatchInput, "supplierId" | "status">;
 
@@ -17,6 +18,10 @@ export function parseRound(body: Record<string, unknown>): { fields: RoundFields
   const flowerCount = weightBased ? 0 : Math.round(quantity);
   if (weightBased && quantity <= 0) return { error: "น้ำหนักสินค้าต้องมากกว่า 0" };
   if (!weightBased && flowerCount <= 0) return { error: "จำนวนดอกไม้ต้องมากกว่า 0" };
+
+  // produce: an optional count next to the weight (never part of the carbon maths)
+  const pieces = weightBased && Number(body.pieceCount) > 0 ? Math.min(10_000_000, Math.round(Number(body.pieceCount))) : undefined;
+  const pieceUnit = pieces ? (PIECE_UNITS.includes(String(body.pieceUnit)) ? String(body.pieceUnit) : defaultPieceUnit(productCategory)) : undefined;
 
   const packagingItems = parsePackagingItems(body.packagingItems);
   // New-style lines (with ประเภทการใช้งาน) define the reusable codes; older clients send basketIds.
@@ -60,6 +65,8 @@ export function parseRound(body: Record<string, unknown>): { fields: RoundFields
       grade: str("grade"),
       ethyleneUsed: body.ethyleneUsed === true || body.ethyleneUsed === "true",
       ethyleneNote: str("ethyleneNote"),
+      pieceCount: pieces,
+      pieceUnit,
       expectedAgeDays: Number(body.expectedAgeDays) > 0 ? Math.min(365, Math.round(Number(body.expectedAgeDays))) : undefined,
     },
   };

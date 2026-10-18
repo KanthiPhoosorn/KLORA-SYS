@@ -190,7 +190,7 @@ export async function PATCH(
 
 // What the edit review and the history show as "ค่าเดิม → ค่าใหม่".
 const EDIT_LABELS: [keyof RoundFields, string][] = [
-  ["productType", "ชนิด"], ["variety", "พันธุ์"], ["quantity", "จำนวน"], ["unit", "หน่วย"], ["cutDate", "วันที่ตัด/เก็บเกี่ยว"], ["shipDate", "วันที่จัดส่ง"],
+  ["productType", "ชนิด"], ["variety", "พันธุ์"], ["quantity", "จำนวน"], ["unit", "หน่วย"], ["pieceCount", "จำนวนนับ"], ["pieceUnit", "หน่วยนับ"], ["cutDate", "วันที่ตัด/เก็บเกี่ยว"], ["shipDate", "วันที่จัดส่ง"],
   ["expectedAgeDays", "อายุหลังตัดที่คาดการณ์ (วัน)"], ["plantingDate", "วันที่ปลูก"], ["ripenessAtHarvest", "ระยะการสุก"], ["grade", "เกรด"],
   ["destination", "จังหวัดปลายทาง"], ["destinationAddress", "ที่อยู่ปลายทาง"], ["distanceKm", "ระยะทาง (กม.)"], ["carrier", "รูปแบบการขนส่ง"],
   ["provider", "ผู้ให้บริการ"], ["postalCode", "รหัสไปรษณีย์"], ["branch", "สาขาต้นทาง"], ["shippedWeightKg", "น้ำหนักรวมหลังแพ็ก (กก.)"],

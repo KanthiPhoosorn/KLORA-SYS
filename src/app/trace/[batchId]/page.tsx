@@ -11,7 +11,7 @@ import { SavePassport, FarmSheet } from "@/components/TraceClient";
 import { certAppliesTo, certTitle } from "@/lib/certs";
 import { MapPin, Phone, ShieldCheck, Award, Thermometer, AlertTriangle, Scissors, ClipboardCheck, Truck, PackageCheck, Flower, Apple, Carrot, Package, Leaf, CalendarDays, Clock, Cloud, type LucideIcon } from "lucide-react";
 import {
-  categoryOf, categoryLabel, quantityLabel, perUnitLabel, harvestLabel, ageLabel, batchCo2e,
+  categoryOf, categoryLabel, quantityLabel, pieceLabel, perUnitLabel, harvestLabel, ageLabel, batchCo2e,
   ripenessAtScan, shelfLifeLeft, coldChainWarning, RIPENESS_LABEL,
 } from "@/lib/produce";
 
@@ -75,7 +75,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   // mockup's card style — the lot's total CO₂e, not its weight (10 Oct 2026)
   const tiles: { v: string; l: string; Icon: LucideIcon }[] = [
     { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower : category === "fruit" ? Apple : Carrot },
-    { v: quantityLabel(batch), l: isFlower ? "จำนวนดอก" : "น้ำหนักสินค้า", Icon: Package },
+    { v: [quantityLabel(batch), pieceLabel(batch)].filter(Boolean).join(" · "), l: isFlower ? "จำนวนดอก" : pieceLabel(batch) ? "น้ำหนัก · จำนวน" : "น้ำหนักสินค้า", Icon: Package },
     { v: `${batch.co2ePerFlower.toFixed(4)} kg`, l: `CO₂e ${perUnitLabel(batch)}`, Icon: Leaf },
     { v: `${batchCo2e(batch).toFixed(2)} kg`, l: "CO₂e รวม", Icon: Cloud },
     { v: thaiDateFull(batch.cutDate), l: harvestLabel(category), Icon: CalendarDays },

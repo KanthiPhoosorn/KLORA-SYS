@@ -4,6 +4,11 @@ import type { Batch, ProductCategory, QuantityUnit, Ripeness } from "./types";
 import { CATEGORY_LABEL, profileFor, type ProduceProfile } from "./master-data";
 
 export const UNIT_LABEL: Record<QuantityUnit, string> = { stem: "ดอก", bunch: "ช่อ", kg: "กก.", ton: "ตัน" };
+/** Units for the optional count of fruit / vegetables (doc "Logistic", 18 Oct 2026). */
+export const PIECE_UNITS = ["ผล", "ลูก", "หวี", "หัว", "ต้น", "มัด", "กล่อง", "ชิ้น"];
+export const defaultPieceUnit = (c?: ProductCategory) => (c === "vegetable" ? "ต้น" : "ผล");
+/** "120 ผล" — the optional count of a fruit / vegetable lot, or "" */
+export const pieceLabel = (b: Pick<Batch, "pieceCount" | "pieceUnit">) => (b.pieceCount ? `${b.pieceCount.toLocaleString("th-TH")} ${b.pieceUnit ?? "ชิ้น"}` : "");
 export const RIPENESS_LABEL: Record<Ripeness, string> = { unripe: "ดิบ", turning: "เริ่มสุก", ripe: "สุกพอดี", overripe: "สุกเกิน" };
 /** เกรดสินค้า (13 Oct 2026) — the value saved is the letter; the QR page shows "เกรด A+" */
 export const GRADE_LEVELS = [

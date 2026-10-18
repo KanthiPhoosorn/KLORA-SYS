@@ -9,7 +9,7 @@ import { DESTINATIONS, provinceFromAddress } from "@/lib/geo";
 import { useRecipientDistance, parseLatLng, isShortMapsLink, resolveMapsLink } from "@/lib/use-distance";
 import DistanceHint from "@/components/DistanceHint";
 import { PRODUCT_CATEGORIES, typesFor, variantsFor, categoryOfType } from "@/lib/master-data";
-import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_LEVELS, gradeLabel, UNIT_LABEL } from "@/lib/produce";
+import { coldChainWarning, harvestLabel, RIPENESS_LABEL, GRADE_LEVELS, gradeLabel, UNIT_LABEL, PIECE_UNITS, defaultPieceUnit } from "@/lib/produce";
 import type { ProductCategory, QuantityUnit, Ripeness } from "@/lib/types";
 import { AlertTriangle, MapPin } from "lucide-react";
 import { findBranch } from "@/lib/branches";
@@ -132,6 +132,9 @@ export default function RoundForm({
   const [variety, setVariety] = useState(src?.variety ?? "");
   const [flowerCount, setFlowerCount] = useState(src ? String(src.quantity ?? src.flowerCount ?? "") : ""); // quantity in `unit`
   const [unit, setUnit] = useState<QuantityUnit>(src?.unit ?? (firstCat === "flower" ? "stem" : "kg"));
+  // ผลไม้/ผัก: optional count next to the weight (doc "Logistic", 18 Oct 2026)
+  const [pieces, setPieces] = useState(src?.pieceCount ? String(src.pieceCount) : "");
+  const [pieceUnit, setPieceUnit] = useState(src?.pieceUnit ?? defaultPieceUnit(src?.productCategory ?? firstCat));
   const [cutDate, setCutDate] = useState(edit?.cutDate ?? "");
   const [ageDays, setAgeDays] = useState(src?.expectedAgeDays ? String(src.expectedAgeDays) : "");
   const [plantingDate, setPlantingDate] = useState(src?.plantingDate ?? "");
@@ -144,6 +147,8 @@ export default function RoundForm({
   function pickCategory(c: ProductCategory) {
     setCategory(c);
     setUnit(c === "flower" ? "stem" : "kg");
+    setPieces("");
+    setPieceUnit(defaultPieceUnit(c));
     setFlowerType(farmGroups.find((g) => g.category === c)?.type ?? "");
     setVariety("");
     setRipeness("");
@@ -263,6 +268,7 @@ export default function RoundForm({
   const reviewPairs = (): Record<string, string> => ({
     ชนิด: flowerType, พันธุ์: variety,
     จำนวน: flowerCount ? `${Number(flowerCount).toLocaleString()} ${UNIT_LABEL[unit]}` : "",
+    จำนวนนับ: !isFlower && Number(pieces) > 0 ? `${Number(pieces).toLocaleString()} ${pieceUnit}` : "",
     วันที่ปลูก: plantingDate ? formatThaiDate(plantingDate) : "", วันที่ตัด: formatThaiDate(cutDate),
     อายุ: ageDays ? `${ageDays} วัน` : "", ระยะการสุก: ripeness ? RIPENESS_LABEL[ripeness] : "", เกรด: gradeLabel(grade),
     จังหวัดปลายทาง: destination, ที่อยู่ปลายทาง: destAddress, พิกัดปลายทาง: destGps, ระยะทาง: distanceKm ? `${distanceKm} กม.` : "",
@@ -330,6 +336,8 @@ export default function RoundForm({
           flowerCount: isFlower ? Number(flowerCount) || 0 : 0,
           quantity: Number(flowerCount) || 0,
           unit,
+          pieceCount: !isFlower && Number(pieces) > 0 ? Number(pieces) : undefined,
+          pieceUnit: !isFlower && Number(pieces) > 0 ? pieceUnit : undefined,
           productCategory: category,
           productType: flowerType,
           variety: variety || flowerType,
@@ -420,6 +428,7 @@ export default function RoundForm({
               <F k="ชนิด" label="ชนิด" value={flowerType} />
               <F k="พันธุ์" label="พันธุ์" value={variety} />
               <F k="จำนวน" label={isFlower ? "จำนวนดอกไม้" : "น้ำหนักสินค้า"} value={flowerCount ? `${Number(flowerCount).toLocaleString()} ${UNIT_LABEL[unit]}` : ""} />
+              {!isFlower && Number(pieces) > 0 ? <F k="จำนวนนับ" label="จำนวน" value={`${Number(pieces).toLocaleString()} ${pieceUnit}`} /> : null}
               {!isFlower && plantingDate ? <F k="วันที่ปลูก" label="วันที่ปลูก" value={formatThaiDate(plantingDate)} /> : null}
               <F k="วันที่ตัด" label={harvestLabel(category)} value={formatThaiDate(cutDate)} />
               {isFlower ? <F k="อายุ" label="อายุหลังตัดที่คาดการณ์" value={ageDays ? `${ageDays} วัน` : ""} /> : null}
@@ -551,6 +560,17 @@ export default function RoundForm({
               </div>
               <Err msg={errs.flowerCount} />
             </div>
+            {!isFlower ? (
+              <div>
+                <label className={labelCls}>จำนวน <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
+                <div className="flex gap-2">
+                  <input type="number" min="0" step={1} inputMode="numeric" name="pieceCount" value={pieces} onChange={(e) => setPieces(e.target.value)} placeholder="ระบุจำนวน" className={`${inputCls} min-w-0 flex-1`} />
+                  <select name="pieceUnit" value={pieceUnit} onChange={(e) => setPieceUnit(e.target.value)} className={`${inputCls.replace("w-full", "")} w-28 shrink-0`}>
+                    {PIECE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+            ) : null}
             {!isFlower ? (
               <div>
                 <label className={labelCls}>วันที่ปลูก</label>

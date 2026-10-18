@@ -530,6 +530,8 @@ export async function addBatch(input: BatchInput): Promise<Batch> {
     grade: input.grade,
     ethyleneUsed: input.ethyleneUsed,
     ethyleneNote: input.ethyleneNote,
+    pieceCount: input.pieceCount,
+    pieceUnit: input.pieceUnit,
     entryDate,
     co2ePerFlower: 0,
     ageDays: flowerAgeDays(input.cutDate, entryDate),
