@@ -227,7 +227,7 @@ export default function RoundForm({
       resolveMapsLink(v).then((q) => {
         if (gpsNow.current !== v) return; // the field was changed meanwhile
         if (q) setDestGps(`${q.lat}, ${q.lng}`);
-        else setErrs((e) => ({ ...e, destGps: "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" }));
+        else setErrs((e) => ({ ...e, destGps: "ลิงก์นี้ไม่มีพิกัด ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" }));
       });
     }
   }
@@ -293,22 +293,22 @@ export default function RoundForm({
     if (!grade) e.grade = "กรุณาเลือกเกรดสินค้า"; // required (13 Oct 2026 mockup)
     if (!flowerCount || Number(flowerCount) <= 0) e.flowerCount = isFlower ? "กรุณาระบุจำนวนดอกไม้" : "กรุณาระบุน้ำหนักสินค้า";
     if (!cutDate) e.cutDate = isFlower ? "กรุณาเลือกวันที่ตัดดอกไม้" : "กรุณาเลือกวันที่เก็บเกี่ยว";
-    if (destGps.trim() && !parseGps(destGps)) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
+    if (destGps.trim() && !parseGps(destGps)) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
     if (isFlower && !ageDays) e.ageDays = "กรุณาระบุอายุหลังตัดที่คาดการณ์";
     if (category === "fruit" && !ripeness) e.ripeness = "กรุณาระบุระยะการสุก";
     Object.assign(e, validateRows(packs));
     if (!(packedKg > 0)) e.packedWeight = "กรุณาระบุน้ำหนักรวมหลังแพ็ก";
-    else if (packagingKg > 0 && packedKg <= packagingKg) e.packedWeight = `น้อยกว่าน้ำหนักบรรจุภัณฑ์ที่เลือกไว้ (≈ ${packagingKg.toFixed(2)} กก.) — ตรวจสอบอีกครั้ง`;
+    else if (packagingKg > 0 && packedKg <= packagingKg) e.packedWeight = `น้อยกว่าน้ำหนักบรรจุภัณฑ์ที่เลือกไว้ (≈ ${packagingKg.toFixed(2)} กก.) ตรวจสอบอีกครั้ง`;
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (!destination) e.destination = "กรุณาเลือกจังหวัดปลายทาง";
-    if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ — ใช้คำนวณระยะทางขนส่ง";
+    if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ ใช้คำนวณระยะทางขนส่ง";
     if (isThaipost) {
       if (!postalCode.trim()) e.postalCode = "กรุณาระบุรหัสไปรษณีย์";
     } else if (!provider) {
       e.provider = "กรุณาเลือกผู้ให้บริการ";
     }
     if (!branch) e.branch = "กรุณาเลือกสาขาต้นทาง";
-    if (!(Number(distanceKm) > 0)) e.distanceKm = dist.looking && !distEdited ? "กำลังคำนวณระยะทาง รอสักครู่แล้วกดอีกครั้ง" : "กรุณาระบุระยะทางขนส่ง — ระบบคำนวณจากที่อยู่ผู้รับกับสาขาต้นทาง หรือกรอกเองได้";
+    if (!(Number(distanceKm) > 0)) e.distanceKm = dist.looking && !distEdited ? "กำลังคำนวณระยะทาง รอสักครู่แล้วกดอีกครั้ง" : "กรุณาระบุระยะทางขนส่ง ระบบคำนวณจากที่อยู่ผู้รับกับสาขาต้นทาง หรือกรอกเองได้";
     return e;
   }
 
@@ -388,7 +388,7 @@ export default function RoundForm({
   if (step === "review") {
     const packRows = packs.map((r) => rowSummary(r, catalog));
     const now = reviewPairs();
-    const was = (k: string) => (edit && original.current && original.current[k] !== now[k] ? original.current[k] || "—" : undefined);
+    const was = (k: string) => (edit && original.current && original.current[k] !== now[k] ? original.current[k] || "–" : undefined);
     const changedKeys = edit && original.current ? [...new Set([...Object.keys(now), ...Object.keys(original.current)])].filter((k) => (original.current![k] ?? "") !== (now[k] ?? "")) : [];
     const changedCount = changedKeys.length;
     const packChanged = changedKeys.some((k) => /^p\d+\./.test(k));
@@ -398,12 +398,12 @@ export default function RoundForm({
         <div className="rounded-[10px] bg-[#FFF6DB] px-2.5 py-2">
           <p className="text-[13px] font-semibold text-slate-800">{label} <span className="ml-1 rounded-full bg-[#FFE7A3] px-2 py-0.5 text-[11px] font-semibold text-[#6B4A00]">แก้ไข</span></p>
           <p className="text-[13px] text-slate-400 line-through">{old}</p>
-          <p className="text-[13px] font-semibold text-slate-800">→ {value || "—"}</p>
+          <p className="text-[13px] font-semibold text-slate-800">→ {value || "–"}</p>
         </div>
       ) : (
         <div>
           <p className="text-[13px] font-semibold text-slate-800">{label}</p>
-          <p className="text-[13px] text-slate-500">{value || "—"}</p>
+          <p className="text-[13px] text-slate-500">{value || "–"}</p>
         </div>
       );
     };
@@ -509,7 +509,7 @@ export default function RoundForm({
   return (
     <div className="max-w-3xl space-y-5">
       <Toast show={toast} />
-      {copyFrom ? <p className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] text-sky-800">คัดลอกสินค้าและบรรจุภัณฑ์จาก <b>{copyFrom.id}</b> แล้ว — กรอกวันที่ตัด วันที่จัดส่ง และที่อยู่ผู้รับของรอบนี้ แล้วบันทึกเป็นล็อตใหม่</p> : null}
+      {copyFrom ? <p className="rounded-[10px] border border-sky-200 bg-sky-50 px-4 py-3 text-[13px] text-sky-800">คัดลอกสินค้าและบรรจุภัณฑ์จาก <b>{copyFrom.id}</b> แล้ว กรอกวันที่ตัด วันที่จัดส่ง และที่อยู่ผู้รับของรอบนี้ แล้วบันทึกเป็นล็อตใหม่</p> : null}
 
       {/* Product (ดอกไม้ / ผลไม้ / ผัก) */}
       <Section title="ข้อมูลสินค้า" sub="ระบุประเภทสินค้าและรายละเอียดของรอบการจัดส่งนี้">
@@ -675,7 +675,7 @@ export default function RoundForm({
           <div>
             <label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร){req}</label>
             <input type="number" min="0" step="any" value={distanceKm} onChange={(e) => { handTyped.current = true; setDistanceKm(e.target.value); setDistEdited(true); setErrs((x) => ({ ...x, distanceKm: "" })); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50 ${errs.distanceKm ? "border-[#ee443f]" : ""}`} />
-            <DistanceHint edited={distEdited} onAuto={() => { handTyped.current = false; setDistEdited(false); }} dist={dist} noOrigin={branch ? "ไม่ทราบพิกัดของสาขานี้ — กรอกระยะทางเอง" : undefined} />
+            <DistanceHint edited={distEdited} onAuto={() => { handTyped.current = false; setDistEdited(false); }} dist={dist} noOrigin={branch ? "ไม่ทราบพิกัดของสาขานี้ กรอกระยะทางเอง" : undefined} />
             <Err msg={errs.distanceKm} />
           </div>
         </div>

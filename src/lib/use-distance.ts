@@ -18,7 +18,7 @@ const PRECISION_LABEL: Record<DestPrecision, string> = {
   subdistrict: "ที่อยู่ผู้รับ (ระดับตำบล)",
   postcode: "ที่อยู่ผู้รับ (ระดับรหัสไปรษณีย์)",
   district: "ที่อยู่ผู้รับ (ระดับอำเภอ)",
-  province: "จังหวัดปลายทาง (ประมาณ — หาที่อยู่ไม่พบ)",
+  province: "จังหวัดปลายทาง (ประมาณ หาที่อยู่ไม่พบ)",
 };
 const ROAD_FACTOR = 1.3;
 type Point = { lat: number; lng: number; precision: DestPrecision };

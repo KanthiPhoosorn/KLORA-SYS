@@ -31,7 +31,7 @@ export async function PATCH(
   // ผู้ขนส่งยกเลิกการพิมพ์ QR → the farm's round is "รอสั่งพิมพ์" again and can be edited / cancelled (§5.7)
   if (updated.cancelled && updated.batchId) {
     await addBatchEvent({ batchId: updated.batchId, actorId: g.user.id, actorName: g.user.username, action: "print_cancel" });
-    await addNotification({ supplierId: updated.supplierId, kind: "warning", title: `ผู้ขนส่งยกเลิกการพิมพ์ QR ของ ${updated.batchId}`, body: "สถานะกลับเป็น “รอสั่งพิมพ์” — แก้ไขข้อมูลหรือยกเลิกรายการได้อีกครั้ง" });
+    await addNotification({ supplierId: updated.supplierId, kind: "warning", title: `ผู้ขนส่งยกเลิกการพิมพ์ QR ของ ${updated.batchId}`, body: "สถานะกลับเป็น “รอสั่งพิมพ์” แก้ไขข้อมูลหรือยกเลิกรายการได้อีกครั้ง" });
   }
   return NextResponse.json(updated);
 }

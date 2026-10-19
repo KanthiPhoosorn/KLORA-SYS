@@ -9,7 +9,7 @@ import type { Supplier } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 import CategoryFilter, { parseCat } from "@/components/CategoryFilter";
-import { categoryOf } from "@/lib/produce";
+import { categoryOf, unitOf, UNIT_LABEL } from "@/lib/produce";
 
 export default async function LogisticIncomingPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
   const cat = parseCat((await searchParams).cat);
@@ -34,11 +34,13 @@ export default async function LogisticIncomingPage({ searchParams }: { searchPar
         id: b.id,
         receivedDate: thaiDateShort(b.entryDate),
         receivedIso: b.entryDate,
-        farmName: byId.get(b.supplierId)?.farmName ?? "—",
+        farmName: byId.get(b.supplierId)?.farmName ?? "–",
         supplierId: b.supplierId,
         ageDays: b.ageDays,
-        received: b.flowerCount,
-        remaining: dispatched ? 0 : b.flowerCount,
+        // every product in its own unit — ดอก / ช่อ, or กก. for fruit and vegetables (it used to count stems only)
+        received: b.quantity ?? b.flowerCount,
+        remaining: dispatched ? 0 : b.quantity ?? b.flowerCount,
+        unit: UNIT_LABEL[unitOf(b)],
         printId,
       };
     });

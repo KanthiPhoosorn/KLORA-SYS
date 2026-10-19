@@ -14,13 +14,15 @@ export interface IncomingRow {
   farmName: string;
   supplierId: string;
   ageDays: number;
-  received: number;
+  received: number; // in `unit`
   remaining: number;
+  unit: string; // ดอก / ช่อ / กก. / ตัน
   printId: string | null;
 }
 
 const inputCls = "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-slate-700 outline-none focus:border-blue-500";
 const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-700";
+const qty = (n: number, unit: string) => `${n.toLocaleString("en-US", { maximumFractionDigits: 1 })} ${unit}`;
 
 // Logistic "รายการรับเข้าจากผู้ผลิต" — Figma high-fi: lavender table header, plain คงเหลือ,
 // per-row pencil that opens a cancel-confirm.
@@ -114,9 +116,9 @@ export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; o
                 <th className="rounded-l-lg px-5 py-3.5">วันที่รับข้อมูล</th>
                 <th className="px-5 py-3.5">รหัสล็อต</th>
                 <th className="px-5 py-3.5">แหล่งผลิต</th>
-                <th className="px-5 py-3.5">อายุดอกไม้หลังตัด (วัน)</th>
-                <th className="px-5 py-3.5">จำนวนดอกไม้รับเข้า</th>
-                <th className="px-5 py-3.5">จำนวนดอกไม้คงเหลือ</th>
+                <th className="px-5 py-3.5">อายุหลังเก็บเกี่ยว (วัน)</th>
+                <th className="px-5 py-3.5">จำนวนรับเข้า</th>
+                <th className="px-5 py-3.5">จำนวนคงเหลือ</th>
                 <th className="rounded-r-lg px-5 py-3.5">จัดการ</th>
               </tr>
             </thead>
@@ -129,8 +131,8 @@ export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; o
                   <td className="px-5 py-4 text-slate-700">{r.id}</td>
                   <td className="px-5 py-4 text-slate-700" title={String(r.farmName)}><span className="cell-clip">{r.farmName}</span></td>
                   <td className="px-5 py-4 tabular text-slate-700">{r.ageDays}</td>
-                  <td className="px-5 py-4 tabular text-slate-700">{r.received.toLocaleString()}</td>
-                  <td className="px-5 py-4 tabular text-slate-700">{r.remaining.toLocaleString()}</td>
+                  <td className="px-5 py-4 tabular text-slate-700">{qty(r.received, r.unit)}</td>
+                  <td className="px-5 py-4 tabular text-slate-700">{qty(r.remaining, r.unit)}</td>
                   <td className="px-5 py-4">
                     <button onClick={() => setTarget(r)} className="inline-grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-blue-600" title="จัดการรายการ">
                       <Pencil size={15} />

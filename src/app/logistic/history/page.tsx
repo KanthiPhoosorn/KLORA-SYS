@@ -31,7 +31,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
       supplierId: p.supplierCode ?? p.supplierId, // shown/searched as the farm CID
       printedAtIso: p.printedAt,
       batchId: p.batchId ?? p.supplierId,
-      destination: p.destination ?? "—",
+      destination: p.destination ?? "–",
     }));
 
   // ประวัติการจัดส่ง — every shipment batch, newest first
@@ -51,7 +51,7 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
         cutDateIso: b.cutDate,
         flowerCount: b.flowerCount,
         quantity: quantityLabel(b),
-        destination: b.destination ?? "—",
+        destination: b.destination ?? "–",
         state,
       };
     });

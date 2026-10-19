@@ -112,5 +112,5 @@ export function coldChainWarning(b: Pick<Batch, "isReeferUsed" | "productType" |
   if (!b.isReeferUsed) return null;
   const p = profileFor(b.productType, categoryOf(b));
   if (!p.chillSensitive) return null;
-  return `${p.type || categoryLabel(categoryOf(b))} ไวต่อความเย็น — ควรเก็บที่ ${p.storageMinC}–${p.storageMaxC}°C ไม่ควรแช่เย็นต่ำกว่านั้น${p.note ? ` (${p.note})` : ""}`;
+  return `${p.type || categoryLabel(categoryOf(b))} ไวต่อความเย็น ควรเก็บที่ ${p.storageMinC}–${p.storageMaxC}°C ไม่ควรแช่เย็นต่ำกว่านั้น${p.note ? ` (${p.note})` : ""}`;
 }

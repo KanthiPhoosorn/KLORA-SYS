@@ -34,7 +34,7 @@ function Breakdown({ title, rows }: { title: string; rows: { name: string; s: Ra
   return (
     <div>
       <p className="mb-1.5 text-[12px] font-semibold text-slate-500">{title}</p>
-      {rows.length ? list(rows.slice(0, 6)) : <p className="text-[12px] text-slate-400">—</p>}
+      {rows.length ? list(rows.slice(0, 6)) : <p className="text-[12px] text-slate-400">–</p>}
       {/* the rest behind a native toggle — every lot stays reachable */}
       {rows.length > 6 ? (
         <details className="mt-1.5">

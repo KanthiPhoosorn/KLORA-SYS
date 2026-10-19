@@ -21,7 +21,7 @@ export interface Factors {
 
 // Air freight — UK Government GHG Conversion Factors (DEFRA/BEIS), freight flights incl. RF
 // and the 8% distance uplift: long-haul 0.89939 (2025 set), short-haul 2.30229 (2021 set).
-export const AIR_EF_SOURCE = "DEFRA/BEIS GHG Conversion Factors — freight flights incl. RF (long-haul 2025, short-haul 2021)";
+export const AIR_EF_SOURCE = "DEFRA/BEIS GHG Conversion Factors freight flights incl. RF (long-haul 2025, short-haul 2021)";
 export const SHORT_HAUL_MAX_KM = 3700;
 
 export const DEFAULT_FACTORS: Factors = {

@@ -13,7 +13,7 @@ export default async function KynPackagingPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">ตารางบรรจุภัณฑ์</h1>
-        <p className="mt-1 text-[13px] text-slate-500">น้ำหนักมาตรฐานแต่ละขนาด วัสดุหลัก จำนวนรอบใช้งาน และค่า EF ของวัสดุ — ใช้คำนวณคาร์บอนบรรจุภัณฑ์ของทุกรอบส่งออก</p>
+        <p className="mt-1 text-[13px] text-slate-500">น้ำหนักมาตรฐานแต่ละขนาด วัสดุหลัก จำนวนรอบใช้งาน และค่า EF ของวัสดุ ใช้คำนวณคาร์บอนบรรจุภัณฑ์ของทุกรอบส่งออก</p>
       </div>
       <CatalogEditor initial={catalog} />
     </div>

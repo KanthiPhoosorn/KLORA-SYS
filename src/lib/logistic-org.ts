@@ -137,9 +137,9 @@ const accessFor = cache(async (orgCode: string | null, branchId: string | null):
   const hq = !!branch?.isHq && branch.orgCode === org?.orgCode;
   if (!org) return { state: "active", org: null, branch, hq: false };
   if (org.status === "suspended") return { state: "blocked", reason: "บัญชีบริษัทนี้ถูกระงับการใช้งาน กรุณาติดต่อ KYN", org, branch, hq };
-  if (org.status === "rejected") return { state: "blocked", reason: `การลงทะเบียนบริษัทไม่ผ่านการตรวจสอบ${org.rejectReason ? ` — ${org.rejectReason}` : ""}`, org, branch, hq };
+  if (org.status === "rejected") return { state: "blocked", reason: `การลงทะเบียนบริษัทไม่ผ่านการตรวจสอบ${org.rejectReason ? ` ${org.rejectReason}` : ""}`, org, branch, hq };
   if (branch?.status === "disabled") return { state: "blocked", reason: "สาขานี้ถูกปิดการใช้งาน กรุณาติดต่อสำนักงานใหญ่", org, branch, hq };
-  if (branch?.status === "rejected") return { state: "blocked", reason: `สำนักงานใหญ่ไม่อนุมัติการลงทะเบียนสาขานี้${branch.rejectReason ? ` — ${branch.rejectReason}` : ""}`, org, branch, hq };
+  if (branch?.status === "rejected") return { state: "blocked", reason: `สำนักงานใหญ่ไม่อนุมัติการลงทะเบียนสาขานี้${branch.rejectReason ? ` ${branch.rejectReason}` : ""}`, org, branch, hq };
   if (org.status === "pending") return { state: "org_pending", org, branch, hq };
   if (branch?.status === "pending") return { state: "branch_pending", org, branch, hq };
   return { state: "active", org, branch, hq };
@@ -150,8 +150,8 @@ export async function logisticWriteRefusal(user: Pick<User, "role" | "orgCode" |
   if (user.role !== "logistic") return null;
   const a = await logisticAccess(user);
   if (a.state === "active") return null;
-  if (a.state === "branch_pending") return "สาขายังรอการอนุมัติจากสำนักงานใหญ่ — ยังบันทึกข้อมูลไม่ได้";
-  if (a.state === "org_pending") return "บริษัทยังรอการตรวจสอบจากผู้ดูแลระบบ — ยังบันทึกข้อมูลไม่ได้";
+  if (a.state === "branch_pending") return "สาขายังรอการอนุมัติจากสำนักงานใหญ่ ยังบันทึกข้อมูลไม่ได้";
+  if (a.state === "org_pending") return "บริษัทยังรอการตรวจสอบจากผู้ดูแลระบบ ยังบันทึกข้อมูลไม่ได้";
   return a.reason ?? "บัญชีนี้ใช้งานไม่ได้";
 }
 
@@ -181,7 +181,7 @@ export async function lotRefusal(user: Pick<User, "role" | "orgCode" | "branchId
   if (user.role !== "logistic" || !lot) return null;
   const write = await logisticWriteRefusal(user);
   if (write) return write;
-  return (await lotScope(user))(lot) ? null : "ล็อตนี้ไม่ได้ส่งผ่านสาขาของคุณ — ดำเนินการไม่ได้";
+  return (await lotScope(user))(lot) ? null : "ล็อตนี้ไม่ได้ส่งผ่านสาขาของคุณ ดำเนินการไม่ได้";
 }
 
 /** The lots this account works with (see lotScope); `onlyBranch` = a head office looking at one branch. */

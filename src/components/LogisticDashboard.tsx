@@ -15,8 +15,8 @@ import { categoryOf } from "@/lib/produce";
 import { batchCo2e, unitsOf, perUnitLabel } from "@/lib/produce";
 
 const nfmt = (n: number) => n.toLocaleString("en-US");
-const vehLabel = (k?: string) => (k && VEHICLE_PROFILE[k]?.label) || "—";
-const fuelLabel = (k?: string) => (k && FUEL_EF[k]?.label) || "—";
+const vehLabel = (k?: string) => (k && VEHICLE_PROFILE[k]?.label) || "–";
+const fuelLabel = (k?: string) => (k && FUEL_EF[k]?.label) || "–";
 
 // ภาพรวม of a logistic account — or, for the head office, one branch's own dashboard (`viewing`, opened from
 // ข้อมูลรายสาขา at /logistic/branches/[id]; doc "Logistic", 17–18 Oct 2026). Only this account's lots: a
@@ -91,7 +91,7 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
   const rows = [...computed].sort((a, b) => b.id.localeCompare(a.id));
 
   // Branch comparison (ข้อมูลรายสาขา) — the head office's company view only
-  const perBranch: BranchRow[] = access.hq && !viewing ? branchRows(computed, orgBranches) : [];
+  const perBranch = access.hq && !viewing ? branchRows(computed, orgBranches) : { rows: [] as BranchRow[], unit: null };
 
   const Tile = ({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) => (
     <div className="rounded-xl bg-white/80 p-4">
@@ -226,12 +226,12 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
                 rows.map((b: Batch) => (
                   <tr key={b.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-5 py-3 font-mono text-xs text-slate-600">{b.id}</td>
-                    <td className="px-5 py-3 text-slate-700" title={String(byId.get(b.supplierId)?.farmName ?? "—")}><span className="cell-clip">{byId.get(b.supplierId)?.farmName ?? "—"}</span></td>
-                    <td className="px-5 py-3 text-slate-700" title={String(b.destination ?? "—")}><span className="cell-clip">{b.destination ?? "—"}</span></td>
+                    <td className="px-5 py-3 text-slate-700" title={String(byId.get(b.supplierId)?.farmName ?? "–")}><span className="cell-clip">{byId.get(b.supplierId)?.farmName ?? "–"}</span></td>
+                    <td className="px-5 py-3 text-slate-700" title={String(b.destination ?? "–")}><span className="cell-clip">{b.destination ?? "–"}</span></td>
                     <td className="px-5 py-3 text-right tabular">{b.distanceKm}</td>
                     <td className="px-5 py-3 text-slate-600">{vehLabel(b.vehicleKey)}</td>
                     <td className="px-5 py-3 text-slate-600">{fuelLabel(b.fuelKey)}</td>
-                    <td className="px-5 py-3 text-center">{b.isReeferUsed ? <span className="text-blue-500">ใช้</span> : <span className="text-slate-300">—</span>}</td>
+                    <td className="px-5 py-3 text-center">{b.isReeferUsed ? <span className="text-blue-500">ใช้</span> : <span className="text-slate-300">–</span>}</td>
                     <td className="px-5 py-3 text-right"><span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 tabular">{b.co2ePerFlower.toFixed(3)}</span></td>
                   </tr>
                 ))
@@ -246,10 +246,10 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
       <RatingsCard ratings={(await getRatings()).filter((r) => lotIds.has(r.batchId))} show="transport" />
 
       {/* ข้อมูลรายสาขา (head-office view) */}
-      {perBranch.length ? (
+      {perBranch.rows.length ? (
         <div className="space-y-3 pt-2">
           <h2 className="text-lg font-bold text-slate-800">รายละเอียดสาขา</h2>
-          <BranchTable rows={perBranch} />
+          <BranchTable {...perBranch} fallback={cat === "flower" ? "stem" : cat === "all" ? undefined : "kg"} />
         </div>
       ) : null}
     </div>

@@ -69,7 +69,7 @@ export default function CustomReview({ entries, farmName }: { entries: CustomEnt
                 <tr key={e.id} className="border-b border-slate-100 align-top last:border-0">
                   <td className="whitespace-nowrap px-4 py-3 text-slate-600">{FIELD_LABEL[e.field] ?? e.field}</td>
                   <td className="px-4 py-3"><p className="font-medium text-slate-800">{e.value}</p>{detail ? <p className="text-[11px] text-slate-400">{detail}</p> : null}</td>
-                  <td className="px-4 py-3 text-slate-500"><p className="max-w-[200px] truncate" title={e.supplierId ? farmName[e.supplierId] : e.userId}>{e.supplierId ? farmName[e.supplierId] ?? e.supplierId : e.userId ?? "—"}</p><p className="whitespace-nowrap text-[11px] text-slate-400">{thaiDateTime(e.createdAt)}</p></td>
+                  <td className="px-4 py-3 text-slate-500"><p className="max-w-[200px] truncate" title={e.supplierId ? farmName[e.supplierId] : e.userId}>{e.supplierId ? farmName[e.supplierId] ?? e.supplierId : e.userId ?? "–"}</p><p className="whitespace-nowrap text-[11px] text-slate-400">{thaiDateTime(e.createdAt)}</p></td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-600">{e.uses}</td>
                   <td className="px-4 py-3">
                     {unit ? (
@@ -77,7 +77,7 @@ export default function CustomReview({ entries, farmName }: { entries: CustomEnt
                         <input type="number" min="0" step="any" value={efs[e.id] ?? ""} onChange={(ev) => setEfs((x) => ({ ...x, [e.id]: ev.target.value }))} placeholder="เว้นว่าง = ค่าประมาณ" className="w-36 rounded-[8px] border border-gray-300 px-2 py-1.5 text-[13px] outline-none focus:border-brand-purple" />
                         <p className="mt-0.5 text-[11px] text-slate-400">{unit}</p>
                       </div>
-                    ) : <span className="text-slate-300">—</span>}
+                    ) : <span className="text-slate-300">–</span>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${STATUS[e.status][1]}`}>{STATUS[e.status][0]}</span></td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">

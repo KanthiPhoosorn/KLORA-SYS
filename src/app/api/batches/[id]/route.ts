@@ -140,7 +140,7 @@ export async function PATCH(
     await queueTransportOthers({ originAirport: body.shipType === "international" && body.originAirport ? String(body.originAirport) : undefined, destProvince: body.shipType === "domestic" && body.destination ? String(body.destination) : undefined, vehicleOther: body.vehicleOther ? String(body.vehicleOther) : undefined, fuelKey: body.fuelKey ? String(body.fuelKey) : undefined, airline: body.airline ? String(body.airline) : undefined, destAirport: body.destAirport ? String(body.destAirport) : undefined }, { userId: g.user.id, batchId: id, supplierId: batch.supplierId }).catch(() => undefined);
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
-      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `ผู้ขนส่งบันทึกข้อมูลการขนส่ง CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
     }
     return NextResponse.json(updated);
   }
@@ -149,7 +149,7 @@ export async function PATCH(
     // KYN recalculates on demand (rounds are calculated automatically when submitted).
     const updated = await computeBatch(id);
     if (updated?.status === "computed") {
-      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว — CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
+      await notifyFarm(batch.supplierId, `คำนวณคาร์บอน ${id} เสร็จแล้ว`, `KYN คำนวณแล้ว CO₂e รวม ${(updated.co2ePerFlower * unitsOf(updated)).toFixed(2)} kg (${updated.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(updated)})`, "success");
     }
     return NextResponse.json(updated);
   }
@@ -196,7 +196,7 @@ const EDIT_LABELS: [keyof RoundFields, string][] = [
   ["provider", "ผู้ให้บริการ"], ["postalCode", "รหัสไปรษณีย์"], ["branch", "สาขาต้นทาง"], ["shippedWeightKg", "น้ำหนักรวมหลังแพ็ก (กก.)"],
   ["packagingItems", "บรรจุภัณฑ์"],
 ];
-const shown = (v: unknown) => (v == null || v === "" ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
+const shown = (v: unknown) => (v == null || v === "" ? "–" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
 // PUT /api/batches/[id] — the farm edits its own round while it still waits to be printed
 // (Thai Post doc §5.4). Same LOT code; carbon is recomputed; the change list goes to the history.

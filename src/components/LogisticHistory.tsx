@@ -41,13 +41,13 @@ const labelCls = "mb-1.5 block text-[13px] font-medium text-slate-600";
 // YYYY-MM-DD → dd/mm/(พ.ศ.)
 function fmtDate(iso: string) {
   const [y, m, d] = (iso ?? "").split("-");
-  if (!y || !m || !d) return "—";
+  if (!y || !m || !d) return "–";
   return `${d}/${m}/${Number(y) + 543}`;
 }
 // full ISO → dd/mm/(พ.ศ.) | HH:MM (local)
 function fmtDateTime(iso: string) {
   const dt = new Date(iso);
-  if (isNaN(dt.getTime())) return "—";
+  if (isNaN(dt.getTime())) return "–";
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear() + 543} | ${p(dt.getHours())}:${p(dt.getMinutes())}`;
 }
@@ -87,7 +87,7 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
   const [sShip, setSShip] = useState("");
   const [sCut, setSCut] = useState("");
   const [sState, setSState] = useState("");
-  const destinations = useMemo(() => [...new Set(shipRows.map((r) => r.destination).filter((d) => d && d !== "—"))], [shipRows]);
+  const destinations = useMemo(() => [...new Set(shipRows.map((r) => r.destination).filter((d) => d && d !== "–"))], [shipRows]);
   const filteredShips = useMemo(
     () =>
       shipRows.filter((r) => {

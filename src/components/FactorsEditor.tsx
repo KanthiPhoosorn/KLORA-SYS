@@ -72,7 +72,7 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
       setD(toDraft(data.factors));
-      setMsg({ ok: true, text: "บันทึกค่าสัมประสิทธิ์แล้ว — รอบใหม่จะใช้ค่านี้ทันที กด “คำนวณใหม่ทั้งหมด” เพื่อปรับรอบเดิม" });
+      setMsg({ ok: true, text: "บันทึกค่าสัมประสิทธิ์แล้ว รอบใหม่จะใช้ค่านี้ทันที กด “คำนวณใหม่ทั้งหมด” เพื่อปรับรอบเดิม" });
       router.refresh();
     } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
     setBusy(null);
@@ -114,7 +114,7 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
         </div>
       </Section>
 
-      <Section title="ขนส่งทางถนน — EF ต่อตัน·กม." sub="เว้นว่าง = ใช้ค่าที่ระบบคำนวณจากอัตราสิ้นเปลือง × EF เชื้อเพลิง TGO ÷ น้ำหนักบรรทุก · ใส่ค่าจริงของ KYN เพื่อแทนที่">
+      <Section title="ขนส่งทางถนน EF ต่อตัน·กม." sub="เว้นว่าง = ใช้ค่าที่ระบบคำนวณจากอัตราสิ้นเปลือง × EF เชื้อเพลิง TGO ÷ น้ำหนักบรรทุก · ใส่ค่าจริงของ KYN เพื่อแทนที่">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[13px]">
             <thead>
@@ -130,7 +130,7 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
                 <tr key={v.key} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-2 text-slate-700">{v.vehicle}</td>
                   <td className="px-3 py-2 text-slate-500">{v.fuel}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">{v.derived ? v.derived.toFixed(4) : "—"}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">{v.derived ? v.derived.toFixed(4) : "–"}</td>
                   <td className="px-3 py-1.5">
                     <input type="number" min="0" step="any" value={d.vehicleTkm[v.key] ?? ""} onChange={(e) => setD((x) => ({ ...x, vehicleTkm: { ...x.vehicleTkm, [v.key]: e.target.value } }))} placeholder={v.derived ? v.derived.toFixed(4) : ""} className={`${inputCls} ${d.vehicleTkm[v.key] ? "border-brand-purple" : ""}`} />
                   </td>
@@ -150,7 +150,7 @@ export default function FactorsEditor({ initial }: { initial: Factors }) {
       ) : null}
 
       <div className="flex flex-wrap justify-end gap-3">
-        <button type="button" onClick={() => { setD(toDraft(DEFAULT_FACTORS)); setMsg({ ok: true, text: "คืนค่าเริ่มต้นในแบบฟอร์มแล้ว — กดบันทึกเพื่อใช้งาน" }); }} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-gray-300 px-5 text-[14px] font-medium text-slate-700 hover:bg-gray-100 disabled:opacity-60">
+        <button type="button" onClick={() => { setD(toDraft(DEFAULT_FACTORS)); setMsg({ ok: true, text: "คืนค่าเริ่มต้นในแบบฟอร์มแล้ว กดบันทึกเพื่อใช้งาน" }); }} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-gray-300 px-5 text-[14px] font-medium text-slate-700 hover:bg-gray-100 disabled:opacity-60">
           <RotateCcw size={15} /> ค่าเริ่มต้น
         </button>
         <button type="button" onClick={recompute} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-brand-purple px-5 text-[14px] font-medium text-brand-purple hover:bg-brand-purple-light disabled:opacity-60">

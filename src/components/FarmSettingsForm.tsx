@@ -10,6 +10,7 @@ import SearchSelect, { type SelectOption } from "@/components/SearchSelect";
 import { CertificationsEditor, certErrors, certPayload, type CertDraft } from "@/components/ProduceGroupsEditor";
 import ResourceUsageFields, { resourcePayload, resourceStateFrom, yieldTargets, yieldKey, type ResourceState } from "@/components/ResourceUsageFields";
 import { farmResourceLines } from "@/lib/resource-types";
+import { isDashValue } from "@/lib/format";
 
 const CAT_ICON: Record<ProductCategory, string> = { flower: "🌸", fruit: "🍊", vegetable: "🥬" };
 
@@ -184,7 +185,7 @@ function FlowerTypeCard({
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-slate-400">ยังไม่มีพันธุ์ในชนิดนี้ — เลือกจากรายการด้านบนเพื่อเพิ่ม</p>
+            <p className="text-[12px] text-slate-400">ยังไม่มีพันธุ์ในชนิดนี้ เลือกจากรายการด้านบนเพื่อเพิ่ม</p>
           )}
         </div>
       ) : null}
@@ -207,7 +208,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
     phone: supplier.phone ?? "",
     address: supplier.address ?? "",
     gps: supplier.gpsLat || supplier.gpsLng ? `${supplier.gpsLat}, ${supplier.gpsLng}` : "",
-    highlights: supplier.highlights && supplier.highlights !== "—" ? supplier.highlights : "",
+    highlights: !isDashValue(supplier.highlights) ? supplier.highlights : "",
   });
   // seed จากข้อมูลเดิมเสมอ — ถ้าไม่มี flowerTypes ให้แปลงจาก flowerType + varieties เดิม
   // (กันกรณีกดบันทึกแล้วล้างพันธุ์ที่เคยมี)
@@ -265,7 +266,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
   const addType = (type: string, category?: ProductCategory) => {
     if (!type) return;
     const have = fts.find((f) => f.type === type || baseType(f.type) === baseType(type));
-    if (have) { setOpenType(have.type); setAdding(false); setDupNote(`มี “${have.type}” อยู่แล้ว — เพิ่มพันธุ์ในการ์ดเดิมได้เลย`); return; }
+    if (have) { setOpenType(have.type); setAdding(false); setDupNote(`มี “${have.type}” อยู่แล้ว เพิ่มพันธุ์ในการ์ดเดิมได้เลย`); return; }
     setDupNote("");
     setFts((prev) => [...prev, { category: category ?? categoryOfType(type) ?? "flower", type, varieties: [] }]);
     setOpenType(type);
@@ -328,7 +329,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">{supplier.farmName}</h2>
-            {supplier.highlights && supplier.highlights !== "—" ? (
+            {!isDashValue(supplier.highlights) ? (
               <p className="mt-1 max-w-xl text-[13px] text-slate-500">{supplier.highlights}</p>
             ) : null}
             <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-slate-500">
@@ -424,7 +425,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
               </div>
             ) : (
               <p className="rounded-[10px] border border-dashed border-slate-200 px-4 py-6 text-center text-[13px] text-slate-400">
-                ยังไม่มีรายการผลผลิต — กดปุ่มด้านล่างเพื่อเพิ่ม
+                ยังไม่มีรายการผลผลิต กดปุ่มด้านล่างเพื่อเพิ่ม
               </p>
             )}
 
@@ -481,7 +482,7 @@ export default function FarmSettingsForm({ supplier }: { supplier: Supplier }) {
             ข้อมูลการใช้ทรัพยากร
           </h3>
           <ResourceUsageFields value={c} onChange={setC} targets={targets} inputCls={inputCls} labelCls={labelCls} />
-          <p className="text-[12px] text-slate-400">ตะกร้า (Basket) กรอกในแต่ละรอบส่งออก — ระบบนับการใช้ซ้ำให้เอง · ข้อมูลนี้ใช้คำนวณค่าคาร์บอนเฉพาะของฟาร์มคุณ</p>
+          <p className="text-[12px] text-slate-400">ตะกร้า (Basket) กรอกในแต่ละรอบส่งออก ระบบนับการใช้ซ้ำให้เอง · ข้อมูลนี้ใช้คำนวณค่าคาร์บอนเฉพาะของฟาร์มคุณ</p>
           {calc.error ? <p className="rounded-[8px] bg-brand-pink-light px-3 py-2 text-[13px] text-[#c1006e]">{calc.error}</p> : null}
           <SaveBtn busy={calc.busy} />
         </form>

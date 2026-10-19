@@ -168,7 +168,7 @@ export function SavePassport({ targetId, fileName }: { targetId: string; fileNam
             </button>
             {lineApp || otherApp ? (
               <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[12.5px] leading-relaxed text-amber-800">
-                {lineApp ? "แอป LINE อาจบันทึกไฟล์ไม่ได้" : "แอปนี้อาจบันทึกไฟล์ไม่ได้"} — {lineApp
+                {lineApp ? "แอป LINE อาจบันทึกไฟล์ไม่ได้" : "แอปนี้อาจบันทึกไฟล์ไม่ได้"} – {lineApp
                   ? <a href={external()} className="inline-flex items-center gap-1 font-semibold underline">เปิดหน้านี้ในเบราว์เซอร์ <ExternalLink size={12} /></a>
                   : <span className="font-semibold">เปิดหน้านี้ใน Safari หรือ Chrome</span>} แล้วบันทึกอีกครั้ง
               </p>

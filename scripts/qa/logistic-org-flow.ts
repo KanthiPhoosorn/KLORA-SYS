@@ -124,6 +124,9 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     log("another company cannot print it; the branch can", (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, bCookie)).status === 403 && (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, cCookie)).status === 201);
     const branches = await page("/logistic/branches", aCookie);
     log("ข้อมูลรายสาขา: active branches, linking to each dashboard under ข้อมูลรายสาขา", branches.text.includes("สาขาเชียงราย QA") && branches.text.includes(`/logistic/branches/${cUser.branch_id}`) && !branches.text.includes("สาขาแม่สาย QA"));
+    log("ข้อมูลรายสาขา columns follow the unit: น้ำหนักรวม (กก.), CO₂e ขนส่งเฉลี่ย/กก. (fruit only here)", branches.text.includes("น้ำหนักรวม (กก.)") && branches.text.includes("CO₂e ขนส่งเฉลี่ย/กก.") && !branches.text.includes("ดอกไม้รวม"));
+    const incoming = await page("/logistic/incoming", cCookie);
+    log("รายการรับเข้า: อายุหลังเก็บเกี่ยว / จำนวนรับเข้า / จำนวนคงเหลือ, the fruit lot in กก. (not 0)", incoming.text.includes("อายุหลังเก็บเกี่ยว (วัน)") && incoming.text.includes("จำนวนรับเข้า") && incoming.text.includes("จำนวนคงเหลือ") && !incoming.text.includes("จำนวนดอกไม้รับเข้า") && incoming.text.includes("40 กก."));
     const dash = await page(`/logistic/branches/${cUser.branch_id}`, aCookie);
     log("head office opens one branch's dashboard", dash.status === 200 && dash.text.includes("แดชบอร์ดของ") && dash.text.includes("สาขาเชียงราย QA") && dash.text.includes(lot));
     log("the old ?branch= link goes there", redirected(await page(`/logistic?branch=${cUser.branch_id}`, aCookie)));

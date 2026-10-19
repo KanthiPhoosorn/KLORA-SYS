@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   const linkToken = body.carrierLink ? String(body.carrierLink) : "";
   const link = linkToken ? await getCarrierLink(linkToken) : null;
   if (linkToken && (!link || link.revokedAt || !(await linkUsable(link)))) {
-    return NextResponse.json({ error: "ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว — ขอลิงก์ใหม่จากผู้ขนส่ง หรือสมัครแบบปกติ" }, { status: 400 });
+    return NextResponse.json({ error: "ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว ขอลิงก์ใหม่จากผู้ขนส่ง หรือสมัครแบบปกติ" }, { status: 400 });
   }
 
   const input: SupplierInput = {
@@ -108,8 +108,8 @@ export async function POST(req: Request) {
     flowerTypes: parseProduceGroups(body.flowerTypes),
     productCategories: categoriesOf(parseProduceGroups(body.flowerTypes)),
     certifications: parseCertifications(body.certifications)?.map((c) => ({ ...c, fileId: undefined, fileName: undefined })),
-    highlights: highlights || "—",
-    contact: contact || "—",
+    highlights: highlights || "–",
+    contact: contact || "–",
     fuelLitres: n("fuelLitres"),
     electricityKwh: n("electricityKwh"),
     fertilizerKg: n("fertilizerKg"),

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
         result = computed;
         await addNotification({
           supplierId, kind: "success", title: `คำนวณคาร์บอน ${batch.id} เสร็จแล้ว`,
-          body: `CO₂e รวม ${(computed.co2ePerFlower * unitsOf(computed)).toFixed(2)} kg (${computed.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(computed)}) — พร้อมให้ผู้ขนส่งพิมพ์ QR`,
+          body: `CO₂e รวม ${(computed.co2ePerFlower * unitsOf(computed)).toFixed(2)} kg (${computed.co2ePerFlower.toFixed(4)} kg ${perUnitLabel(computed)}) พร้อมให้ผู้ขนส่งพิมพ์ QR`,
         });
       }
     }

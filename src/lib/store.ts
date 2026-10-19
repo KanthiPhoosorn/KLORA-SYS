@@ -328,7 +328,7 @@ export async function remindExpiringCerts(s: Supplier): Promise<void> {
     const name = c.kind === "other" ? c.name ?? "ใบรับรอง" : c.kind;
     const title = `ใบรับรอง ${name} จะหมดอายุ ${c.expiresAt}`;
     if (have.has(title)) continue;
-    await addNotification({ supplierId: s.id, kind: "warning", title, body: `ใบรับรอง ${name}${c.certNo ? ` เลขที่ ${c.certNo}` : ""} จะหมดอายุในอีกไม่เกิน 30 วัน — ต่ออายุแล้วอัปเดตที่หน้า "ข้อมูลฟาร์ม"` });
+    await addNotification({ supplierId: s.id, kind: "warning", title, body: `ใบรับรอง ${name}${c.certNo ? ` เลขที่ ${c.certNo}` : ""} จะหมดอายุในอีกไม่เกิน 30 วัน ต่ออายุแล้วอัปเดตที่หน้า "ข้อมูลฟาร์ม"` });
   }
 }
 
@@ -365,7 +365,7 @@ export async function ratingSummary(supplierId: string, carrierKey?: string | nu
 }
 /** Ratings for a back office: a farm's, a carrier's (org code / names), or all (KYN). Newest first. */
 export async function getRatings(f: { supplierId?: string; carrierKeys?: string[] } = {}): Promise<Rating[]> {
-  const where = f.supplierId ? eq(ratings.supplierId, f.supplierId) : f.carrierKeys ? inArray(ratings.carrierKey, f.carrierKeys.length ? f.carrierKeys : ["—"]) : undefined;
+  const where = f.supplierId ? eq(ratings.supplierId, f.supplierId) : f.carrierKeys ? inArray(ratings.carrierKey, f.carrierKeys.length ? f.carrierKeys : ["–"]) : undefined;
   const rows = await db.select().from(ratings).where(where).orderBy(desc(ratings.updatedAt));
   return rows.map((r) => clean<Rating>(r));
 }
@@ -765,7 +765,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       await db.delete(packPhotos).where(eq(packPhotos.supplierId, u.supplierId));
       await db.update(suppliers).set({ photoUrl: null, productPhotos: null }).where(eq(suppliers.id, u.supplierId));
       await db.update(suppliers).set({
-        contactName: null, phone: null, lineId: null, contact: "—", gpsLat: 0, gpsLng: 0, status: "suspended",
+        contactName: null, phone: null, lineId: null, contact: "–", gpsLat: 0, gpsLng: 0, status: "suspended",
       }).where(eq(suppliers.id, u.supplierId));
     }
   }

@@ -16,7 +16,7 @@ export default function ScanQr() {
     if (on) {
       navigator.mediaDevices?.getUserMedia({ video: { facingMode: "environment" } })
         .then((s) => { stream = s; if (videoRef.current) videoRef.current.srcObject = s; })
-        .catch(() => setErr("ไม่สามารถเข้าถึงกล้องได้ — กรุณาระบุ ID ด้วยตนเอง"));
+        .catch(() => setErr("ไม่สามารถเข้าถึงกล้องได้ กรุณาระบุ ID ด้วยตนเอง"));
     }
     return () => { stream?.getTracks().forEach((t) => t.stop()); };
   }, [on]);

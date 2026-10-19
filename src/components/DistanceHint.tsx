@@ -18,7 +18,7 @@ export default function DistanceHint({ edited, onAuto, dist, noOrigin = "เล�
   if (edited) return <p className="mt-1 text-[11px] text-slate-400">แก้ไขเอง · <button type="button" onClick={onAuto} className="underline">ให้ระบบคำนวณ</button></p>;
   if (needAddress) return <p className="mt-1 text-[11px] text-slate-400">กรอกที่อยู่ผู้รับ ระบบจะคำนวณระยะทางจากสาขาต้นทางให้</p>;
   if (looking) return <p className="mt-1 text-[11px] text-slate-400">กำลังหาตำแหน่งที่อยู่ผู้รับ…</p>;
-  if (approx) return warn("หาที่อยู่ผู้รับไม่พบ — ระยะทางนี้ประมาณจากจังหวัดปลายทาง ใส่ ตำบล/อำเภอ ให้ครบ หรือใส่พิกัดผู้รับเพื่อให้แม่นยำ");
-  if (notFound) return warn("หาที่อยู่ผู้รับไม่พบ — ใส่ ตำบล/อำเภอ/จังหวัด ให้ครบ ใส่พิกัดผู้รับ หรือกรอกระยะทางเอง");
+  if (approx) return warn("หาที่อยู่ผู้รับไม่พบ ระยะทางนี้ประมาณจากจังหวัดปลายทาง ใส่ ตำบล/อำเภอ ให้ครบ หรือใส่พิกัดผู้รับเพื่อให้แม่นยำ");
+  if (notFound) return warn("หาที่อยู่ผู้รับไม่พบ ใส่ ตำบล/อำเภอ/จังหวัด ให้ครบ ใส่พิกัดผู้รับ หรือกรอกระยะทางเอง");
   return <p className="mt-1 text-[11px] text-slate-400">{basis || noOrigin}</p>;
 }

@@ -14,7 +14,7 @@ export default async function KynReviewPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">รายการ “อื่นๆ” รอตรวจสอบ</h1>
-        <p className="mt-1 text-[13px] text-slate-500">ค่าที่ผู้ใช้พิมพ์เองนอกรายการ — ตรวจความถูกต้อง แล้วยืนยันเพื่อเพิ่มเป็นรายการใหม่</p>
+        <p className="mt-1 text-[13px] text-slate-500">ค่าที่ผู้ใช้พิมพ์เองนอกรายการ ตรวจความถูกต้อง แล้วยืนยันเพื่อเพิ่มเป็นรายการใหม่</p>
       </div>
       <CustomReview entries={entries} farmName={farmName} />
     </div>

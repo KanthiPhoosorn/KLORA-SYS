@@ -64,10 +64,10 @@ export default function ProLock({
         <div className="space-y-4 text-[14px] text-slate-700">
           <ul className="space-y-1.5 rounded-xl bg-brand-pink-light/60 px-4 py-3 text-[13px]">
             <li>✓ ภาพรวมการส่งออกและแนวโน้ม CO₂e รายเดือน</li>
-            <li>✓ แดชบอร์ดคาร์บอน — สัดส่วนการปล่อย อันดับ และการเปรียบเทียบ</li>
+            <li>✓ แดชบอร์ดคาร์บอน สัดส่วนการปล่อย อันดับ และการเปรียบเทียบ</li>
             <li>✓ ประวัติการส่งออกย้อนหลังทั้งหมด</li>
           </ul>
-          <p>การเปิดใช้แพ็กเกจ Pro ทำโดยทีม KYN — แจ้ง ID ของฟาร์มคุณผ่านช่องทางด้านล่าง ทีมงานจะเปิดให้ภายใน 1 วันทำการ</p>
+          <p>การเปิดใช้แพ็กเกจ Pro ทำโดยทีม KYN แจ้ง ID ของฟาร์มคุณผ่านช่องทางด้านล่าง ทีมงานจะเปิดให้ภายใน 1 วันทำการ</p>
           <div className="space-y-2 text-sm">
             <a href={CONTACT.lineUrl} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><MessageCircle size={16} className="text-emerald-600" /> LINE Official: <b>{CONTACT.lineId}</b></a>
             <a href={`mailto:${CONTACT.email}?subject=ขอเปิดแพ็กเกจ Pro Corta`} className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3.5 py-2.5 hover:bg-slate-50"><Mail size={16} className="text-blue-600" /> อีเมล: <b>{CONTACT.email}</b></a>

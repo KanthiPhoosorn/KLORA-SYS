@@ -48,15 +48,15 @@ export default async function SuperAppPage() {
       <main className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 py-8 lg:flex-row lg:items-start lg:justify-center">
         <SuperAppPrototype orders={orders} />
         <aside className="max-w-sm space-y-4 text-[14px] leading-relaxed text-slate-600">
-          <h1 className="text-xl font-bold text-slate-900">Journey 02 — ดูข้อมูลสินค้าจากรายการสั่งซื้อ</h1>
+          <h1 className="text-xl font-bold text-slate-900">Journey 02 ดูข้อมูลสินค้าจากรายการสั่งซื้อ</h1>
           <ol className="list-decimal space-y-2 pl-5">
             <li>ลูกค้าเปิด Super App → เมนู <b>ของสด / ดอกไม้</b></li>
             <li><b>My Item</b> → รายการสั่งซื้อของตัวเอง</li>
             <li>เลือกสินค้าในออเดอร์ → <b>รายละเอียดสินค้า</b></li>
-            <li>แอปเรียก <code className="rounded bg-slate-200 px-1 text-[12px]">GET /api/trace/&lt;batchId&gt;</code> ของ Corta แล้วแสดงแหล่งผลิต วันเก็บเกี่ยว อายุ ระยะการสุก CO₂e และใบรับรอง — ข้อมูลชุดเดียวกับที่สแกน QR</li>
+            <li>แอปเรียก <code className="rounded bg-slate-200 px-1 text-[12px]">GET /api/trace/&lt;batchId&gt;</code> ของ Corta แล้วแสดงแหล่งผลิต วันเก็บเกี่ยว อายุ ระยะการสุก CO₂e และใบรับรอง ข้อมูลชุดเดียวกับที่สแกน QR</li>
           </ol>
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800">
-            หน้าจอนี้เป็นภาพจำลองเพื่อคุยแนวทางกับทีม Super App / Interface เท่านั้น — ไม่ใช่แอปจริงของไปรษณีย์ไทย ข้อมูลสินค้าในหน้ารายละเอียดดึงจากระบบ Corta จริง
+            หน้าจอนี้เป็นภาพจำลองเพื่อคุยแนวทางกับทีม Super App / Interface เท่านั้น ไม่ใช่แอปจริงของไปรษณีย์ไทย ข้อมูลสินค้าในหน้ารายละเอียดดึงจากระบบ Corta จริง
           </p>
           <p className="text-[13px] text-slate-500">ข้อมูลตัวอย่าง: มะม่วง / คะน้า / กล้วย จากสวนดอยฝาง และกุหลาบจากสวนดอยแม่สลอง</p>
         </aside>

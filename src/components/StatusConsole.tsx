@@ -113,8 +113,8 @@ export default function StatusConsole({
                 <tr key={p.id} className={`border-b border-slate-50 last:border-0 ${p.cancelled ? "opacity-50" : ""}`}>
                   <td className="px-5 py-3 text-slate-600">{thaiDateTime(p.printedAt)}</td>
                   <td className="px-5 py-3 font-mono text-xs text-slate-600">{p.supplierCode ?? p.supplierId}</td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.batchId ?? "—"}</td>
-                  <td className="px-5 py-3 text-slate-700" title={String(p.destination ?? "—")}><span className="cell-clip">{p.destination ?? "—"}</span></td>
+                  <td className="px-5 py-3 font-mono text-xs text-slate-500">{p.batchId ?? "–"}</td>
+                  <td className="px-5 py-3 text-slate-700" title={String(p.destination ?? "–")}><span className="cell-clip">{p.destination ?? "–"}</span></td>
                   <td className="px-5 py-3 text-right">
                     {p.cancelled ? <span className="text-xs text-slate-400">ยกเลิกแล้ว</span> : (
                       <button onClick={() => setCancelTarget(p)} disabled={cancelBusy === p.id} className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-50">
@@ -169,14 +169,14 @@ export default function StatusConsole({
                     ) : b.shipType === "domestic" ? (
                       <span className="w-fit rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">ในประเทศ</span>
                     ) : (
-                      <span className="text-slate-400">{b.carrier ?? "—"}</span>
+                      <span className="text-slate-400">{b.carrier ?? "–"}</span>
                     )}
                     {b.exportRecordedAt ? <div className="mt-0.5 text-[11px] text-emerald-600">✓ ขนส่งบันทึกแล้ว</div> : null}
                   </td>
                   <td className="px-5 py-3 text-right tabular">{quantityLabel(b)}</td>
-                  <td className="px-5 py-3 text-slate-700" title={String(b.destination ?? "—")}><span className="cell-clip">{b.destination ?? "—"}</span></td>
+                  <td className="px-5 py-3 text-slate-700" title={String(b.destination ?? "–")}><span className="cell-clip">{b.destination ?? "–"}</span></td>
                   <td className="px-5 py-3"><Badge tone={SHIP_STATUS[b.shipmentStatus].tone as Tone}>{SHIP_STATUS[b.shipmentStatus].label}</Badge></td>
-                  <td className="px-5 py-3 text-right tabular">{b.discardedCount != null ? b.discardedCount.toLocaleString() : "—"}</td>
+                  <td className="px-5 py-3 text-right tabular">{b.discardedCount != null ? b.discardedCount.toLocaleString() : "–"}</td>
                   <td className="px-5 py-3 text-right">
                     <button onClick={() => openDiscard(b)} className="inline-flex items-center gap-1 text-xs font-medium text-brand-blue hover:underline">
                       <PackageX size={13} /> บันทึกคัดทิ้ง

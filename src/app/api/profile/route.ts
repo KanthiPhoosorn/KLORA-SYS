@@ -47,7 +47,7 @@ export async function DELETE(req: Request) {
   if (user.role === "kyn") {
     const others = (await getUsers()).filter((u) => u.role === "kyn" && u.id !== user.id && u.status !== "suspended");
     if (others.length === 0)
-      return NextResponse.json({ error: "ต้องมีเจ้าหน้าที่ KYN ที่ใช้งานได้อย่างน้อย 1 บัญชี — เชิญเจ้าหน้าที่คนอื่นก่อนลบบัญชีนี้" }, { status: 409 });
+      return NextResponse.json({ error: "ต้องมีเจ้าหน้าที่ KYN ที่ใช้งานได้อย่างน้อย 1 บัญชี เชิญเจ้าหน้าที่คนอื่นก่อนลบบัญชีนี้" }, { status: 409 });
   }
   await deleteUserAccount(user.id);
   await clearSessionCookie();

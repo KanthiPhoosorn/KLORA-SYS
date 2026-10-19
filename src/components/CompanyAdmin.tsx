@@ -23,7 +23,7 @@ export interface CompanyView {
   lots: number;
 }
 
-const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
+const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "–");
 const STATUS: Record<OrgStatus, [string, string]> = {
   active: ["ใช้งาน", "bg-emerald-50 text-emerald-700"],
   pending: ["รอตรวจสอบ", "bg-amber-50 text-amber-700"],
@@ -67,7 +67,7 @@ export default function CompanyAdmin({ companies, invite }: { companies: Company
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-[17px] font-bold text-slate-900">ลิงก์เชิญบริษัท</h2>
-        <p className="mt-1 text-[13px] text-slate-500">บริษัทที่ลงทะเบียนผ่านลิงก์นี้เริ่มใช้งานได้ทันที (หลังเซ็นสัญญา) — ส่วนบริษัทที่ลงทะเบียนเองจากหน้าลงทะเบียนต้องรอการตรวจสอบด้านล่าง</p>
+        <p className="mt-1 text-[13px] text-slate-500">บริษัทที่ลงทะเบียนผ่านลิงก์นี้เริ่มใช้งานได้ทันที (หลังเซ็นสัญญา) ส่วนบริษัทที่ลงทะเบียนเองจากหน้าลงทะเบียนต้องรอการตรวจสอบด้านล่าง</p>
         {inv.token ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <code className="max-w-full truncate rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-blue-700">{url}</code>
@@ -87,7 +87,7 @@ export default function CompanyAdmin({ companies, invite }: { companies: Company
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-[17px] font-bold text-slate-900">รอการตรวจสอบ ({pending.length})</h2>
-        <p className="mt-1 text-[13px] text-slate-500">บริษัทที่ลงทะเบียนด้วยตนเอง — เข้าสู่ระบบได้ แต่ยังบันทึกข้อมูลไม่ได้จนกว่าจะผ่านการตรวจสอบ</p>
+        <p className="mt-1 text-[13px] text-slate-500">บริษัทที่ลงทะเบียนด้วยตนเอง เข้าสู่ระบบได้ แต่ยังบันทึกข้อมูลไม่ได้จนกว่าจะผ่านการตรวจสอบ</p>
         <div className="mt-4 overflow-x-auto">
           <table className="tbl w-full min-w-[820px] text-sm">
             <thead><tr className="bg-slate-50 text-left text-[13px] text-slate-500"><th className="px-3 py-2.5 font-medium">บริษัท</th><th className="px-3 py-2.5 font-medium">ประเภท</th><th className="px-3 py-2.5 font-medium">ผู้ดูแลบัญชี</th><th className="px-3 py-2.5 font-medium">ติดต่อ</th><th className="px-3 py-2.5 font-medium">ลงทะเบียน</th><th className="px-3 py-2.5 text-right font-medium">การดำเนินการ</th></tr></thead>
@@ -96,8 +96,8 @@ export default function CompanyAdmin({ companies, invite }: { companies: Company
                 <tr key={c.orgCode} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-3"><div className="font-medium text-slate-900">{c.company}</div><div className="text-[12px] text-slate-500">{c.orgCode}{c.taxId ? ` · เลขผู้เสียภาษี ${c.taxId}` : ""}</div><div className="text-[12px] text-slate-500">{c.address}</div></td>
                   <td className="px-3 py-3 text-slate-700">{carrierLabel(c.providerType)}</td>
-                  <td className="px-3 py-3"><div className="text-slate-800">{c.admin?.name ?? "—"}</div><div className="text-[12px] text-slate-500">{c.admin?.email}</div></td>
-                  <td className="px-3 py-3 text-slate-700">{c.phone ?? "—"}</td>
+                  <td className="px-3 py-3"><div className="text-slate-800">{c.admin?.name ?? "–"}</div><div className="text-[12px] text-slate-500">{c.admin?.email}</div></td>
+                  <td className="px-3 py-3 text-slate-700">{c.phone ?? "–"}</td>
                   <td className="px-3 py-3 text-slate-700">{day(c.createdAt)}</td>
                   <td className="px-3 py-3 text-right"><div className="inline-flex gap-2">
                     <button type="button" onClick={() => { setRejecting(c); setReason(""); }} className="rounded-[8px] border border-red-300 px-3 py-1.5 text-[13px] font-medium text-red-600 hover:bg-red-50">ไม่ผ่าน</button>
@@ -125,7 +125,7 @@ export default function CompanyAdmin({ companies, invite }: { companies: Company
                       {CARRIERS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
                     </select>
                   </td>
-                  <td className="px-3 py-3"><div className="text-slate-800">{c.admin?.name ?? "—"}</div><div className="text-[12px] text-slate-500">{c.admin?.email}</div></td>
+                  <td className="px-3 py-3"><div className="text-slate-800">{c.admin?.name ?? "–"}</div><div className="text-[12px] text-slate-500">{c.admin?.email}</div></td>
                   <td className="px-3 py-3 text-right tabular-nums text-slate-700">{c.branches}{c.pendingBranches ? <span className="ml-1 text-[12px] text-amber-600">(+{c.pendingBranches} รอ)</span> : null}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-slate-700">{c.lots}</td>
                   <td className="px-3 py-3"><span className={`rounded-full px-2.5 py-0.5 text-[12px] font-medium ${STATUS[c.status][1]}`}>{STATUS[c.status][0]}</span></td>

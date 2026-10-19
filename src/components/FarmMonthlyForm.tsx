@@ -134,7 +134,7 @@ export default function FarmMonthlyForm({
         </div>
         <p className="mt-1 text-[11px] text-slate-400">
           {usingFallback
-            ? `ยังไม่ได้กรอกผลผลิต — ระบบจะใช้ค่ากลาง ${FLOWER_EF_DEFAULT} kg CO₂e/kg ไปก่อน`
+            ? `ยังไม่ได้กรอกผลผลิต ระบบจะใช้ค่ากลาง ${FLOWER_EF_DEFAULT} kg CO₂e/kg ไปก่อน`
             : "คำนวณจากข้อมูลจริงของฟาร์มคุณ (Dynamic Flower EF) แทนค่ากลางของระบบ"}
         </p>
       </div>
@@ -171,7 +171,7 @@ export default function FarmMonthlyForm({
               {history.map((r) => (
                 <tr key={r.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-2 text-slate-700">{r.reportingMonth}</td>
-                  <td className="px-4 py-2 text-right tabular">{r.totalFlowerYieldKg?.toLocaleString() ?? "—"}</td>
+                  <td className="px-4 py-2 text-right tabular">{r.totalFlowerYieldKg?.toLocaleString() ?? "–"}</td>
                   <td className="px-4 py-2 text-right tabular">{farmMonthlyCarbon(r).toFixed(1)}</td>
                   <td className="px-4 py-2 text-right tabular font-medium text-slate-800">
                     {dynamicFlowerEF(r).toFixed(4)}

@@ -9,7 +9,7 @@ import { batchCo2e, quantityLabel } from "@/lib/produce";
 function groupBy<T>(items: T[], key: (t: T) => string) {
   const m = new Map<string, T[]>();
   for (const it of items) {
-    const k = key(it) || "—";
+    const k = key(it) || "–";
     (m.get(k) ?? m.set(k, []).get(k)!).push(it);
   }
   return m;
@@ -27,14 +27,14 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
   const flowerSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.flowerCount, 5);
   const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => batchCo2e(b), 5);
 
-  const province = [...groupBy(computed, (b) => b.destination ?? "—")].map(([p, bs]) => {
+  const province = [...groupBy(computed, (b) => b.destination ?? "–")].map(([p, bs]) => {
     const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
     const co2e = bs.reduce((n, b) => n + batchCo2e(b), 0);
     return { province: p, rounds: bs.length, flowers, km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perFlower: flowers ? co2e / flowers : null };
   }).sort((a, b) => b.flowers - a.flowers);
 
   const typeTotal = totalFlowers || 1;
-  const types = [...groupBy(computed, (b) => supById.get(b.supplierId)?.flowerType ?? "—")].map(([type, bs]) => {
+  const types = [...groupBy(computed, (b) => supById.get(b.supplierId)?.flowerType ?? "–")].map(([type, bs]) => {
     const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
     return { type, flowers, avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length, pct: Math.round((flowers / typeTotal) * 100) };
   }).sort((a, b) => b.flowers - a.flowers);
@@ -55,7 +55,7 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
   // ประเภทการจัดส่ง / ดอกไม้คัดทิ้ง (#99) — logistics throughput recorded on /logistic/status.
   // Wasted CO2e uses co2ePerFlower (0 unless computed), so non-computed rounds add 0 — no false carbon claim.
   const recorded = batches.filter((b) => b.discardedCount != null || b.forwardedCount != null);
-  const discardRows = [...groupBy(recorded, (b) => `${b.provider || b.carrier || "—"}||${b.supplierId}`)].map(([key, bs]) => {
+  const discardRows = [...groupBy(recorded, (b) => `${b.provider || b.carrier || "–"}||${b.supplierId}`)].map(([key, bs]) => {
     const [provider, supId] = key.split("||");
     const received = bs.reduce((n, b) => n + b.flowerCount, 0);
     const forwarded = bs.reduce((n, b) => n + (b.forwardedCount ?? 0), 0);

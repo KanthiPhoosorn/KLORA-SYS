@@ -47,22 +47,22 @@ const MONTHS_FULL = ["มกราคม", "กุมภาพันธ์", "�
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function joinLabel(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return "–";
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "–";
   return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 function fmtNum(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return "–";
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "–";
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear() + 543}`;
 }
 function fmtNumTime(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return "–";
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
+  if (isNaN(d.getTime())) return "–";
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear() + 543} | ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
@@ -386,7 +386,7 @@ export default function TeamManager({
       <Modal open={!!removeTarget} onClose={() => setRemoveTarget(null)} title="นำสมาชิกออกจากระบบ?">
         {removeTarget ? (
           <div className="space-y-4">
-            <p className="text-[13px] text-slate-500">คุณกำลังนำ <span className="font-medium text-slate-800">{removeTarget.name}</span> ({removeTarget.email}) ออกจากองค์กร — สมาชิกจะไม่สามารถเข้าถึงระบบได้อีก</p>
+            <p className="text-[13px] text-slate-500">คุณกำลังนำ <span className="font-medium text-slate-800">{removeTarget.name}</span> ({removeTarget.email}) ออกจากองค์กร สมาชิกจะไม่สามารถเข้าถึงระบบได้อีก</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setRemoveTarget(null)} className="h-[38px] rounded-[8px] border border-gray-300 px-6 text-[14px] font-medium text-slate-700 hover:bg-gray-100">ยกเลิก</button>
               <button onClick={confirmRemove} disabled={busy} className="inline-flex h-[38px] items-center gap-2 rounded-[8px] bg-[#ee443f] px-8 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy ? <Loader2 size={16} className="animate-spin" /> : null} ยืนยัน</button>

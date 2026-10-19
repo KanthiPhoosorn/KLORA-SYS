@@ -5,7 +5,7 @@ import { packTime, shownTime } from "@/lib/pack-photo";
 import { RATER_COOKIE } from "@/lib/rating";
 import RatingBadge from "@/components/RatingBadge";
 import RateLot from "@/components/RateLot";
-import { thaiDateShort, thaiDateFull } from "@/lib/format";
+import { thaiDateShort, thaiDateFull, isDashValue } from "@/lib/format";
 import Co2eDisclosure from "@/components/Co2eDisclosure";
 import { SavePassport, FarmSheet } from "@/components/TraceClient";
 import { certAppliesTo, certTitle } from "@/lib/certs";
@@ -59,7 +59,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
     : category === "fruit"
       ? [`เก็บที่ ${profile.storageMinC}–${profile.storageMaxC}°C${profile.chillSensitive ? " ไม่ควรแช่เย็นจัด" : ""}`, ...(profile.ripens ? ["วางไว้ที่อุณหภูมิห้องหากต้องการให้สุกต่อ"] : []), "ล้างให้สะอาดก่อนรับประทาน"]
       : ["ล้างให้สะอาดก่อนปรุง", `เก็บในตู้เย็นช่องผักที่ ${profile.storageMinC}–${profile.storageMaxC}°C`, `ควรบริโภคภายใน ${profile.shelfLifeDays} วัน`];
-  const story = supplier.description || (supplier.highlights !== "—" ? supplier.highlights : "") || "";
+  const story = supplier.description || (!isDashValue(supplier.highlights) ? supplier.highlights : "") || "";
   // photos (uploaded on ข้อมูลฟาร์ม); a farm without one shows the greenhouse picture
   const farmPhoto = supplier.photoUrl || "/figma/greenhouse.webp";
   const productPhoto = supplier.productPhotos?.[typeName] ?? supplier.productPhotos?.[batch.productType ?? ""];
@@ -121,7 +121,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
               <span className="block truncate text-[16px] font-semibold text-slate-800">{supplier.farmName}</span>
               <RatingBadge kind="farm" initial={summary.farm} />
               <span className="mt-0.5 flex items-start gap-1 text-[12px] text-slate-500"><MapPin size={13} className="mt-0.5 shrink-0 text-[#EE2C34]" /><span className="line-clamp-2">{supplier.address}</span></span>
-              {supplier.contact && supplier.contact !== "—" ? <span className="mt-0.5 flex items-center gap-1 text-[12px] text-slate-600"><Phone size={13} className="shrink-0 text-[#EE2C34]" /><span className="truncate">{supplier.contact}</span></span> : null}
+              {!isDashValue(supplier.contact) ? <span className="mt-0.5 flex items-center gap-1 text-[12px] text-slate-600"><Phone size={13} className="shrink-0 text-[#EE2C34]" /><span className="truncate">{supplier.contact}</span></span> : null}
             </span>
           </span>
         </FarmSheet>

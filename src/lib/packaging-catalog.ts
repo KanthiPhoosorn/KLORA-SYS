@@ -53,9 +53,9 @@ export const DEFAULT_CATALOG: PackCatalog = {
     { id: "pet", name: "พลาสติก PET", examples: "ถาดใส กล่องใส", ef: 2.9389, avgUnitKg: 0.03, source: `${TGO} #27`, pick: true },
     { id: "foam", name: "โฟม EPS / EPE", examples: "ลังโฟม ตาข่ายโฟม", ef: 2.1815, avgUnitKg: 0.25, source: `${TGO} #3 GPPS (เม็ดพลาสติกตั้งต้นของ EPS)`, pick: true },
     { id: "wood", name: "ไม้", examples: "ลัง พาเลท", ef: 0.0804, avgUnitKg: 3, source: `${TGO} #278 พาเลทไม้ยางพารา`, pick: true },
-    { id: "bamboo", name: "ไผ่ / หวาย", examples: "เข่ง ตะกร้าสาน", ef: 0.0706, avgUnitKg: 1, source: `ค่าประมาณ — ใช้ ${TGO} #271 ไม้แปรรูป แทน (ไม่มีค่าไผ่ในฐานข้อมูล)`, pick: true },
+    { id: "bamboo", name: "ไผ่ / หวาย", examples: "เข่ง ตะกร้าสาน", ef: 0.0706, avgUnitKg: 1, source: `ค่าประมาณ ใช้ ${TGO} #271 ไม้แปรรูป แทน (ไม่มีค่าไผ่ในฐานข้อมูล)`, pick: true },
     { id: "metal", name: "โลหะ", examples: "ถัง กล่องโลหะ", ef: 1.8578, avgUnitKg: 2, source: `${TGO} #533 เหล็กแผ่นรีดร้อน`, pick: true },
-    { id: "mixed", name: "วัสดุผสม", examples: "หลายวัสดุรวมกัน", ef: 2.4, avgUnitKg: 0.5, source: "ค่าประมาณ (เฉลี่ยพลาสติก) — รอ KYN กำหนด", pick: true },
+    { id: "mixed", name: "วัสดุผสม", examples: "หลายวัสดุรวมกัน", ef: 2.4, avgUnitKg: 0.5, source: "ค่าประมาณ (เฉลี่ยพลาสติก) รอ KYN กำหนด", pick: true },
   ],
   packs: [
     { id: "carton", name: "กล่องลูกฟูก", products: ALL, usage: "single", unit: "ใบ", material: "paper", lifetime: 5, ref: [40, 30, 20],
@@ -93,8 +93,8 @@ export const DEFAULT_CATALOG: PackCatalog = {
     { id: "pet", name: "ถาด / กล่องพลาสติกใส (PET)", products: ["fruit", "vegetable"], unit: "ชิ้น", material: "pet", weightKg: 0.02 },
     { id: "film", name: "ฟิล์มยืดพันกล่อง", products: ALL, unit: "เมตร", material: "lldpe", weightKg: 0.008 },
     { id: "bubble", name: "พลาสติกกันกระแทก (Bubble)", products: ["flower", "fruit"], unit: "แผ่น", material: "pe", weightKg: 0.01 },
-    { id: "icepack", name: "เจลเย็น / Ice pack", products: ALL, unit: "ชิ้น", material: "pe", weightKg: 0.2, efOverride: 0.15, note: "ค่าประมาณ — ส่วนใหญ่เป็นน้ำ/เจล คิดเฉพาะถุงพลาสติก" },
-    { id: "ice", name: "น้ำแข็ง", products: ["fruit", "vegetable"], unit: "กก.", material: "mixed", weightKg: 1, efOverride: 0.03, note: "ค่าประมาณ — พลังงานไฟฟ้าทำน้ำแข็ง ~0.06 kWh/กก." },
+    { id: "icepack", name: "เจลเย็น / Ice pack", products: ALL, unit: "ชิ้น", material: "pe", weightKg: 0.2, efOverride: 0.15, note: "ค่าประมาณ ส่วนใหญ่เป็นน้ำ/เจล คิดเฉพาะถุงพลาสติก" },
+    { id: "ice", name: "น้ำแข็ง", products: ["fruit", "vegetable"], unit: "กก.", material: "mixed", weightKg: 1, efOverride: 0.03, note: "ค่าประมาณ พลังงานไฟฟ้าทำน้ำแข็ง ~0.06 kWh/กก." },
   ],
   weightClasses: [
     { id: "xlight", label: "เบามาก · ประมาณถุงพลาสติก 1 ใบ", kg: 0.02 },
@@ -254,11 +254,11 @@ export function rowText(r: PackRow, cat: PackCatalog) {
   const name = r.kind === NO_PACK ? "ไม่มีบรรจุภัณฑ์ (ขนแบบเทกอง)" : r.kind === OTHER ? r.other?.name || "อื่นๆ" : k?.name ?? r.kind;
   const usage = r.kind === NO_PACK ? "" : r.usage === "reusable" ? "หมุนเวียน" : "ใช้ครั้งเดียว";
   const size = r.size === "custom" && r.dims ? `${r.dims.w} × ${r.dims.l} × ${r.dims.h} ${r.dims.unit === "in" ? "นิ้ว" : "ซม."}`
-    : r.size === "unknown" ? "ไม่ทราบขนาด (ค่าเฉลี่ย)" : r.size === "none" ? "—"
+    : r.size === "unknown" ? "ไม่ทราบขนาด (ค่าเฉลี่ย)" : r.size === "none" ? "–"
     : (() => { const z = k?.sizes.find((x) => x.id === r.size); return z ? `${z.label} · ${z.capacity}` : r.size; })();
   const inner = (r.inners ?? []).filter((i) => i.kind !== NO_INNER).map((i) => {
     const it = cat.inners.find((x) => x.id === i.kind);
     return `${i.kind === OTHER ? i.other?.name || "อื่นๆ" : it?.name ?? i.kind} ${i.qty} ${i.unit}/${r.unit}`;
   }).join(" · ") || "ไม่มีวัสดุภายใน";
-  return { name, usage, size, qty: r.kind === NO_PACK ? "—" : `${r.quantity} ${r.unit}`, inner, code: r.usage === "reusable" ? r.assetId ?? "" : "" };
+  return { name, usage, size, qty: r.kind === NO_PACK ? "–" : `${r.quantity} ${r.unit}`, inner, code: r.usage === "reusable" ? r.assetId ?? "" : "" };
 }

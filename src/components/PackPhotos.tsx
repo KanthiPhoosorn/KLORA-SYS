@@ -77,7 +77,7 @@ export default function PackPhotos({ value, onChange, farmName, saved = [] }: {
         ) : null}
       </div>
       {err ? <p className="text-[12px] text-[#ee443f]">{err}</p> : null}
-      <p className="text-[11px] leading-relaxed text-slate-400">ระบบประทับวันเวลาลงบนรูป และเทียบเวลาถ่ายกับเวลาอัปโหลด — รูปที่ถ่ายภายใน 24 ชั่วโมงก่อนอัปโหลดจะได้ป้าย &quot;ยืนยันเวลา&quot;</p>
+      <p className="text-[11px] leading-relaxed text-slate-400">ระบบประทับวันเวลาลงบนรูป และเทียบเวลาถ่ายกับเวลาอัปโหลด รูปที่ถ่ายภายใน 24 ชั่วโมงก่อนอัปโหลดจะได้ป้าย &quot;ยืนยันเวลา&quot;</p>
     </div>
   );
 }

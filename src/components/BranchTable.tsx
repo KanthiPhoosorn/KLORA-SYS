@@ -5,6 +5,11 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DASH } from "@/lib/format";
 
+/** the counting units of a branch's lots: ดอก / ช่อ for flowers, กก. for fruit and vegetables */
+export type AmountUnit = "stem" | "bunch" | "kg";
+const UNIT: Record<AmountUnit, string> = { stem: "ดอก", bunch: "ช่อ", kg: "กก." };
+const num = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+
 export interface BranchRow {
   id?: string;
   /** the branch's own dashboard */
@@ -13,19 +18,29 @@ export interface BranchRow {
   province: string;
   branch: string;
   rounds: number;
-  flowers: number;
+  amounts: Partial<Record<AmountUnit, number>>;
   transportCo2e: number;
-  avgPerStem: number | null; // null = no units to divide by
+  avg: number | null; // CO₂e per unit (per รอบ when units are mixed); null = nothing to divide by
   trend: number | null; // % change vs previous period (null = ยังไม่มีฐานเปรียบเทียบ)
 }
 
 // "ข้อมูลรายสาขา" — head-office view: compare every branch, filter by สาขา / จังหวัด.
 // `initialBranch` pre-picks one branch (from its window in จัดการระบบ › สาขา › "ดูในหน้าข้อมูลรายสาขา").
-export default function BranchTable({ rows, initialBranch = "" }: { rows: BranchRow[]; initialBranch?: string }) {
+// `unit` (from branchRows) names the amount and average columns; with no lots yet, `fallback` (the category
+// filter: ดอกไม้ → ดอก, ผลไม้/ผัก → กก.) does.
+export default function BranchTable({ rows, unit, fallback, initialBranch = "" }: { rows: BranchRow[]; unit: AmountUnit | "mixed" | null; fallback?: AmountUnit; initialBranch?: string }) {
+  const u = unit ?? fallback ?? null;
+  const amountHead = u === "kg" ? "น้ำหนักรวม (กก.)" : u === "stem" || u === "bunch" ? `ปริมาณรวม (${UNIT[u]})` : "ปริมาณรวม";
+  const avgHead = `CO₂e ขนส่งเฉลี่ย/${u === "mixed" ? "รอบ" : u ? UNIT[u] : "หน่วย"}`;
+  const amountOf = (r: BranchRow) => {
+    const parts = (Object.keys(UNIT) as AmountUnit[]).filter((k) => r.amounts[k]);
+    if (!parts.length) return "0";
+    return u && u !== "mixed" ? num(r.amounts[u] ?? 0) : parts.map((k) => `${num(r.amounts[k]!)} ${UNIT[k]}`).join(" · ");
+  };
   const [branch, setBranch] = useState(initialBranch);
   const [province, setProvince] = useState("");
 
-  const provinces = useMemo(() => Array.from(new Set(rows.map((r) => r.province).filter((p) => p && p !== "—"))), [rows]);
+  const provinces = useMemo(() => Array.from(new Set(rows.map((r) => r.province).filter((p) => p && p !== DASH))), [rows]);
   const branches = useMemo(() => Array.from(new Set(rows.map((r) => r.branch))), [rows]);
 
   const filtered = rows.filter((r) => (!branch || r.branch === branch) && (!province || r.province === province));
@@ -67,9 +82,9 @@ export default function BranchTable({ rows, initialBranch = "" }: { rows: Branch
                 <th className="px-5 py-3 font-semibold">จังหวัด</th>
                 <th className="px-5 py-3 font-semibold">สาขา</th>
                 <th className="px-5 py-3 text-right font-semibold">จำนวนรอบการจัดส่ง</th>
-                <th className="px-5 py-3 text-right font-semibold">ดอกไม้รวม</th>
+                <th className="px-5 py-3 text-right font-semibold">{amountHead}</th>
                 <th className="px-5 py-3 text-right font-semibold">การปล่อย CO₂e ขนส่ง</th>
-                <th className="px-5 py-3 text-right font-semibold">CO₂e ขนส่งเฉลี่ย/ดอก</th>
+                <th className="px-5 py-3 text-right font-semibold">{avgHead}</th>
                 <th className="px-5 py-3 text-right font-semibold">แนวโน้ม</th>
               </tr>
             </thead>
@@ -85,12 +100,12 @@ export default function BranchTable({ rows, initialBranch = "" }: { rows: Branch
                       {r.status === "disabled" ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">ปิดการใช้งาน</span> : null}
                     </td>
                     <td className="px-5 py-3 text-right tabular">{r.rounds.toLocaleString()}</td>
-                    <td className="px-5 py-3 text-right tabular">{r.flowers.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-right tabular">{amountOf(r)}</td>
                     <td className="px-5 py-3 text-right tabular">{r.transportCo2e.toFixed(1)}</td>
-                    <td className="px-5 py-3 text-right tabular">{r.avgPerStem == null ? DASH : r.avgPerStem.toFixed(4)}</td>
+                    <td className="px-5 py-3 text-right tabular">{r.avg == null ? DASH : r.avg.toFixed(u === "mixed" ? 2 : 4)}</td>
                     <td className="px-5 py-3 text-right tabular">
                       {r.trend == null ? (
-                        <span className="text-slate-300">—</span>
+                        <span className="text-slate-300">–</span>
                       ) : (
                         <span className={r.trend <= 0 ? "text-emerald-600" : "text-red-500"}>
                           {r.trend > 0 ? "+" : ""}{r.trend}%

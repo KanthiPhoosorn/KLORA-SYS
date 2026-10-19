@@ -38,7 +38,7 @@ export default function CatalogEditor({ initial }: { initial: PackCatalog }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "บันทึกไม่สำเร็จ");
       setC(data);
-      setMsg({ ok: true, text: "บันทึกตารางแล้ว — รอบใหม่ใช้ค่านี้ทันที กด “คำนวณใหม่ทั้งหมด” เพื่อปรับรอบเดิม" });
+      setMsg({ ok: true, text: "บันทึกตารางแล้ว รอบใหม่ใช้ค่านี้ทันที กด “คำนวณใหม่ทั้งหมด” เพื่อปรับรอบเดิม" });
       router.refresh();
     } catch (e) { setMsg({ ok: false, text: (e as Error).message }); }
     setBusy(null);
@@ -56,7 +56,7 @@ export default function CatalogEditor({ initial }: { initial: PackCatalog }) {
 
   return (
     <div className="max-w-5xl space-y-5">
-      <Section title="วัสดุ · ค่า EF ต่อน้ำหนัก" sub="kg CO₂e ต่อ กก. วัสดุ · ค่าเริ่มต้นจากฐานข้อมูล EF (CFP) ของ อบก. — Thai National LCI Database เม.ย. 2569">
+      <Section title="วัสดุ · ค่า EF ต่อน้ำหนัก" sub="kg CO₂e ต่อ กก. วัสดุ · ค่าเริ่มต้นจากฐานข้อมูล EF (CFP) ของ อบก. Thai National LCI Database เม.ย. 2569">
         <table className="w-full min-w-[760px] text-[13px]">
           <thead><tr className="bg-brand-purple-head text-white"><th className={th}>วัสดุ</th><th className={`${th} w-32`}>EF</th><th className={`${th} w-32`}>น้ำหนักเฉลี่ย/ชิ้น (กก.)</th><th className={th}>แหล่งที่มา</th></tr></thead>
           <tbody>
@@ -135,7 +135,7 @@ export default function CatalogEditor({ initial }: { initial: PackCatalog }) {
         <p className={`flex items-start gap-2 rounded-[8px] px-3 py-2 text-[13px] ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{msg.ok ? <CheckCircle2 size={15} className="mt-0.5 shrink-0" /> : null}{msg.text}</p>
       ) : null}
       <div className="flex flex-wrap justify-end gap-3">
-        <button type="button" onClick={() => { setC(DEFAULT_CATALOG); setMsg({ ok: true, text: "คืนค่าเริ่มต้นในแบบฟอร์มแล้ว — กดบันทึกเพื่อใช้งาน" }); }} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-gray-300 px-5 text-[14px] font-medium text-slate-700 hover:bg-gray-100 disabled:opacity-60"><RotateCcw size={15} /> ค่าเริ่มต้น</button>
+        <button type="button" onClick={() => { setC(DEFAULT_CATALOG); setMsg({ ok: true, text: "คืนค่าเริ่มต้นในแบบฟอร์มแล้ว กดบันทึกเพื่อใช้งาน" }); }} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-gray-300 px-5 text-[14px] font-medium text-slate-700 hover:bg-gray-100 disabled:opacity-60"><RotateCcw size={15} /> ค่าเริ่มต้น</button>
         <button type="button" onClick={recompute} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-brand-purple px-5 text-[14px] font-medium text-brand-purple hover:bg-brand-purple-light disabled:opacity-60">{busy === "recompute" ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} คำนวณใหม่ทั้งหมด</button>
         <button type="button" onClick={save} disabled={!!busy} className="inline-flex h-[40px] items-center gap-2 rounded-[8px] bg-brand-purple px-8 text-[14px] font-medium text-white hover:opacity-90 disabled:opacity-60">{busy === "save" ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} บันทึก</button>
       </div>

@@ -68,7 +68,7 @@ export default function KynOverviewSection({
                   <th className="px-4 py-3 text-right font-semibold">จำนวน</th>
                   <th className="px-4 py-3 text-right font-semibold">ระยะทาง (กม.)</th>
                   <th className="px-4 py-3 text-right font-semibold">CO₂e kg</th>
-                  <th className="px-4 py-3 text-right font-semibold">อายุหลังตัด (วัน)</th>
+                  <th className="px-4 py-3 text-right font-semibold">อายุหลังเก็บเกี่ยว (วัน)</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,7 +82,7 @@ export default function KynOverviewSection({
                     return (
                       <tr key={b.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
                         <td className="px-4 py-3 font-mono text-xs text-slate-500">{b.id}</td>
-                        <td className="px-4 py-3 text-slate-800" title={String(s?.farmName ?? "—")}><span className="cell-clip">{s?.farmName ?? "—"}</span></td>
+                        <td className="px-4 py-3 text-slate-800" title={String(s?.farmName ?? "–")}><span className="cell-clip">{s?.farmName ?? "–"}</span></td>
                         <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
                         <td className="px-4 py-3 text-right tabular">{b.distanceKm}</td>
                         <td className="px-4 py-3 text-right font-semibold tabular text-slate-800">{(batchCo2e(b)).toFixed(3)}</td>

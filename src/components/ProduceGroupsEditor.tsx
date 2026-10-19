@@ -288,7 +288,7 @@ export function CertificationsEditor({
       ) : null}
       {onSkip ? (
         <label className="flex items-center gap-2 text-[13px] text-slate-700">
-          <input type="checkbox" checked={!!skip} onChange={(e) => onSkip(e.target.checked)} className={ac.check} /> ยังไม่มีใบรับรองมาตรฐาน — ข้ามขั้นตอนนี้ไปก่อน
+          <input type="checkbox" checked={!!skip} onChange={(e) => onSkip(e.target.checked)} className={ac.check} /> ยังไม่มีใบรับรองมาตรฐาน ข้ามขั้นตอนนี้ไปก่อน
         </label>
       ) : null}
     </div>

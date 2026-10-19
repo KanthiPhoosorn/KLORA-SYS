@@ -214,15 +214,15 @@ export default function ShipmentsTable({
                   {mixed ? <td className="px-4 py-3 text-center"><CategoryTag category={r.category} /></td> : null}
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular">{r.quantity}</td>
                   <td className="px-4 py-3">
-                    <p className="max-w-[200px] truncate" title={r.address ? `${r.destination} · ${r.address}` : r.destination}>{r.destination || "—"}</p>
+                    <p className="max-w-[200px] truncate" title={r.address ? `${r.destination} · ${r.address}` : r.destination}>{r.destination || "–"}</p>
                     {r.address ? <p className="max-w-[200px] truncate text-[11px] text-slate-400" title={r.address}>{r.address}</p> : null}
                   </td>
-                  <td className="px-4 py-3"><p className="max-w-[140px] truncate" title={r.carrier}>{r.carrier || "—"}</p></td>
+                  <td className="px-4 py-3"><p className="max-w-[140px] truncate" title={r.carrier}>{r.carrier || "–"}</p></td>
                   <td className="whitespace-nowrap px-4 py-3">
                     {trackText ? (
                       link && !off ? <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono text-[12px] text-blue-600 hover:underline">{trackText}<ExternalLink size={11} /></a>
                         : <span className="font-mono text-[12px]">{trackText}</span>
-                    ) : <span className={r.status === "printed" ? "text-[12px] text-amber-600" : "text-slate-300"}>{r.status === "printed" ? "ยังไม่มี" : "—"}</span>}
+                    ) : <span className={r.status === "printed" ? "text-[12px] text-amber-600" : "text-slate-300"}>{r.status === "printed" ? "ยังไม่มี" : "–"}</span>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${st.cls}`} title={off && r.cancelReason ? `เหตุผล: ${r.cancelReason}` : undefined}>{st.label}</span>

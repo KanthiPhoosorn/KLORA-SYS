@@ -9,7 +9,7 @@ import { logisticAccess, logisticWriteRefusal } from "@/lib/logistic-org";
 // farms that ship with it; a farm joining through it ships only with this carrier (see lib/carrier-lock).
 // 17 Oct 2026 (doc "Logistic"): no type / branch to choose — the link is the signed-in account's own:
 // its company's provider type and its branch. The head office sees every link of the company.
-const NO_ORG = () => NextResponse.json({ error: "บัญชีนี้ยังไม่มีรหัสองค์กร (CID) — ติดต่อ KYN ก่อนสร้างลิงก์" }, { status: 409 });
+const NO_ORG = () => NextResponse.json({ error: "บัญชีนี้ยังไม่มีรหัสองค์กร (CID) ติดต่อ KYN ก่อนสร้างลิงก์" }, { status: 409 });
 
 export async function GET() {
   const g = await guard(["logistic"]);

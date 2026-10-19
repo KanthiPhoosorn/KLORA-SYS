@@ -106,7 +106,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         {tab === "discard" && (
           data.discard.rows.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-[13px] text-slate-400">
-              ยังไม่มีข้อมูลการคัดทิ้ง — บันทึกได้ที่พอร์ทัลโลจิสติกส์ (สถานะพัสดุ)
+              ยังไม่มีข้อมูลการคัดทิ้ง บันทึกได้ที่พอร์ทัลโลจิสติกส์ (สถานะพัสดุ)
             </p>
           ) : (
             <div className="space-y-5">

@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   if (g.deny) return g.deny;
   const a = await logisticAccess(g.user);
   if (!a.hq || !a.org) return NextResponse.json({ error: "เฉพาะบัญชีสำนักงานใหญ่" }, { status: 403 });
-  if (a.state !== "active") return NextResponse.json({ error: "บริษัทยังรอการตรวจสอบจากผู้ดูแลระบบ — ยังสร้างลิงก์ไม่ได้" }, { status: 403 });
+  if (a.state !== "active") return NextResponse.json({ error: "บริษัทยังรอการตรวจสอบจากผู้ดูแลระบบ ยังสร้างลิงก์ไม่ได้" }, { status: 403 });
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
   const now = new Date().toISOString();

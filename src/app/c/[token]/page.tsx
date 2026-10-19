@@ -45,7 +45,7 @@ export default async function CarrierLinkPage({ params }: { params: Promise<{ to
             {farm ? (
               <AttachCarrier token={open.token} company={company} farmName={farm.farmName} boundTo={farm.carrierOrg ? (farm.carrierOrg === open.orgCode ? "same" : farm.carrierCompany ?? "ผู้ขนส่งรายอื่น") : null} />
             ) : user ? (
-              <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">บัญชีที่เข้าสู่ระบบอยู่ไม่ใช่บัญชีฟาร์ม — ออกจากระบบ แล้วเปิดลิงก์นี้อีกครั้งด้วยบัญชีฟาร์ม</p>
+              <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">บัญชีที่เข้าสู่ระบบอยู่ไม่ใช่บัญชีฟาร์ม ออกจากระบบ แล้วเปิดลิงก์นี้อีกครั้งด้วยบัญชีฟาร์ม</p>
             ) : (
               <div className="space-y-2.5">
                 <Link href={`/register?c=${open.token}`} className="block rounded-[8px] bg-brand-pink px-4 py-3 text-center text-[14px] font-semibold text-white hover:opacity-90">สมัครใช้งาน (ฟาร์มใหม่)</Link>

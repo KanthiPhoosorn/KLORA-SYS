@@ -143,7 +143,7 @@ export default function LogisticExportForm({
       resolveMapsLink(v).then((q) => {
         if (gpsNow.current !== v) return; // the field was changed meanwhile
         if (q) setDestGps(`${q.lat}, ${q.lng}`);
-        else setErrs((x) => ({ ...x, destGps: "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" }));
+        else setErrs((x) => ({ ...x, destGps: "ลิงก์นี้ไม่มีพิกัด ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" }));
       });
     }
   }
@@ -227,9 +227,9 @@ export default function LogisticExportForm({
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
     if (shipType === "domestic") {
       if (!destination) e.destination = "กรุณาระบุปลายทาง";
-      if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ — ใช้คำนวณระยะทางขนส่ง";
-      if (destGps.trim() && !destGpsParsed) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด — ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
-      if (!(Number(distanceKm) > 0)) e.distanceKm = dist.looking && !distEdited ? "กำลังคำนวณระยะทาง รอสักครู่แล้วกดอีกครั้ง" : "กรุณาระบุระยะทางขนส่ง — ระบบคำนวณจากที่อยู่ผู้รับกับสาขาต้นทาง หรือกรอกเองได้";
+      if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ ใช้คำนวณระยะทางขนส่ง";
+      if (destGps.trim() && !destGpsParsed) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
+      if (!(Number(distanceKm) > 0)) e.distanceKm = dist.looking && !distEdited ? "กำลังคำนวณระยะทาง รอสักครู่แล้วกดอีกครั้ง" : "กรุณาระบุระยะทางขนส่ง ระบบคำนวณจากที่อยู่ผู้รับกับสาขาต้นทาง หรือกรอกเองได้";
       if (!vehicle) e.vehicle = "กรุณาเลือกประเภทรถ";
       if (!fuelKey) e.fuelKey = "กรุณาเลือกระบบเชื้อเพลิง";
     } else {
@@ -284,7 +284,7 @@ export default function LogisticExportForm({
   // ---------- REVIEW ----------
   if (step === "review") {
     const F = ({ label, value }: { label: string; value: string }) => (
-      <div><p className="text-[13px] font-semibold text-slate-800">{label}</p><p className="text-[13px] text-slate-500">{value || "—"}</p></div>
+      <div><p className="text-[13px] font-semibold text-slate-800">{label}</p><p className="text-[13px] text-slate-500">{value || "–"}</p></div>
     );
     const H = ({ children }: { children: React.ReactNode }) => (
       <div className="px-4 py-3 text-center text-[15px] font-semibold text-slate-700">{children}</div>
@@ -336,7 +336,7 @@ export default function LogisticExportForm({
                   <>
                     <F label="วันที่จัดส่ง" value={formatThaiDate(shipDate)} />
                     <F label="น้ำหนักรวมหลังแพ็ก" value={weightKg ? `${weightKg} กิโลกรัม` : ""} />
-                    <F label="เส้นทางบิน" value={`${originAirport} → ${destAirport || "—"}`} />
+                    <F label="เส้นทางบิน" value={`${originAirport} → ${destAirport || "–"}`} />
                     <F label="ระยะทางบิน" value={`${(Number(flightKm) > 0 ? Number(flightKm) : autoFlightKm).toLocaleString("th-TH")} กม.`} />
                     <F label="สายการบิน" value={airline} />
                     <F label="หมายเลขเที่ยวบิน" value={flightNo} />
@@ -457,7 +457,7 @@ export default function LogisticExportForm({
               <div>
                 <label className={labelCls}>ระยะทางขนส่ง (กิโลเมตร){req}</label>
                 <input type="number" min="0" step="any" value={distanceKm} onChange={(e) => { setDistanceKm(e.target.value); setDistEdited(true); setErrs((x) => ({ ...x, distanceKm: "" })); }} placeholder="ระบบจะคำนวณอัตโนมัติ" className={`${inputCls} bg-slate-50 ${errs.distanceKm ? "border-[#ee443f]" : ""}`} />
-                <DistanceHint edited={distEdited} onAuto={() => setDistEdited(false)} dist={dist} noOrigin="ไม่ทราบพิกัดสาขาต้นทาง — กรอกระยะทางเอง" />
+                <DistanceHint edited={distEdited} onAuto={() => setDistEdited(false)} dist={dist} noOrigin="ไม่ทราบพิกัดสาขาต้นทาง กรอกระยะทางเอง" />
                 <Err msg={errs.distanceKm} />
               </div>
             </div>

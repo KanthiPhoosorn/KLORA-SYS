@@ -50,7 +50,7 @@ export default function RateLot({ batchId, farmName, carrierName, mine }: {
       <div className="space-y-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-[#E6E7E8]">
         {sent && !editing ? (
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-slate-600">ขอบคุณสำหรับคะแนน — แหล่งที่มา {farm || "–"} ดาว · การขนส่ง {transport || "–"} ดาว</p>
+            <p className="text-[13px] text-slate-600">ขอบคุณสำหรับคะแนน แหล่งที่มา {farm || "–"} ดาว · การขนส่ง {transport || "–"} ดาว</p>
             <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-[13px] font-medium text-[#193686] underline">แก้คะแนน</button>
           </div>
         ) : (

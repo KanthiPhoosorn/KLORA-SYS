@@ -48,7 +48,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
   async function copy(t: string) {
     try { await navigator.clipboard.writeText(url(t)); setCopied(t); setTimeout(() => setCopied(""), 1500); } catch { /* no clipboard */ }
   }
-  const shareText = (t: string) => `${org.company ?? "ผู้ขนส่ง"} ชวนฟาร์มของคุณส่งสินค้าผ่าน Corta — สมัครที่ ${url(t)}`;
+  const shareText = (t: string) => `${org.company ?? "ผู้ขนส่ง"} ชวนฟาร์มของคุณส่งสินค้าผ่าน Corta สมัครที่ ${url(t)}`;
 
   const live = (rows ?? []).filter((r) => !r.revokedAt);
   const closed = (rows ?? []).filter((r) => r.revokedAt);
@@ -60,7 +60,7 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="ชวนผู้ผลิตมาส่งสินค้ากับเรา" wide>
         {!org.code ? (
-          <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">บัญชีนี้ยังไม่มีรหัสองค์กร (CID) — ติดต่อ KYN ก่อนสร้างลิงก์</p>
+          <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">บัญชีนี้ยังไม่มีรหัสองค์กร (CID) ติดต่อ KYN ก่อนสร้างลิงก์</p>
         ) : (
           <div className="space-y-5">
             <p className="text-[13px] leading-relaxed text-slate-500">
@@ -68,8 +68,8 @@ export default function CarrierLinkPanel({ org }: { org: { code?: string; compan
             </p>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4">
               <div className="text-[13px] leading-relaxed text-slate-600">
-                <p>ผู้ให้บริการขนส่ง <b className="font-semibold text-slate-800">{org.company ?? "—"}</b>{org.provider ? <> · {org.provider}</> : null}</p>
-                <p>สาขาต้นทาง <b className="font-semibold text-slate-800">{org.branch ?? "—"}</b> <span className="text-slate-400">(สาขาของบัญชีที่เข้าระบบ)</span></p>
+                <p>ผู้ให้บริการขนส่ง <b className="font-semibold text-slate-800">{org.company ?? "–"}</b>{org.provider ? <> · {org.provider}</> : null}</p>
+                <p>สาขาต้นทาง <b className="font-semibold text-slate-800">{org.branch ?? "–"}</b> <span className="text-slate-400">(สาขาของบัญชีที่เข้าระบบ)</span></p>
               </div>
               <button type="button" onClick={create} disabled={busy === "new"} className="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap rounded-[8px] bg-blue-600 px-5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">
                 {busy === "new" ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} สร้างลิงก์

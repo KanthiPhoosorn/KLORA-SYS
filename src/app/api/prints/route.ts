@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   if (refused) return NextResponse.json({ error: refused }, { status: 403 });
   // store the current LOT code even when an old BAT id was sent — print lookups and the history key on it
   const batchId = lot?.id;
-  if (lot?.cancelledAt) return NextResponse.json({ error: `${lot.id} ถูกยกเลิกโดยฟาร์มแล้ว — พิมพ์ฉลากไม่ได้` }, { status: 409 });
+  if (lot?.cancelledAt) return NextResponse.json({ error: `${lot.id} ถูกยกเลิกโดยฟาร์มแล้ว พิมพ์ฉลากไม่ได้` }, { status: 409 });
   if (!destination && lot) destination = lot.destination;
 
   const log = await addPrint({

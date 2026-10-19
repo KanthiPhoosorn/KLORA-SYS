@@ -99,7 +99,7 @@ export default function SuperAppPrototype({ orders }: { orders: DemoOrder[] }) {
                 <div className="mt-1 flex justify-between"><span>วันที่สั่งซื้อ</span><span className="text-slate-800">{thaiDateShort(o.date)}</span></div>
                 <div className="mt-1 flex justify-between"><span>สถานะ</span><span className="font-medium text-emerald-700">{o.status}</span></div>
               </div>
-              <div className="text-[12px] font-semibold text-slate-500">สินค้าในออเดอร์ — แตะเพื่อดูแหล่งที่มา</div>
+              <div className="text-[12px] font-semibold text-slate-500">สินค้าในออเดอร์ แตะเพื่อดูแหล่งที่มา</div>
               {o.items.map((it, j) => (
                 <button key={it.batchId} onClick={() => setScreen({ name: "item", i: screen.i, j })} className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left">
                   <span className="grid size-12 place-items-center rounded-xl bg-slate-100 text-2xl">{CAT_EMOJI[it.trace.product.category]}</span>

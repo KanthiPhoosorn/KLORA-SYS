@@ -59,6 +59,8 @@ export function bangkokDay(iso: string): string {
 // An average or a percentage whose divisor is 0 shows this dash, never 0 / 0.0000 / 100% (doc "Logistic",
 // 18 Oct 2026: ถ้าตัวหารเป็น 0 ให้แสดงขีด (–) เหมือนกันทั้งระบบ).
 export const DASH = "–";
+/** An empty value saved as a dash: "–" now, "—" in rows saved before 19 Oct 2026. */
+export const isDashValue = (v?: string | null) => !v || v === DASH || v === "—";
 
 // True when two ISO/date values fall on the same Bangkok calendar day.
 export function isSameBangkokDay(a: string, b: string): boolean {

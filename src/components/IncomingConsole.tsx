@@ -139,7 +139,7 @@ export default function IncomingConsole({
               <tr key={b.id} onClick={() => setOpenId(b.id)} className="cursor-pointer border-b border-slate-50 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.entryDate)}</td>
                 <td className="px-4 py-3 font-mono text-xs text-slate-600">{supById.get(b.supplierId)?.code ?? b.supplierId}</td>
-                <td className="px-4 py-3 text-slate-700" title={String(s?.farmName ?? "—")}><span className="cell-clip">{s?.farmName ?? "—"}</span></td>
+                <td className="px-4 py-3 text-slate-700" title={String(s?.farmName ?? "–")}><span className="cell-clip">{s?.farmName ?? "–"}</span></td>
                 <td className="px-4 py-3 text-slate-600">{thaiDateShort(b.cutDate)}</td>
                 <td className="px-4 py-3 text-right tabular">{quantityLabel(b)}</td>
                 <td className="px-4 py-3 text-center"><Badge tone={st.tone}>{st.label}</Badge></td>
@@ -193,13 +193,13 @@ export default function IncomingConsole({
                 <div className="mb-2 text-[13px] font-semibold text-slate-800">ข้อมูลเพิ่มเติม</div>
                 <dl className="divide-y divide-slate-50 text-[13px]">
                   {[
-                    ["ชนิดดอกไม้", openSup.flowerType || "—"],
-                    ["พันธุ์ดอกไม้", open.variety || "—"],
+                    ["ชนิดดอกไม้", openSup.flowerType || "–"],
+                    ["พันธุ์ดอกไม้", open.variety || "–"],
                     ["วันที่ตัดดอก", thaiDateShort(open.cutDate)],
                     ["อายุหลังตัด", `${open.ageDays} วัน`],
                     [open.productCategory && open.productCategory !== "flower" ? "น้ำหนักสินค้า" : "จำนวนดอก", quantityLabel(open)],
                     ...(pieceLabel(open) ? [["จำนวน", pieceLabel(open)]] : []),
-                    ["ปลายทาง", open.destination || "—"],
+                    ["ปลายทาง", open.destination || "–"],
                     ...(open.destinationAddress ? [["ที่อยู่ปลายทาง", open.destinationAddress]] : []),
                     ...(open.destLat != null && open.destLng != null ? [["พิกัดปลายทาง", `${open.destLat.toFixed(4)}, ${open.destLng.toFixed(4)}`]] : []),
                     ["รหัสล็อต", open.id],

@@ -34,7 +34,7 @@ export const FUEL_EF: Record<string, FuelFactor> = {
   B7: { key: "B7", label: "ดีเซล B7", ef: 2.5504, unit: "liter", official: true, note: "Scope 1 (fossil); biogenic 0.1151 kgCO2/L รายงานแยก" },
   B20: { key: "B20", label: "ดีเซล B20", ef: 2.1976, unit: "liter", official: true, note: "Scope 1 (fossil); biogenic 0.3288 kgCO2/L รายงานแยก" },
   diesel: { key: "diesel", label: "ดีเซล (ไม่ผสม)", ef: 2.7403, unit: "liter", official: true },
-  B10: { key: "B10", label: "ดีเซล B10", ef: 2.4034, unit: "liter", official: false, note: "⚠ TGO ไม่มีค่า B10 — ประมาณเชิงเส้นระหว่าง B7 (2.5504) และ B20 (2.1976)" },
+  B10: { key: "B10", label: "ดีเซล B10", ef: 2.4034, unit: "liter", official: false, note: "⚠ TGO ไม่มีค่า B10 ประมาณเชิงเส้นระหว่าง B7 (2.5504) และ B20 (2.1976)" },
   gasoline: { key: "gasoline", label: "เบนซิน", ef: 2.2703, unit: "liter", official: true, note: "Motor Gasoline – oxidation catalyst" },
   E10: { key: "E10", label: "แก๊สโซฮอล์ E10", ef: 2.0444, unit: "liter", official: true, note: "Scope 1 (fossil), oxidation catalyst" },
   E20: { key: "E20", label: "แก๊สโซฮอล์ E20", ef: 1.8184, unit: "liter", official: true, note: "Scope 1 (fossil)" },
@@ -42,7 +42,7 @@ export const FUEL_EF: Record<string, FuelFactor> = {
   LPG: { key: "LPG", label: "LPG", ef: 1.7273, unit: "liter", official: true },
   CNG: { key: "CNG", label: "CNG / NGV", ef: 2.254, unit: "kg", official: true },
   EV: { key: "EV", label: "ไฟฟ้า (EV)", ef: 0.475, unit: "kWh", official: true, note: "ไฟฟ้า grid mix ปี 2022-2024 (CFO Scope 2)" },
-  bi_fuel: { key: "bi_fuel", label: "สองเชื้อเพลิง", ef: 2.0444, unit: "liter", official: false, note: "⚠ สมมติใช้ค่า E10 เป็นตัวแทน — ควรเลือกเชื้อเพลิงจริงที่ใช้" },
+  bi_fuel: { key: "bi_fuel", label: "สองเชื้อเพลิง", ef: 2.0444, unit: "liter", official: false, note: "⚠ สมมติใช้ค่า E10 เป็นตัวแทน ควรเลือกเชื้อเพลิงจริงที่ใช้" },
 };
 
 export interface VehicleProfile {

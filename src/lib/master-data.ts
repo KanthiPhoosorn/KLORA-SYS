@@ -477,7 +477,7 @@ export const PRODUCE_PROFILES: ProduceProfile[] = [
 export function profileFor(type: string | undefined, category: ProductCategory = "flower"): ProduceProfile {
   const hit = type ? PRODUCE_PROFILES.find((p) => p.type === type) : undefined;
   if (hit) return hit;
-  if (category === "flower") return { type: type ?? "", category, shelfLifeDays: 7, storageMinC: 2, storageMaxC: 5, chillSensitive: false, ripens: false, note: "ดอกไม้ตัด — ยิ่งเย็นยิ่งสดนาน" };
+  if (category === "flower") return { type: type ?? "", category, shelfLifeDays: 7, storageMinC: 2, storageMaxC: 5, chillSensitive: false, ripens: false, note: "ดอกไม้ตัด ยิ่งเย็นยิ่งสดนาน" };
   return { type: type ?? "", category, shelfLifeDays: 7, storageMinC: 5, storageMaxC: 10, chillSensitive: false, ripens: category === "fruit", note: "" };
 }
 

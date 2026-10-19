@@ -137,8 +137,8 @@ export default function RegisterForm({ via, viaLabel, linkToken, linkClosed }: {
     <div className="w-full max-w-[687px] rounded-[10px] bg-white p-[30px] shadow-xl">
       <div className="mx-auto w-full max-w-[585px] space-y-[30px]">
         <StepBar step={step} />
-        {linkClosed ? <p className="rounded-[6px] bg-amber-50 px-3 py-2 text-center text-[12px] text-amber-800">ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว — สมัครแบบปกติได้ หรือขอลิงก์ใหม่จากผู้ขนส่ง</p> : null}
-        {viaLabel ? <p className="rounded-[6px] bg-brand-pink-light px-3 py-2 text-center text-[12px] text-[#c1006e]">สมัครผ่านลิงก์ของ <b>{viaLabel}</b> — รอบส่งออกของฟาร์มจะจัดส่งผ่าน{viaLabel}</p> : null}
+        {linkClosed ? <p className="rounded-[6px] bg-amber-50 px-3 py-2 text-center text-[12px] text-amber-800">ลิงก์ของผู้ขนส่งนี้ถูกปิดแล้ว สมัครแบบปกติได้ หรือขอลิงก์ใหม่จากผู้ขนส่ง</p> : null}
+        {viaLabel ? <p className="rounded-[6px] bg-brand-pink-light px-3 py-2 text-center text-[12px] text-[#c1006e]">สมัครผ่านลิงก์ของ <b>{viaLabel}</b> รอบส่งออกของฟาร์มจะจัดส่งผ่าน{viaLabel}</p> : null}
 
         {step === 0 && (
           <div className="space-y-[20px]">

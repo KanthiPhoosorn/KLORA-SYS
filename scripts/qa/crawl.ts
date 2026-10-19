@@ -65,6 +65,8 @@ type Row = { role: string; width: number; route: string; status: number | null; 
         const final = page.url().replace(BASE, "");
         const info = await page.evaluate(() => {
           const text = document.body?.innerText || "";
+          // no em dash on screen (19 Oct 2026: it reads as machine-written; a space or "–" instead)
+          const emdash = Array.from(new Set(text.match(/.{0,20}—.{0,20}/g) ?? [])).slice(0, 3);
           const banned = Array.from(new Set(text.match(/SUP ID|KLORA|\b(?:SUP|BAT|BSK)-[0-9]{3,4}[0-9-]*/g) ?? [])).slice(0, 5);
           const wide = Array.from(document.querySelectorAll("body *")).filter((el) => {
             const r = el.getBoundingClientRect();
@@ -77,14 +79,15 @@ type Row = { role: string; width: number; route: string; status: number | null; 
             h1: (document.querySelector("h1")?.textContent || "").trim().slice(0, 60),
             logo: !!document.querySelector('img[src*="corta-logo"]'),
             scrollX: document.documentElement.scrollWidth - window.innerWidth,
-            banned, wide,
+            banned, wide, emdash,
           };
-        }).catch(() => ({ textLen: 0, h1: "", logo: false, scrollX: 0, banned: [] as string[], wide: [] as string[] }));
+        }).catch(() => ({ textLen: 0, h1: "", logo: false, scrollX: 0, banned: [] as string[], wide: [] as string[], emdash: [] as string[] }));
         page.off("pageerror", onPE); page.off("console", onC); page.off("response", onR);
         const audit: string[] = [];
         const isLabels = final.startsWith("/print/labels");
         if (!info.logo && !isLabels && status !== 404) audit.push("no Corta logo");
         if (info.banned.length) audit.push("old text: " + info.banned.join(", "));
+        if (info.emdash.length) audit.push("em dash: " + info.emdash.join(" | "));
         if (info.scrollX > 1) audit.push(`scrolls sideways +${info.scrollX}px ${info.wide.join(" ; ")}`);
         rows.push({ role, width, route, status, final, pageErrors, consoleErrors, apiFail, audit, textLen: info.textLen, h1: info.h1, ms: Date.now() - t0 });
         const flag = pageErrors.length || consoleErrors.length || apiFail.length || audit.length ? " !!" : "";

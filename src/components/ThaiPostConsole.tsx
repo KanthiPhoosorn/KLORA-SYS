@@ -132,7 +132,7 @@ export default function ThaiPostConsole({
                 ) : null}
                 {notReady.length ? (
                   <p className="mt-2 rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
-                    {notReady.map((b) => b.id).join(", ")} ยังไม่ได้คำนวณคาร์บอน (รอ KYN) — พิมพ์ฉลากได้หลังคำนวณแล้ว
+                    {notReady.map((b) => b.id).join(", ")} ยังไม่ได้คำนวณคาร์บอน (รอ KYN) พิมพ์ฉลากได้หลังคำนวณแล้ว
                   </p>
                 ) : null}
               </div>
@@ -155,7 +155,7 @@ export default function ThaiPostConsole({
                       <div className="flex items-center gap-3">
                         <span className="grid size-11 place-items-center rounded-full bg-blue-50 text-blue-500"><User size={20} /></span>
                         <div>
-                          <div className="font-semibold text-slate-900">{s?.farmName ?? "—"}</div>
+                          <div className="font-semibold text-slate-900">{s?.farmName ?? "–"}</div>
                           <div className="font-mono text-xs text-slate-400">{supById.get(b.supplierId)?.code ?? b.supplierId}</div>
                         </div>
                       </div>
@@ -170,12 +170,12 @@ export default function ThaiPostConsole({
                     <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 p-4 text-sm">
                       <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-blue-500" /><div><div className="text-slate-400">ต้นทาง</div><div className="text-slate-700">{s?.farmName}</div><div className="text-xs text-slate-400">{s?.address}</div></div></div>
                       <ArrowRight size={18} className="shrink-0 text-slate-300" />
-                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "—"}{b.destinationAddress ? <div className="text-[12px] text-slate-500">{b.destinationAddress}</div> : null}{b.destLat != null && b.destLng != null ? <a href={`https://www.google.com/maps/search/?api=1&query=${b.destLat},${b.destLng}`} target="_blank" rel="noopener" className="text-[12px] text-blue-600 underline">{b.destLat.toFixed(4)}, {b.destLng.toFixed(4)}</a> : null}</div></div></div>
+                      <div className="flex flex-1 items-start gap-2"><MapPin size={15} className="mt-0.5 text-emerald-500" /><div><div className="text-slate-400">ปลายทาง</div><div className="text-slate-700">{b.destination ?? "–"}{b.destinationAddress ? <div className="text-[12px] text-slate-500">{b.destinationAddress}</div> : null}{b.destLat != null && b.destLng != null ? <a href={`https://www.google.com/maps/search/?api=1&query=${b.destLat},${b.destLng}`} target="_blank" rel="noopener" className="text-[12px] text-blue-600 underline">{b.destLat.toFixed(4)}, {b.destLng.toFixed(4)}</a> : null}</div></div></div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
                       {[
-                        { icon: <Flower2 size={16} />, label: "ประเภทดอก", val: b.variety || s?.flowerType || "—" },
+                        { icon: <Flower2 size={16} />, label: "ประเภทดอก", val: b.variety || s?.flowerType || "–" },
                         { icon: <Package size={16} />, label: b.productCategory && b.productCategory !== "flower" ? "น้ำหนัก" : "จำนวนดอก", val: quantityLabel(b) },
                         { icon: <Cloud size={16} />, label: "Co2e/ดอก", val: `${b.co2ePerFlower.toFixed(4)} Kg` },
                         { icon: <Calendar size={16} />, label: "ตัดเมื่อ", val: thaiDateShort(b.cutDate) },

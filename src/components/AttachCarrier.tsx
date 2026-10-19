@@ -27,7 +27,7 @@ export default function AttachCarrier({ token, company, farmName, boundTo }: { t
     );
   }
   if (boundTo) {
-    return <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">{farmName} ผูกกับ {boundTo} อยู่แล้ว — ติดต่อ KYN หากต้องการเปลี่ยนผู้ขนส่ง</p>;
+    return <p className="rounded-[8px] bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">{farmName} ผูกกับ {boundTo} อยู่แล้ว ติดต่อ KYN หากต้องการเปลี่ยนผู้ขนส่ง</p>;
   }
   return (
     <div className="space-y-2.5">

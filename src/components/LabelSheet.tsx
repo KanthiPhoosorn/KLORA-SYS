@@ -76,7 +76,7 @@ export default function LabelSheet({ labels, initialSize }: { labels: LabelData[
         .meta { font-size: 2.4mm; }
         .lot { font-family: ui-monospace, Menlo, monospace; font-weight: 700; font-size: 2.6mm; }
         .size-40x25 .brand { font-size: 2.8mm; } .size-40x25 .product { font-size: 2.8mm; } .size-40x25 .meta { font-size: 2.1mm; }
-        /* 16 mm of text: the LOT code must stay whole — narrow proportional digits at ~6 pt instead of mono */
+        /* 16 mm of text: the LOT code must stay whole narrow proportional digits at ~6 pt instead of mono */
         .size-40x25 .text { padding-right: 1mm; }
         .size-40x25 .lot { font-family: inherit; font-size: 2mm; letter-spacing: -0.02em; overflow: visible; text-overflow: clip; }
         .band { background: #1559b9; color: #fff; display: flex; align-items: center; justify-content: center; }

@@ -33,7 +33,7 @@ export default async function KynActionLogPage() {
       actor: s.farmName,
       actorSub: s.code ?? s.id,
       type: "ลงทะเบียนผู้ผลิต",
-      detail: `${s.province ?? "—"} · ${s.flowerType}`,
+      detail: `${s.province ?? "–"} · ${s.flowerType}`,
       status: s.status === "suspended" ? "ระงับการใช้งาน" : "ใช้งาน",
       tone: s.status === "suspended" ? "red" : "green",
     });
@@ -44,7 +44,7 @@ export default async function KynActionLogPage() {
       actor: supName(b.supplierId),
       actorSub: supCode(b.supplierId),
       type: b.status === "computed" ? "คำนวณคาร์บอนแล้ว" : "ส่งข้อมูลรอบส่งออก",
-      detail: `${b.id} · ${quantityLabel(b)} → ${b.destination ?? "—"}`,
+      detail: `${b.id} · ${quantityLabel(b)} → ${b.destination ?? "–"}`,
       status: b.status === "computed" ? "คำนวณแล้ว" : "รอคำนวณ",
       tone: b.status === "computed" ? "green" : "amber",
     });
@@ -55,7 +55,7 @@ export default async function KynActionLogPage() {
       actor: p.printedBy || "ไปรษณีย์ไทย",
       actorSub: p.sortingPoint ?? "จุดคัดแยก",
       type: p.cancelled ? "ยกเลิกการพิมพ์ QR" : "พิมพ์ QR Code",
-      detail: `${p.batchId ?? supCode(p.supplierId)} → ${p.destination ?? "—"}`,
+      detail: `${p.batchId ?? supCode(p.supplierId)} → ${p.destination ?? "–"}`,
       status: p.cancelled ? "ยกเลิกแล้ว" : "สำเร็จ",
       tone: p.cancelled ? "red" : "green",
     });

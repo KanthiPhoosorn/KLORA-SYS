@@ -154,7 +154,7 @@ export default async function CarbonDashboardPage({ searchParams }: { searchPara
             </div>
           </Card>
         ) : (
-          <MetricCard label="อันดับเมื่อเทียบกับผู้ผลิตรายอื่น" value={rank > 0 ? `อันดับที่ ${rank}` : "—"} tone="pink" icon={<Trophy size={20} />} note={`จาก ${farmAvgs.length} ผู้ผลิต${ranks[0] ? ` (${CATEGORY_LABEL[ranks[0].c]})` : ""}`} />
+          <MetricCard label="อันดับเมื่อเทียบกับผู้ผลิตรายอื่น" value={rank > 0 ? `อันดับที่ ${rank}` : "–"} tone="pink" icon={<Trophy size={20} />} note={`จาก ${farmAvgs.length} ผู้ผลิต${ranks[0] ? ` (${CATEGORY_LABEL[ranks[0].c]})` : ""}`} />
         )}
         <Card className="p-5">
           <div className="flex items-start justify-between">

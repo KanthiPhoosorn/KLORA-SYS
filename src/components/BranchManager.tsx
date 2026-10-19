@@ -37,12 +37,12 @@ export interface BranchView {
   listed?: boolean;
 }
 
-const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
-const fmtShort = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "—");
+const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Bangkok" }) : "–");
+const fmtShort = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Bangkok" }) : "–");
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 const fullAddress = (b: BranchView) => {
   const bkk = b.province === "กรุงเทพมหานคร";
-  return [b.address, b.subdistrict && `${bkk ? "แขวง" : "ตำบล"}${b.subdistrict}`, b.district && `${bkk ? "เขต" : "อำเภอ"}${b.district}`, b.province && (bkk ? b.province : `จังหวัด${b.province}`), b.postcode].filter(Boolean).join(" ") || "—";
+  return [b.address, b.subdistrict && `${bkk ? "แขวง" : "ตำบล"}${b.subdistrict}`, b.district && `${bkk ? "เขต" : "อำเภอ"}${b.district}`, b.province && (bkk ? b.province : `จังหวัด${b.province}`), b.postcode].filter(Boolean).join(" ") || "–";
 };
 const where = (b: BranchView) => (b.district ? `${b.province === "กรุงเทพมหานคร" ? "เขต" : "อ."}${b.district}` : "");
 
@@ -112,7 +112,7 @@ export default function BranchManager({ company, join, branches }: {
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }, "image/png");
   }
-  const lineText = `${company} เชิญสาขาลงทะเบียนใช้งาน Corta — ${url}`;
+  const lineText = `${company} เชิญสาขาลงทะเบียนใช้งาน Corta ${url}`;
 
   const btn = "inline-flex items-center gap-1.5 rounded-[8px] border border-slate-300 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60";
 
@@ -142,7 +142,7 @@ export default function BranchManager({ company, join, branches }: {
           </div>
         ) : (
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-            <p className="text-[13px] text-slate-600">{link.createdAt ? "ลิงก์ถูกปิดอยู่ — สาขาใหม่ยังลงทะเบียนไม่ได้" : "ยังไม่มีลิงก์ลงทะเบียนสาขา"}</p>
+            <p className="text-[13px] text-slate-600">{link.createdAt ? "ลิงก์ถูกปิดอยู่ สาขาใหม่ยังลงทะเบียนไม่ได้" : "ยังไม่มีลิงก์ลงทะเบียนสาขา"}</p>
             <button type="button" onClick={() => linkAction("new")} disabled={busy === "link-new"} className="ml-auto inline-flex items-center gap-1.5 rounded-[8px] bg-blue-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60">
               {busy === "link-new" ? <Loader2 size={14} className="animate-spin" /> : null} สร้างลิงก์
             </button>
@@ -167,8 +167,8 @@ export default function BranchManager({ company, join, branches }: {
               ) : pending.map((b) => (
                 <tr key={b.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-3"><button type="button" onClick={() => setOpen(b.id)} className="text-left font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800">{b.name}</button>{where(b) ? <div className="text-[12px] text-slate-500">{where(b)}</div> : null}</td>
-                  <td className="px-3 py-3 text-slate-700">{b.province ?? "—"}</td>
-                  <td className="px-3 py-3"><div className="text-slate-800">{b.admin?.name ?? "—"}</div>{b.admin ? <div className="text-[12px] text-slate-500">{b.admin.email}</div> : null}</td>
+                  <td className="px-3 py-3 text-slate-700">{b.province ?? "–"}</td>
+                  <td className="px-3 py-3"><div className="text-slate-800">{b.admin?.name ?? "–"}</div>{b.admin ? <div className="text-[12px] text-slate-500">{b.admin.email}</div> : null}</td>
                   <td className="px-3 py-3 text-slate-700">{fmtShort(b.createdAt)}</td>
                   <td className="px-3 py-3 text-right">
                     <div className="inline-flex gap-2">
@@ -198,8 +198,8 @@ export default function BranchManager({ company, join, branches }: {
               {all.map((b) => (
                 <tr key={b.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-3"><button type="button" onClick={() => setOpen(b.id)} className="text-left font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800">{b.name}</button></td>
-                  <td className="px-3 py-3 text-slate-700">{b.province ?? "—"}</td>
-                  <td className="px-3 py-3 text-slate-800">{b.admin?.name ?? (b.isHq ? "ผู้ดูแลสำนักงานใหญ่" : "—")}</td>
+                  <td className="px-3 py-3 text-slate-700">{b.province ?? "–"}</td>
+                  <td className="px-3 py-3 text-slate-800">{b.admin?.name ?? (b.isHq ? "ผู้ดูแลสำนักงานใหญ่" : "–")}</td>
                   <td className="px-3 py-3 text-slate-700">{b.members.length} คน</td>
                   <td className="px-3 py-3"><StatusPill status={b.status} /></td>
                   <td className="px-3 py-3 text-right">
@@ -371,9 +371,9 @@ function BranchSheet({ b, busy, onClose, onApprove, onReject, onToggle, onSave }
           ) : (
             <>
               {pending ? <Row k="ชื่อสาขา" v={b.name} /> : null}
-              <Row k="หมายเลขโทรศัพท์" v={b.phone ?? "—"} />
+              <Row k="หมายเลขโทรศัพท์" v={b.phone ?? "–"} />
               <Row k="ที่อยู่" v={fullAddress(b)} />
-              {pending ? <Row k="พิกัดที่ตั้ง" v={b.lat != null && b.lng != null ? `${b.lat}, ${b.lng}` : "—"} /> : null}
+              {pending ? <Row k="พิกัดที่ตั้ง" v={b.lat != null && b.lng != null ? `${b.lat}, ${b.lng}` : "–"} /> : null}
               {pending && b.lat != null && b.lng != null ? <div className="mt-3"><TileMap lat={b.lat} lng={b.lng} zoom={14} height={220} caption="ตำแหน่งตามพิกัดที่กรอก" /></div> : null}
             </>
           )}
@@ -382,8 +382,8 @@ function BranchSheet({ b, busy, onClose, onApprove, onReject, onToggle, onSave }
         {pending ? (
           <section>
             <p className="mb-2 text-[15px] font-semibold text-blue-700">ผู้ดูแลสาขา</p>
-            <Row k="ชื่อผู้ใช้งาน" v={b.admin?.name ?? "—"} />
-            <Row k="อีเมล" v={b.admin?.email ?? "—"} />
+            <Row k="ชื่อผู้ใช้งาน" v={b.admin?.name ?? "–"} />
+            <Row k="อีเมล" v={b.admin?.email ?? "–"} />
           </section>
         ) : (
           <>

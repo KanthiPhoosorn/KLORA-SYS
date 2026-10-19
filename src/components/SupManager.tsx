@@ -96,7 +96,7 @@ export default function SupManager({
   const farmNames = [...new Set(suppliers.map((s) => s.farmName))];
 
   // จัดการขนส่ง — one row per logistics account (บริษัท / สาขา / จังหวัด / สถานะ).
-  const provinceOf = (branch?: string) => (branch ?? "").replace(/^สาขา\s*/, "").trim() || "—";
+  const provinceOf = (branch?: string) => (branch ?? "").replace(/^สาขา\s*/, "").trim() || "–";
   const companyOf = (u: User) => u.company ?? u.username;
   const logCompanies = [...new Set(logistics.map(companyOf))];
   const logBranches = [...new Set(logistics.map((u) => u.branch).filter((x): x is string => !!x))];
@@ -241,7 +241,7 @@ export default function SupManager({
         <>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900"><Link2 size={16} className="text-brand-purple" /> ลิงก์สมัครสมาชิกแยกตามขนส่ง</h2>
-            <p className="mt-0.5 text-[12px] text-slate-400">ส่งลิงก์ให้ฟาร์ม — ฟาร์มที่สมัครผ่านลิงก์จะเลือกได้เฉพาะขนส่งนั้นในแบบฟอร์มรอบส่งออก (เปลี่ยนได้ที่คอลัมน์ “ขนส่ง” ด้านล่าง)</p>
+            <p className="mt-0.5 text-[12px] text-slate-400">ส่งลิงก์ให้ฟาร์ม ฟาร์มที่สมัครผ่านลิงก์จะเลือกได้เฉพาะขนส่งนั้นในแบบฟอร์มรอบส่งออก (เปลี่ยนได้ที่คอลัมน์ “ขนส่ง” ด้านล่าง)</p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {CARRIERS.map((c) => (
                 <div key={c.key} className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 py-2">
@@ -299,7 +299,7 @@ export default function SupManager({
                     <tr key={s.id} onClick={() => setEditSup(s)} className="cursor-pointer border-b border-slate-50 text-center last:border-0 hover:bg-slate-50">
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.code ?? s.id}</td>
                       <td className="px-5 py-3.5 text-slate-800" title={String(s.farmName)}><span className="cell-clip">{s.farmName}</span></td>
-                      <td className="px-5 py-3.5 text-slate-600">{s.province ?? "—"}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{s.province ?? "–"}</td>
                       <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
                         <select value={s.signupVia ?? ""} disabled={busyId === s.id} onChange={(e) => patchSupplier(s, { signupVia: e.target.value || null })} className="rounded-[6px] border border-slate-200 bg-white px-2 py-1 text-[12px] text-slate-600 outline-none focus:border-brand-purple">
                           <option value="">ทุกขนส่ง</option>
@@ -363,7 +363,7 @@ export default function SupManager({
                   ) : logRows.map((u) => (
                     <tr key={u.id} className="border-b border-slate-50 text-center last:border-0">
                       <td className="px-5 py-3.5 text-slate-800" title={String(companyOf(u))}><span className="cell-clip">{companyOf(u)}</span></td>
-                      <td className="px-5 py-3.5 text-slate-600" title={String(u.branch ?? "—")}><span className="cell-clip">{u.branch ?? "—"}</span></td>
+                      <td className="px-5 py-3.5 text-slate-600" title={String(u.branch ?? "–")}><span className="cell-clip">{u.branch ?? "–"}</span></td>
                       <td className="px-5 py-3.5 text-slate-600" title={String(provinceOf(u.branch))}><span className="cell-clip">{provinceOf(u.branch)}</span></td>
                       <td className="px-5 py-3.5">
                         <StatusDropdown value={u.status ?? "active"} busy={busyId === u.id} onChange={(v) => setUserStatus(u, v)} />

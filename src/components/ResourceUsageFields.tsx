@@ -144,7 +144,7 @@ export default function ResourceUsageFields({
             <p className="mt-1 text-[11px] text-amber-600">หากฟาร์มใช้ปั๊มน้ำไฟฟ้าสูบน้ำเอง และค่าน้ำถูกคิดรวมในบิลค่าไฟไปแล้ว ให้กรอกช่องนี้เป็น 0 (กันการนับคาร์บอนซ้ำ)</p>
           </div>
         </div>
-        <p className="text-[11px] text-slate-400">* ใช้มากกว่า 1 ประเภท กด “เพิ่มรายการ” แล้วกรอกปริมาณแยกกัน · ค่าสัมประสิทธิ์ (kg CO₂e/หน่วย) ตามตาราง KYN: {(["fuel", "fertilizer", "chemical"] as const).flatMap((k) => value[k].map((l) => RESOURCE_TABLES[k].find((t) => t.key === l.kind)).filter((t) => t && t.key !== "none").map((t) => `${t!.label} ${t!.ef}`)).join(" · ") || "—"}</p>
+        <p className="text-[11px] text-slate-400">* ใช้มากกว่า 1 ประเภท กด “เพิ่มรายการ” แล้วกรอกปริมาณแยกกัน · ค่าสัมประสิทธิ์ (kg CO₂e/หน่วย) ตามตาราง KYN: {(["fuel", "fertilizer", "chemical"] as const).flatMap((k) => value[k].map((l) => RESOURCE_TABLES[k].find((t) => t.key === l.kind)).filter((t) => t && t.key !== "none").map((t) => `${t!.label} ${t!.ef}`)).join(" · ") || "–"}</p>
       </div>
 
       <div className="space-y-3 border-t border-gray-200 pt-5">
@@ -153,13 +153,13 @@ export default function ResourceUsageFields({
           <p className="text-[11px] text-slate-500">ระบุแยกตามแต่ละรายการสินค้าที่เพิ่มไว้ในขั้นตอนก่อนหน้า</p>
         </div>
         {targets.length === 0 ? (
-          <p className="rounded-[8px] border border-dashed border-gray-300 px-4 py-4 text-center text-[12px] text-slate-400">ยังไม่มีรายการสินค้า — เพิ่ม “ผลผลิตและพันธุ์ที่ปลูก” ก่อน</p>
+          <p className="rounded-[8px] border border-dashed border-gray-300 px-4 py-4 text-center text-[12px] text-slate-400">ยังไม่มีรายการสินค้า เพิ่ม “ผลผลิตและพันธุ์ที่ปลูก” ก่อน</p>
         ) : targets.map((t) => {
           const k = yieldKey(t);
           const unit = t.category === "flower" ? "ดอก" : "กก.";
           return (
             <div key={k} className="rounded-[10px] border border-gray-200 p-3">
-              <div className="text-[13px] font-semibold text-black">{EMOJI[t.category]} {t.type}{t.variety ? ` — ${t.variety}` : ""}</div>
+              <div className="text-[13px] font-semibold text-black">{EMOJI[t.category]} {t.type}{t.variety ? ` ${t.variety}` : ""}</div>
               <label className="mt-2 block">
                 <span className={labelCls}>ผลผลิตทั้งหมด ({unit}/เดือน)</span>
                 <input type="number" min="0" step="any" value={value.yields[k] ?? ""} onChange={(e) => set("yields", { ...value.yields, [k]: e.target.value })} placeholder="ระบุจำนวน" className={inputCls} />
