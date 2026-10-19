@@ -4,11 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DASH } from "@/lib/format";
-
-/** the counting units of a branch's lots: ดอก / ช่อ for flowers, กก. for fruit and vegetables */
-export type AmountUnit = "stem" | "bunch" | "kg";
-const UNIT: Record<AmountUnit, string> = { stem: "ดอก", bunch: "ช่อ", kg: "กก." };
-const num = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+import { AMOUNT_UNIT as UNIT, amountText, perLabel, type AmountUnit, type UnitMode } from "@/lib/amounts";
 
 export interface BranchRow {
   id?: string;
@@ -28,15 +24,11 @@ export interface BranchRow {
 // `initialBranch` pre-picks one branch (from its window in จัดการระบบ › สาขา › "ดูในหน้าข้อมูลรายสาขา").
 // `unit` (from branchRows) names the amount and average columns; with no lots yet, `fallback` (the category
 // filter: ดอกไม้ → ดอก, ผลไม้/ผัก → กก.) does.
-export default function BranchTable({ rows, unit, fallback, initialBranch = "" }: { rows: BranchRow[]; unit: AmountUnit | "mixed" | null; fallback?: AmountUnit; initialBranch?: string }) {
+export default function BranchTable({ rows, unit, fallback, initialBranch = "" }: { rows: BranchRow[]; unit: UnitMode; fallback?: AmountUnit; initialBranch?: string }) {
   const u = unit ?? fallback ?? null;
   const amountHead = u === "kg" ? "น้ำหนักรวม (กก.)" : u === "stem" || u === "bunch" ? `ปริมาณรวม (${UNIT[u]})` : "ปริมาณรวม";
-  const avgHead = `CO₂e ขนส่งเฉลี่ย/${u === "mixed" ? "รอบ" : u ? UNIT[u] : "หน่วย"}`;
-  const amountOf = (r: BranchRow) => {
-    const parts = (Object.keys(UNIT) as AmountUnit[]).filter((k) => r.amounts[k]);
-    if (!parts.length) return "0";
-    return u && u !== "mixed" ? num(r.amounts[u] ?? 0) : parts.map((k) => `${num(r.amounts[k]!)} ${UNIT[k]}`).join(" · ");
-  };
+  const avgHead = `CO₂e ขนส่งเฉลี่ย/${perLabel(u)}`;
+  const amountOf = (r: BranchRow) => amountText(r.amounts, u);
   const [branch, setBranch] = useState(initialBranch);
   const [province, setProvince] = useState("");
 

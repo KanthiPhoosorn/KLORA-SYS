@@ -7,24 +7,20 @@
 // "น้ำหนักรวม (กก.)" with CO₂e per that unit; with several units each cell lists them and the average is
 // per รอบ, as on the dashboards.
 import type { Batch, LogisticBranch } from "./types";
-import type { BranchRow, AmountUnit } from "@/components/BranchTable";
-import { batchCo2e, unitOf } from "./produce";
-
-const unitKey = (l: Batch): AmountUnit => { const u = unitOf(l); return u === "ton" ? "kg" : u; };
-const amountOf = (l: Batch) => { const q = l.quantity ?? l.flowerCount ?? 0; return unitOf(l) === "ton" ? q * 1000 : q; };
+import type { BranchRow } from "@/components/BranchTable";
+import { batchCo2e } from "./produce";
+import { amountsOf, unitMode, type UnitMode } from "./amounts";
 
 /** The rows, and the one unit they are counted in (`"mixed"` when the lots use several, null with no lots). */
-export function branchRows(lots: Batch[], branches: LogisticBranch[]): { rows: BranchRow[]; unit: AmountUnit | "mixed" | null } {
-  const units = new Set(lots.map(unitKey));
-  const unit = units.size === 0 ? null : units.size > 1 ? "mixed" : [...units][0];
+export function branchRows(lots: Batch[], branches: LogisticBranch[]): { rows: BranchRow[]; unit: UnitMode } {
+  const unit = unitMode(lots);
   const byBranch = new Map<string, Batch[]>();
   for (const l of lots) if (l.branchId) (byBranch.get(l.branchId) ?? byBranch.set(l.branchId, []).get(l.branchId)!).push(l);
   const rows = branches
     .filter((b) => b.status === "active" || (b.status === "disabled" && byBranch.has(b.id)))
     .map((b): BranchRow => {
       const list = byBranch.get(b.id) ?? [];
-      const amounts: BranchRow["amounts"] = {};
-      for (const l of list) amounts[unitKey(l)] = (amounts[unitKey(l)] ?? 0) + amountOf(l);
+      const amounts = amountsOf(list);
       const co2e = list.reduce((n, l) => n + batchCo2e(l), 0);
       const per = unit === "mixed" ? list.length : unit ? amounts[unit] ?? 0 : 0;
       return {

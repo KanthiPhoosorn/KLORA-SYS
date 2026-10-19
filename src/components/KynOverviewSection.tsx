@@ -5,23 +5,31 @@ import { Truck, Package, Cloud, Leaf, SlidersHorizontal, ChevronLeft, ChevronRig
 import type { Supplier, Batch } from "@/lib/types";
 import { batchCo2e, quantityLabel } from "@/lib/produce";
 import { DASH } from "@/lib/format";
+import { amountsOf, amountText, avgCo2e as avgOf, modeFor, perLabel, unitMode, AMOUNT_UNIT } from "@/lib/amounts";
+import type { KynFilter } from "@/lib/kyn-filter";
+import { KynCategoryChips, KynFarmPeriod } from "@/components/KynFilters";
 
+// `batches` arrive already filtered (ประเภทสินค้า / ฟาร์ม / ช่วงเวลา, lib/kyn-filter.ts); amounts and averages
+// follow the unit of what is shown (lib/amounts.ts).
 export default function KynOverviewSection({
   suppliers,
   batches,
+  filter,
+  farms,
 }: {
   suppliers: Supplier[];
   batches: Batch[];
+  filter: KynFilter;
+  farms: { id: string; name: string }[];
 }) {
   const byId = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
   const computed = batches.filter((b) => b.status === "computed");
   const rows = [...computed].sort((a, b) => b.id.localeCompare(a.id));
 
-  const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
+  const mode = modeFor(unitMode(computed), filter.cat);
+  const amounts = amountsOf(computed);
   const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
-  const avgCo2e = computed.length
-    ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
-    : null; // nothing to divide by → "–"
+  const avgCo2e = avgOf(computed, mode); // nothing to divide by → "–"
 
   const perFarm = suppliers
     .map((s) => ({
@@ -41,13 +49,17 @@ export default function KynOverviewSection({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">ภาพรวมระบบ</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-slate-900">ภาพรวมระบบ</h1>
+        <div className="flex flex-wrap items-center gap-2"><KynFarmPeriod value={filter} farms={farms} /></div>
+      </div>
+      <KynCategoryChips value={filter} />
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label="จำนวนแบตช์" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="จำนวนดอกทั้งหมด" value={totalFlowers.toLocaleString()} unit="ดอก" tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={mode === "kg" ? "น้ำหนักสินค้าทั้งหมด" : mode === "mixed" ? "ปริมาณสินค้าทั้งหมด" : `จำนวน${AMOUNT_UNIT[mode]}ทั้งหมด`} value={amountText(amounts, mode)} unit={mode === "mixed" ? undefined : AMOUNT_UNIT[mode]} tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e == null ? DASH : avgCo2e.toFixed(4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={`CO₂e เฉลี่ยต่อ${perLabel(mode)}`} value={avgCo2e == null ? DASH : avgCo2e.toFixed(mode === "mixed" ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">

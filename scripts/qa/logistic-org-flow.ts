@@ -118,6 +118,18 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     const lot = String(lotR.json.id ?? "");
     log("fruit lot keeps its optional count (120 ผล) beside the weight", lotR.json.pieceCount === 120 && lotR.json.pieceUnit === "ผล" && lotR.json.quantity === 40, `${lotR.json.pieceCount} ${lotR.json.pieceUnit}`);
     log("farm lot → that branch (name from the record)", lotR.status === 201 && lotR.json.branchId === cUser.branch_id && lotR.json.branch === "สาขาเชียงราย QA", `${lotR.json.branchId} ${lotR.json.branch}`);
+    // KYN's ภาพรวม / รายงานสรุป filters (doc "Logistic", 19 Oct 2026): ฟาร์ม, ช่วงเวลา, ประเภทสินค้า
+    const kynFarm = await page(`/kyn/report?farm=${farmId}`, KYN);
+    const [other] = await sql`SELECT id FROM batches WHERE status = 'computed' AND supplier_id <> ${farmId} ORDER BY id DESC LIMIT 1`;
+    log("KYN รายงานสรุป ?farm= shows only that farm's lots", kynFarm.text.includes(lot) && !kynFarm.text.includes(String(other.id)), String(other.id));
+    const kynFruit = await page(`/kyn/report?farm=${farmId}&cat=fruit`, KYN);
+    log("…?cat=fruit reads in กก. (weights, CO₂e per กก.)", kynFruit.text.includes(lot) && kynFruit.text.includes("แนวโน้มน้ำหนักสินค้า (กก.)") && kynFruit.text.includes("CO₂e เฉลี่ยต่อกก."));
+    log("…?cat=flower leaves the fruit lot out", !(await page(`/kyn/report?farm=${farmId}&cat=flower`, KYN)).text.includes(lot));
+    const kynOver = await page(`/kyn?farm=${farmId}&cat=fruit`, KYN);
+    log("KYN ภาพรวม filters too (น้ำหนักสินค้าทั้งหมด)", kynOver.text.includes(lot) && kynOver.text.includes("น้ำหนักสินค้าทั้งหมด") && !kynOver.text.includes(String(other.id)));
+    const cutoff = new Date(Date.now() - 31 * 86400000 + 7 * 3600000).toISOString().slice(0, 10);
+    const [old] = await sql`SELECT id FROM batches WHERE status = 'computed' AND cut_date < ${cutoff} ORDER BY id DESC LIMIT 1`;
+    if (old) log("…?period=30 leaves out lots harvested before the last 30 days", (await page("/kyn", KYN)).text.includes(String(old.id)) && !(await page("/kyn?period=30", KYN)).text.includes(String(old.id)), String(old.id));
     const ids = async (c: string) => ((await api("/api/batches", "GET", undefined, c)).json as { id: string }[]).map((b) => b.id);
     log("branch and its head office see it; another company and Thai Post do not", (await ids(cCookie)).includes(lot) && (await ids(aCookie)).includes(lot) && !(await ids(bCookie)).includes(lot) && !(await ids(THAIPOST)).includes(lot));
     log("Thai Post demo still sees its own history (10 lots), not TTT's", (await ids(THAIPOST)).filter((x) => /^LOT-26(07|08|09)/.test(x)).length >= 10 && !(await ids(THAIPOST)).includes("LOT-2610-0011"));

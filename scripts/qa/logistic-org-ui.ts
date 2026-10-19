@@ -83,6 +83,16 @@ const selectWhenReady = async (p: Page, name: string, value: string) => {
     await k.evaluate(`Array.from(document.querySelectorAll("tr")).find((r) => r.innerText.includes(${JSON.stringify(`QA ขนส่ง ui ${TS}`)})).setAttribute("data-qa", "row")`);
     await clickText(k, "ผ่านการตรวจสอบ", 'tr[data-qa="row"]');
     await k.waitForFunction(`!Array.from(document.querySelectorAll("tr")).some((r) => r.innerText.includes(${JSON.stringify(`QA ขนส่ง ui ${TS}`)}) && r.innerText.includes("ผ่านการตรวจสอบ"))`, { timeout: 15000 }).catch(() => null);
+    // รายงานสรุป: the ฟาร์ม / ช่วงเวลา pickers and the ประเภทสินค้า chips really filter (doc "Logistic", 19 Oct)
+    await k.goto(`${BASE}/kyn/report`, { waitUntil: "networkidle0" });
+    const farmOpt = (await k.evaluate(`Array.from(document.querySelectorAll('select[name="farm"] option')).map((o) => o.value).filter(Boolean)[0] ?? ""`)) as string;
+    await k.select('select[name="farm"]', farmOpt);
+    const farmOk = await k.waitForFunction(`location.search.includes("farm=${farmOpt}")`, { timeout: 15000 }).then(() => true, () => false);
+    await k.select('select[name="period"]', "90");
+    const periodOk = await k.waitForFunction(`location.search.includes("period=90") && location.search.includes("farm=")`, { timeout: 15000 }).then(() => true, () => false);
+    await clickText(k, "ผลไม้", '[aria-label="ประเภทสินค้า"]');
+    const catOk = await k.waitForFunction(`location.search.includes("cat=fruit") && location.search.includes("period=90") && document.querySelector('select[name="farm"]').value === ${JSON.stringify(farmOpt)}`, { timeout: 15000 }).then(() => true, () => false);
+    log("KYN รายงานสรุป: farm, period and product chips filter and keep each other", !!farmOpt && farmOk && periodOk && catOk, farmOpt);
     log("KYN approves with one click", (await sql`SELECT status FROM logistic_orgs WHERE org_code = ${u.org_code}`)[0].status === "active");
 
     // --- 3. the head office's สาขา tab ------------------------------------------------------------------------

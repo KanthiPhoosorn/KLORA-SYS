@@ -10,11 +10,14 @@ export interface DiscardRow {
   discarded: number; remaining: number; rate: number; wastedCo2e: number;
 }
 export interface ReportData {
-  province: { province: string; rounds: number; flowers: number; km: number; perFlower: number | null }[];
-  types: { type: string; flowers: number; avg: number; pct: number }[];
+  // amounts follow the unit of what is shown (lib/amounts.ts): `amount` sizes the bars, `amountText` is printed
+  province: { province: string; rounds: number; amount: number; amountText: string; km: number; perUnit: number | null }[];
+  types: { type: string; amount: number; amountText: string; avg: number; per: string; pct: number }[];
   freshness: { label: string; count: number; pct: number }[];
   ranking: { name: string; rounds: number; avg: number }[];
   discard: { rows: DiscardRow[]; totalReceived: number; totalDiscarded: number; totalWasted: number; avgRate: number };
+  /** column words for the unit in view: "ปริมาณ (ดอก)" / "น้ำหนัก (กก.)", CO₂e per "ดอก" / "กก." / "รอบ" */
+  units: { amountHead: string; per: string; typesTab: string };
 }
 
 const TABS = [
@@ -27,8 +30,8 @@ const TABS = [
 
 export default function ReportTabs({ data }: { data: ReportData }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("province");
-  const maxProv = Math.max(1, ...data.province.map((p) => p.flowers));
-  const maxType = Math.max(1, ...data.types.map((t) => t.flowers));
+  const maxProv = Math.max(1, ...data.province.map((p) => p.amount));
+  const maxType = Math.max(1, ...data.types.map((t) => t.amount));
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -37,7 +40,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         <div className="flex gap-1 overflow-x-auto">
           {TABS.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium ${tab === t.key ? "bg-brand-purple text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-              {t.label}
+              {t.key === "types" ? data.units.typesTab : t.label}
             </button>
           ))}
         </div>
@@ -50,19 +53,19 @@ export default function ReportTabs({ data }: { data: ReportData }) {
               {data.province.map((p) => (
                 <div key={p.province} className="flex items-center gap-3">
                   <span className="w-32 shrink-0 truncate text-sm text-slate-600">{p.province}</span>
-                  <div className="flex-1"><Bar value={p.flowers} max={maxProv} /></div>
-                  <span className="w-10 text-right text-sm tabular font-medium text-slate-800">{Math.round((p.flowers / maxProv) * 100)}%</span>
+                  <div className="flex-1"><Bar value={p.amount} max={maxProv} /></div>
+                  <span className="w-10 text-right text-sm tabular font-medium text-slate-800">{Math.round((p.amount / maxProv) * 100)}%</span>
                 </div>
               ))}
             </div>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="tbl w-full min-w-[520px] text-sm">
                 <thead><tr className="bg-brand-purple-head text-left text-xs text-white">
-                  <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">ดอกไม้</th><th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th>
+                  <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">{data.units.amountHead}</th><th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th><th className="px-3 py-2.5 text-right font-semibold">CO₂e/{data.units.per}</th>
                 </tr></thead>
                 <tbody>{data.province.map((p) => (
                   <tr key={p.province} className="border-b border-slate-50 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td><td className="px-3 py-2 text-right tabular">{p.flowers.toLocaleString()}</td><td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td><td className="px-3 py-2 text-right tabular">{p.perFlower == null ? DASH : p.perFlower.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td><td className="px-3 py-2 text-right tabular">{p.amountText}</td><td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td><td className="px-3 py-2 text-right tabular">{p.perUnit == null ? DASH : p.perUnit.toFixed(3)}</td>
                   </tr>))}</tbody>
               </table>
             </div>
@@ -73,8 +76,8 @@ export default function ReportTabs({ data }: { data: ReportData }) {
           <div className="space-y-3">
             {data.types.map((t) => (
               <div key={t.type} className="space-y-1.5">
-                <div className="flex justify-between text-sm"><span className="text-slate-600">{t.type}</span><span className="tabular text-slate-500">{t.flowers.toLocaleString()} · {t.avg.toFixed(3)} กก./ดอก</span></div>
-                <Bar value={t.flowers} max={maxType} />
+                <div className="flex justify-between text-sm"><span className="text-slate-600">{t.type}</span><span className="tabular text-slate-500">{t.amountText} · {t.avg.toFixed(3)} กก. CO₂e/{t.per}</span></div>
+                <Bar value={t.amount} max={maxType} />
               </div>
             ))}
           </div>
@@ -95,7 +98,7 @@ export default function ReportTabs({ data }: { data: ReportData }) {
         {tab === "ranking" && (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="tbl w-full min-w-[380px] text-sm">
-              <thead><tr className="bg-brand-purple-head text-left text-xs text-white"><th className="px-3 py-2.5 font-semibold">#</th><th className="px-3 py-2.5 font-semibold">ฟาร์ม</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">CO2e/ดอก</th></tr></thead>
+              <thead><tr className="bg-brand-purple-head text-left text-xs text-white"><th className="px-3 py-2.5 font-semibold">#</th><th className="px-3 py-2.5 font-semibold">ฟาร์ม</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">CO₂e/{data.units.per}</th></tr></thead>
               <tbody>{data.ranking.map((r, i) => (
                 <tr key={r.name} className="border-b border-slate-50 last:border-0"><td className="px-3 py-2 tabular text-slate-500">{i + 1}</td><td className="px-3 py-2 text-slate-700">{r.name}</td><td className="px-3 py-2 text-right tabular">{r.rounds}</td><td className="px-3 py-2 text-right font-semibold tabular text-emerald-600">{r.avg.toFixed(3)}</td></tr>
               ))}</tbody>

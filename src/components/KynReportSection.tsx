@@ -4,7 +4,10 @@ import { Truck, Leaf, Cloud, Clock } from "lucide-react";
 import ReportTabs, { type ReportData } from "@/components/ReportTabs";
 import { buildMonthSeries, DASH } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
-import { batchCo2e, quantityLabel } from "@/lib/produce";
+import { batchCo2e, quantityLabel, perUnitLabel } from "@/lib/produce";
+import { amountsOf, amountOf, amountText, avgCo2e as avgOf, modeFor, perLabel, unitMode, AMOUNT_UNIT } from "@/lib/amounts";
+import type { KynFilter } from "@/lib/kyn-filter";
+import { KynCategoryChips, KynFarmPeriod } from "@/components/KynFilters";
 
 function groupBy<T>(items: T[], key: (t: T) => string) {
   const m = new Map<string, T[]>();
@@ -15,29 +18,38 @@ function groupBy<T>(items: T[], key: (t: T) => string) {
   return m;
 }
 
-export default function KynReportSection({ suppliers, batches }: { suppliers: Supplier[]; batches: Batch[] }) {
+// รายงานสรุป. `batches` arrive already filtered (ประเภทสินค้า / ฟาร์ม / ช่วงเวลา, lib/kyn-filter.ts); amounts and
+// averages follow the unit of what is shown (lib/amounts.ts): ดอก for flowers, กก. for fruit and vegetables,
+// and per รอบ when the view mixes them.
+export default function KynReportSection({ suppliers, batches, filter, farms }: { suppliers: Supplier[]; batches: Batch[]; filter: KynFilter; farms: { id: string; name: string }[] }) {
   const supById = new Map<string, Supplier>(suppliers.map((s) => [s.id, s]));
   const computed = batches.filter((b) => b.status === "computed");
   const submitted = batches.filter((b) => b.status === "submitted").length;
+  const mode = modeFor(unitMode(computed), filter.cat);
+  const mixed = mode === "mixed";
+  const per = perLabel(mode);
+  // the size of a lot for bars and trends: its amount in the one unit shown, or 1 รอบ when units mix
+  const size = (b: Batch) => (mixed ? 1 : amountOf(b));
 
-  const totalFlowers = computed.reduce((n, b) => n + b.flowerCount, 0);
   const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
-  const avgCo2e = computed.length ? computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length : null; // none → "–"
+  const avgCo2e = avgOf(computed, mode); // none → "–"
 
-  const flowerSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => b.flowerCount, 5);
+  const amountSeries = buildMonthSeries(computed, (b) => b.cutDate, size, 5);
   const co2eSeries = buildMonthSeries(computed, (b) => b.cutDate, (b) => batchCo2e(b), 5);
+  const trendTitle = mixed ? "แนวโน้มจำนวนรอบ" : mode === "kg" ? "แนวโน้มน้ำหนักสินค้า (กก.)" : "แนวโน้มจำนวนดอกไม้";
 
   const province = [...groupBy(computed, (b) => b.destination ?? "–")].map(([p, bs]) => {
-    const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
+    const amount = bs.reduce((n, b) => n + size(b), 0);
     const co2e = bs.reduce((n, b) => n + batchCo2e(b), 0);
-    return { province: p, rounds: bs.length, flowers, km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perFlower: flowers ? co2e / flowers : null };
-  }).sort((a, b) => b.flowers - a.flowers);
+    return { province: p, rounds: bs.length, amount, amountText: amountText(amountsOf(bs), mode), km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perUnit: amount ? co2e / amount : null };
+  }).sort((a, b) => b.amount - a.amount);
 
-  const typeTotal = totalFlowers || 1;
-  const types = [...groupBy(computed, (b) => supById.get(b.supplierId)?.flowerType ?? "–")].map(([type, bs]) => {
-    const flowers = bs.reduce((n, b) => n + b.flowerCount, 0);
-    return { type, flowers, avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length, pct: Math.round((flowers / typeTotal) * 100) };
-  }).sort((a, b) => b.flowers - a.flowers);
+  // product types: the lot's own ชนิด (a farm may grow several); each type keeps its own unit
+  const typeTotal = computed.reduce((n, b) => n + size(b), 0);
+  const types = [...groupBy(computed, (b) => b.productType ?? supById.get(b.supplierId)?.flowerType ?? "–")].map(([type, bs]) => {
+    const amount = bs.reduce((n, b) => n + size(b), 0);
+    return { type, amount, amountText: amountText(amountsOf(bs), unitMode(bs)), avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length, per: perUnitLabel(bs[0]).replace("ต่อ", ""), pct: typeTotal ? Math.round((amount / typeTotal) * 100) : 0 };
+  }).sort((a, b) => b.amount - a.amount);
 
   const fTotal = Math.max(1, computed.length);
   const freshness = [
@@ -48,8 +60,7 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
 
   const ranking = suppliers.map((s) => {
     const bs = computed.filter((b) => b.supplierId === s.id);
-    const avg = bs.length ? bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length : Infinity;
-    return { name: s.farmName, rounds: bs.length, avg };
+    return { name: s.farmName, rounds: bs.length, avg: avgOf(bs, mode) ?? Infinity };
   }).filter((r) => Number.isFinite(r.avg)).sort((a, b) => a.avg - b.avg);
 
   // ประเภทการจัดส่ง / ดอกไม้คัดทิ้ง (#99) — logistics throughput recorded on /logistic/status.
@@ -75,36 +86,41 @@ export default function KynReportSection({ suppliers, batches }: { suppliers: Su
     avgRate: totalReceived ? (totalDiscarded / totalReceived) * 100 : 0,
   };
 
-  const data: ReportData = { province, types, freshness, ranking, discard };
+  const units = {
+    amountHead: mixed ? "ปริมาณ" : mode === "kg" ? "น้ำหนัก (กก.)" : `ปริมาณ (${AMOUNT_UNIT[mode]})`,
+    per,
+    typesTab: filter.cat === "flower" ? "สัดส่วนประเภทดอกไม้" : "สัดส่วนประเภทสินค้า",
+  };
+  const data: ReportData = { province, types, freshness, ranking, discard, units };
   const csvRows = computed.map((b: Batch) => ({
     Batch: b.id, ฟาร์ม: supById.get(b.supplierId)?.farmName ?? "", พันธุ์: b.variety ?? "",
     จังหวัด: supById.get(b.supplierId)?.province ?? "", ปลายทาง: b.destination ?? "",
     จำนวน: quantityLabel(b), ประเภท: b.productCategory ?? "flower", ชนิด: b.productType ?? "", ระยะทางกม: b.distanceKm, อายุวัน: b.ageDays,
-    "CO2e/ดอก": Number(b.co2ePerFlower.toFixed(4)), "CO2e รวม": Number((batchCo2e(b)).toFixed(2)),
+    "CO2e/หน่วย": Number(b.co2ePerFlower.toFixed(4)), หน่วย: perUnitLabel(b).replace("ต่อ", ""), "CO2e รวม": Number((batchCo2e(b)).toFixed(2)),
   }));
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">รายงานสรุป</h1>
-        <div className="flex items-center gap-2">
-          <select className="rounded-[5px] border border-gray-300 bg-white px-3 py-2 text-[13px] text-slate-700 outline-none"><option>ทุกฟาร์ม</option></select>
-          <select className="rounded-[5px] border border-gray-300 bg-white px-3 py-2 text-[13px] text-slate-700 outline-none"><option>รายเดือน</option></select>
+        <div className="flex flex-wrap items-center gap-2">
+          <KynFarmPeriod value={filter} farms={farms} />
           <ExportCsvButton rows={csvRows} filename="klora-report.csv" />
         </div>
       </div>
+      <KynCategoryChips value={filter} />
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label="จำนวน Shipment" value={computed.length.toLocaleString()} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label="CO₂e เฉลี่ยต่อดอก" value={avgCo2e == null ? DASH : avgCo2e.toFixed(4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={`CO₂e เฉลี่ยต่อ${per}`} value={avgCo2e == null ? DASH : avgCo2e.toFixed(mixed ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="รอประมาณผล" value={submitted} unit="รายการ" tone="orange" icon={<Clock size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">แนวโน้มจำนวนดอกไม้</h2>
-          <BarChart data={flowerSeries} barClassName="bg-brand-purple/85" />
+          <h2 className="mb-4 text-base font-semibold text-slate-800">{trendTitle}</h2>
+          <BarChart data={amountSeries} barClassName="bg-brand-purple/85" />
         </Card>
         <Card className="p-5">
           <h2 className="mb-4 text-base font-semibold text-slate-800">แนวโน้มการปล่อย CO₂e</h2>
