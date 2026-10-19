@@ -5,7 +5,7 @@ import { Truck, Package, Cloud, Leaf, SlidersHorizontal, ChevronLeft, ChevronRig
 import type { Supplier, Batch } from "@/lib/types";
 import { batchCo2e, quantityLabel } from "@/lib/produce";
 import { DASH } from "@/lib/format";
-import { amountsOf, amountText, avgCo2e as avgOf, modeFor, perLabel, unitMode, AMOUNT_UNIT } from "@/lib/amounts";
+import { amountsOf, amountText, avgCo2e as avgOf, fmtAmount, modeFor, perLabel, unitMode, AMOUNT_UNIT, UNIT_KEYS } from "@/lib/amounts";
 import type { KynFilter } from "@/lib/kyn-filter";
 import { KynCategoryChips, KynFarmPeriod } from "@/components/KynFilters";
 
@@ -57,7 +57,10 @@ export default function KynOverviewSection({
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <MetricCard label="จำนวนแบตช์" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note="อัปเดตล่าสุด : วันนี้" />
-        <MetricCard label={mode === "kg" ? "น้ำหนักสินค้าทั้งหมด" : mode === "mixed" ? "ปริมาณสินค้าทั้งหมด" : `จำนวน${AMOUNT_UNIT[mode]}ทั้งหมด`} value={amountText(amounts, mode)} unit={mode === "mixed" ? undefined : AMOUNT_UNIT[mode]} tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
+        <MetricCard label={mode === "kg" ? "น้ำหนักสินค้าทั้งหมด" : mode === "mixed" ? "ปริมาณสินค้าทั้งหมด" : `จำนวน${AMOUNT_UNIT[mode]}ทั้งหมด`} value={mode === "mixed"
+          // one line per unit (19 Oct 2026: not "4,820 ดอก · 800 ช่อ" on one line)
+          ? <span className="flex flex-col">{UNIT_KEYS.filter((k) => amounts[k]).map((k) => <span key={k}>{fmtAmount(amounts[k]!)}<span className="ml-1 text-sm font-medium text-slate-400">{AMOUNT_UNIT[k]}</span></span>)}</span>
+          : amountText(amounts, mode)} unit={mode === "mixed" ? undefined : AMOUNT_UNIT[mode]} tone="green" icon={<Package size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note="อัปเดตล่าสุด : วันนี้" />
         <MetricCard label={`CO₂e เฉลี่ยต่อ${perLabel(mode)}`} value={avgCo2e == null ? DASH : avgCo2e.toFixed(mode === "mixed" ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="green" icon={<Leaf size={20} />} note="อัปเดตล่าสุด : วันนี้" />
       </section>

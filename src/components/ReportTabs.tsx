@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { DASH } from "@/lib/format";
+import { AMOUNT_UNIT, amountHead, fmtAmount, type AmountUnit } from "@/lib/amounts";
 import { Bar } from "@/components/ui";
 
 export interface DiscardRow {
@@ -11,13 +12,13 @@ export interface DiscardRow {
 }
 export interface ReportData {
   // amounts follow the unit of what is shown (lib/amounts.ts): `amount` sizes the bars, `amountText` is printed
-  province: { province: string; rounds: number; amount: number; amountText: string; km: number; perUnit: number | null }[];
+  province: { province: string; rounds: number; amount: number; km: number; amounts: Partial<Record<AmountUnit, number>>; co2eBy: Partial<Record<AmountUnit, number>> }[];
   types: { type: string; amount: number; amountText: string; avg: number; per: string; pct: number }[];
   freshness: { label: string; count: number; pct: number }[];
   ranking: { name: string; rounds: number; avg: number }[];
   discard: { rows: DiscardRow[]; totalReceived: number; totalDiscarded: number; totalWasted: number; avgRate: number };
-  /** column words for the unit in view: "ปริมาณ (ดอก)" / "น้ำหนัก (กก.)", CO₂e per "ดอก" / "กก." / "รอบ" */
-  units: { amountHead: string; per: string; typesTab: string };
+  /** the units in view, one column pair each (never "1,000 ดอก · 5 กก." in one cell); CO₂e per "ดอก" / "กก." / "รอบ" */
+  units: { keys: AmountUnit[]; per: string; typesTab: string };
 }
 
 const TABS = [
@@ -61,11 +62,11 @@ export default function ReportTabs({ data }: { data: ReportData }) {
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="tbl w-full min-w-[520px] text-sm">
                 <thead><tr className="bg-brand-purple-head text-left text-xs text-white">
-                  <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th><th className="px-3 py-2.5 text-right font-semibold">{data.units.amountHead}</th><th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th><th className="px-3 py-2.5 text-right font-semibold">CO₂e/{data.units.per}</th>
+                  <th className="px-3 py-2.5 font-semibold">จังหวัด</th><th className="px-3 py-2.5 text-right font-semibold">รอบ</th>{data.units.keys.map((k) => <th key={k} className="px-3 py-2.5 text-right font-semibold">{amountHead(k)}</th>)}<th className="px-3 py-2.5 text-right font-semibold">กม.เฉลี่ย</th>{data.units.keys.map((k) => <th key={k} className="px-3 py-2.5 text-right font-semibold">CO₂e/{AMOUNT_UNIT[k]}</th>)}
                 </tr></thead>
                 <tbody>{data.province.map((p) => (
                   <tr key={p.province} className="border-b border-slate-50 last:border-0">
-                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td><td className="px-3 py-2 text-right tabular">{p.amountText}</td><td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td><td className="px-3 py-2 text-right tabular">{p.perUnit == null ? DASH : p.perUnit.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-slate-700">{p.province}</td><td className="px-3 py-2 text-right tabular">{p.rounds}</td>{data.units.keys.map((k) => <td key={k} className="px-3 py-2 text-right tabular">{fmtAmount(p.amounts[k] ?? 0)}</td>)}<td className="px-3 py-2 text-right tabular">{Math.round(p.km)}</td>{data.units.keys.map((k) => <td key={k} className="px-3 py-2 text-right tabular">{p.amounts[k] ? ((p.co2eBy[k] ?? 0) / p.amounts[k]!).toFixed(3) : DASH}</td>)}
                   </tr>))}</tbody>
               </table>
             </div>

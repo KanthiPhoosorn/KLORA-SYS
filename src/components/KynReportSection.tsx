@@ -5,7 +5,7 @@ import ReportTabs, { type ReportData } from "@/components/ReportTabs";
 import { buildMonthSeries, DASH } from "@/lib/format";
 import type { Batch, Supplier } from "@/lib/types";
 import { batchCo2e, quantityLabel, perUnitLabel } from "@/lib/produce";
-import { amountsOf, amountOf, amountText, avgCo2e as avgOf, modeFor, perLabel, unitMode, AMOUNT_UNIT } from "@/lib/amounts";
+import { amountsOf, amountOf, amountText, amountUnit, avgCo2e as avgOf, modeFor, perLabel, unitMode, unitColumns } from "@/lib/amounts";
 import type { KynFilter } from "@/lib/kyn-filter";
 import { KynCategoryChips, KynFarmPeriod } from "@/components/KynFilters";
 
@@ -39,16 +39,16 @@ export default function KynReportSection({ suppliers, batches, filter, farms }: 
   const trendTitle = mixed ? "แนวโน้มจำนวนรอบ" : mode === "kg" ? "แนวโน้มน้ำหนักสินค้า (กก.)" : "แนวโน้มจำนวนดอกไม้";
 
   const province = [...groupBy(computed, (b) => b.destination ?? "–")].map(([p, bs]) => {
-    const amount = bs.reduce((n, b) => n + size(b), 0);
-    const co2e = bs.reduce((n, b) => n + batchCo2e(b), 0);
-    return { province: p, rounds: bs.length, amount, amountText: amountText(amountsOf(bs), mode), km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, perUnit: amount ? co2e / amount : null };
+    const co2eBy: Partial<Record<ReturnType<typeof amountUnit>, number>> = {};
+    for (const b of bs) co2eBy[amountUnit(b)] = (co2eBy[amountUnit(b)] ?? 0) + batchCo2e(b);
+    return { province: p, rounds: bs.length, amount: bs.reduce((n, b) => n + size(b), 0), km: bs.reduce((n, b) => n + b.distanceKm, 0) / bs.length, amounts: amountsOf(bs), co2eBy };
   }).sort((a, b) => b.amount - a.amount);
 
   // product types: the lot's own ชนิด (a farm may grow several); each type keeps its own unit
   const typeTotal = computed.reduce((n, b) => n + size(b), 0);
   const types = [...groupBy(computed, (b) => b.productType ?? supById.get(b.supplierId)?.flowerType ?? "–")].map(([type, bs]) => {
     const amount = bs.reduce((n, b) => n + size(b), 0);
-    return { type, amount, amountText: amountText(amountsOf(bs), unitMode(bs)), avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length, per: perUnitLabel(bs[0]).replace("ต่อ", ""), pct: typeTotal ? Math.round((amount / typeTotal) * 100) : 0 };
+    return { type, amount, amountText: amountText(amountsOf(bs), "mixed"), avg: bs.reduce((n, b) => n + b.co2ePerFlower, 0) / bs.length, per: perUnitLabel(bs[0]).replace("ต่อ", ""), pct: typeTotal ? Math.round((amount / typeTotal) * 100) : 0 };
   }).sort((a, b) => b.amount - a.amount);
 
   const fTotal = Math.max(1, computed.length);
@@ -87,7 +87,7 @@ export default function KynReportSection({ suppliers, batches, filter, farms }: 
   };
 
   const units = {
-    amountHead: mixed ? "ปริมาณ" : mode === "kg" ? "น้ำหนัก (กก.)" : `ปริมาณ (${AMOUNT_UNIT[mode]})`,
+    keys: unitColumns(unitMode(computed), province.map((p) => p.amounts), modeFor(null, filter.cat) as Exclude<ReturnType<typeof modeFor>, "mixed">),
     per,
     typesTab: filter.cat === "flower" ? "สัดส่วนประเภทดอกไม้" : "สัดส่วนประเภทสินค้า",
   };

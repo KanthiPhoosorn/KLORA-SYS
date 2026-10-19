@@ -7,6 +7,14 @@ import { unitOf, batchCo2e } from "./produce";
 export type AmountUnit = "stem" | "bunch" | "kg";
 export type UnitMode = AmountUnit | "mixed" | null; // null = no lots
 export const AMOUNT_UNIT: Record<AmountUnit, string> = { stem: "ดอก", bunch: "ช่อ", kg: "กก." };
+export const UNIT_KEYS: AmountUnit[] = ["stem", "bunch", "kg"];
+/** column title for an amount: "ปริมาณรวม (ดอก)" / "ปริมาณรวม (ช่อ)" / "น้ำหนักรวม (กก.)" */
+export const amountHead = (k: AmountUnit) => (k === "kg" ? "น้ำหนักรวม (กก.)" : `ปริมาณรวม (${AMOUNT_UNIT[k]})`);
+/** The units a table gets a column for (19 Oct 2026: one column per unit, never "1,000 ดอก · 5 กก." in one cell). */
+export function unitColumns(mode: UnitMode, present: Partial<Record<AmountUnit, number>>[], fallback?: AmountUnit): AmountUnit[] {
+  if (mode === "mixed") return UNIT_KEYS.filter((k) => present.some((a) => a[k]));
+  return [mode ?? fallback ?? "stem"];
+}
 
 type Lot = Pick<Batch, "unit" | "productCategory" | "quantity" | "flowerCount">;
 export const amountUnit = (l: Lot): AmountUnit => { const u = unitOf(l); return u === "ton" ? "kg" : u; };
