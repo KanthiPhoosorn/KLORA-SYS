@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DASH } from "@/lib/format";
-import { AMOUNT_UNIT as UNIT, amountHead, fmtAmount, unitColumns, type AmountUnit, type UnitMode } from "@/lib/amounts";
 
 export interface BranchRow {
   id?: string;
@@ -14,21 +13,18 @@ export interface BranchRow {
   province: string;
   branch: string;
   rounds: number;
-  amounts: Partial<Record<AmountUnit, number>>;
-  transportCo2e: number;
-  /** transport CO₂e of the lots counted in each unit, for "CO₂e ขนส่งเฉลี่ย/<unit>" */
-  transportBy: Partial<Record<AmountUnit, number>>;
+  productCo2e: number; // CO₂e of the products themselves (farm + packaging), all rounds
+  transportCo2e: number; // CO₂e of the transport, all rounds
+  totalCo2e: number;
   trend: number | null; // % change vs previous period (null = ยังไม่มีฐานเปรียบเทียบ)
 }
 
 // "ข้อมูลรายสาขา" — head-office view: compare every branch, filter by สาขา / จังหวัด.
 // `initialBranch` pre-picks one branch (from its window in จัดการระบบ › สาขา › "ดูในหน้าข้อมูลรายสาขา").
-// One amount column and one average column per unit in view (19 Oct 2026): "ปริมาณรวม (ดอก)" and
-// "น้ำหนักรวม (กก.)" side by side when a branch ships both, never "1,000 ดอก · 5 กก." in one cell. With no lots
-// yet, `fallback` (the category filter: ดอกไม้ → ดอก, ผลไม้/ผัก → กก.) picks the unit.
-export default function BranchTable({ rows, unit, fallback, initialBranch = "" }: { rows: BranchRow[]; unit: UnitMode; fallback?: AmountUnit; initialBranch?: string }) {
-  const keys = unitColumns(unit, rows.map((r) => r.amounts), fallback);
-  const avg = (r: BranchRow, k: AmountUnit) => (r.amounts[k] ? (r.transportBy[k] ?? 0) / r.amounts[k]! : null); // nothing to divide by → "–"
+// Columns (doc "Logistic", 19 Oct 2026): จังหวัด · สาขา · จำนวนรอบ · CO₂e สินค้าเฉลี่ย/รอบ · CO₂e ขนส่งเฉลี่ย/รอบ ·
+// การปล่อย CO₂e รวม · แนวโน้ม. Per รอบ works for every product, so no ดอก / กก. columns.
+export default function BranchTable({ rows, initialBranch = "" }: { rows: BranchRow[]; initialBranch?: string }) {
+  const perRound = (n: number, r: BranchRow) => (r.rounds ? (n / r.rounds).toFixed(2) : DASH); // no rounds → "–"
   const [branch, setBranch] = useState(initialBranch);
   const [province, setProvince] = useState("");
 
@@ -68,21 +64,21 @@ export default function BranchTable({ rows, unit, fallback, initialBranch = "" }
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className={`tbl w-full ${keys.length > 1 ? "min-w-[980px]" : "min-w-[720px]"} text-sm`}>
+          <table className="tbl w-full min-w-[820px] text-sm">
             <thead>
               <tr className="bg-blue-50 text-left text-slate-600">
                 <th className="px-5 py-3 font-semibold">จังหวัด</th>
                 <th className="px-5 py-3 font-semibold">สาขา</th>
                 <th className="px-5 py-3 text-right font-semibold">จำนวนรอบการจัดส่ง</th>
-                {keys.map((k) => <th key={k} className="px-5 py-3 text-right font-semibold">{amountHead(k)}</th>)}
-                <th className="px-5 py-3 text-right font-semibold">การปล่อย CO₂e ขนส่ง</th>
-                {keys.map((k) => <th key={k} className="px-5 py-3 text-right font-semibold">CO₂e ขนส่งเฉลี่ย/{UNIT[k]}</th>)}
+                <th className="px-5 py-3 text-right font-semibold">CO₂e สินค้าเฉลี่ย/รอบ</th>
+                <th className="px-5 py-3 text-right font-semibold">CO₂e ขนส่งเฉลี่ย/รอบ</th>
+                <th className="px-5 py-3 text-right font-semibold">การปล่อย CO₂e รวม</th>
                 <th className="px-5 py-3 text-right font-semibold">แนวโน้ม</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={5 + 2 * keys.length} className="px-5 py-10 text-center text-slate-400">ยังไม่มีข้อมูลรายสาขา</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-400">ยังไม่มีข้อมูลรายสาขา</td></tr>
               ) : (
                 filtered.map((r, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
@@ -92,9 +88,9 @@ export default function BranchTable({ rows, unit, fallback, initialBranch = "" }
                       {r.status === "disabled" ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">ปิดการใช้งาน</span> : null}
                     </td>
                     <td className="px-5 py-3 text-right tabular">{r.rounds.toLocaleString()}</td>
-                    {keys.map((k) => <td key={k} className="px-5 py-3 text-right tabular">{fmtAmount(r.amounts[k] ?? 0)}</td>)}
-                    <td className="px-5 py-3 text-right tabular">{r.transportCo2e.toFixed(1)}</td>
-                    {keys.map((k) => { const a = avg(r, k); return <td key={k} className="px-5 py-3 text-right tabular">{a == null ? DASH : a.toFixed(4)}</td>; })}
+                    <td className="px-5 py-3 text-right tabular">{perRound(r.productCo2e, r)}</td>
+                    <td className="px-5 py-3 text-right tabular">{perRound(r.transportCo2e, r)}</td>
+                    <td className="px-5 py-3 text-right tabular">{r.totalCo2e.toFixed(1)}</td>
                     <td className="px-5 py-3 text-right tabular">
                       {r.trend == null ? (
                         <span className="text-slate-300">–</span>

@@ -29,7 +29,7 @@ export default async function LogisticBranchesPage({ searchParams }: { searchPar
         </p>
         {mixed ? <div className="mt-3"><CategoryFilter value={cat} basePath="/logistic/branches" accent="blue" /></div> : null}
       </div>
-      <BranchTable {...branchRows(lots, branches)} fallback={cat === "flower" ? "stem" : cat === "all" ? undefined : "kg"} initialBranch={branches.find((b) => b.id === sp.b)?.name} />
+      <BranchTable rows={branchRows(lots, branches)} initialBranch={branches.find((b) => b.id === sp.b)?.name} />
     </div>
   );
 }

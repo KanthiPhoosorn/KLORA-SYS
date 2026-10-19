@@ -92,7 +92,7 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
   const rows = [...computed].sort((a, b) => b.id.localeCompare(a.id));
 
   // Branch comparison (ข้อมูลรายสาขา) — the head office's company view only
-  const perBranch = access.hq && !viewing ? branchRows(computed, orgBranches) : { rows: [] as BranchRow[], unit: null };
+  const perBranch: BranchRow[] = access.hq && !viewing ? branchRows(computed, orgBranches) : [];
 
   const Tile = ({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) => (
     <div className="rounded-xl bg-white/80 p-4">
@@ -247,10 +247,10 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
       <RatingsCard ratings={(await getRatings()).filter((r) => lotIds.has(r.batchId))} show="transport" />
 
       {/* ข้อมูลรายสาขา (head-office view) */}
-      {perBranch.rows.length ? (
+      {perBranch.length ? (
         <div className="space-y-3 pt-2">
           <h2 className="text-lg font-bold text-slate-800">รายละเอียดสาขา</h2>
-          <BranchTable {...perBranch} fallback={cat === "flower" ? "stem" : cat === "all" ? undefined : "kg"} />
+          <BranchTable rows={perBranch} />
         </div>
       ) : null}
     </div>

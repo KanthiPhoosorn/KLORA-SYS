@@ -136,14 +136,20 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     log("another company cannot print it; the branch can", (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, bCookie)).status === 403 && (await api("/api/prints", "POST", { supplierId: farmId, batchId: lot }, cCookie)).status === 201);
     const branches = await page("/logistic/branches", aCookie);
     log("ข้อมูลรายสาขา: active branches, linking to each dashboard under ข้อมูลรายสาขา", branches.text.includes("สาขาเชียงราย QA") && branches.text.includes(`/logistic/branches/${cUser.branch_id}`) && !branches.text.includes("สาขาแม่สาย QA"));
-    log("ข้อมูลรายสาขา columns follow the unit: น้ำหนักรวม (กก.), CO₂e ขนส่งเฉลี่ย/กก. (fruit only here)", branches.text.includes("น้ำหนักรวม (กก.)") && branches.text.includes("CO₂e ขนส่งเฉลี่ย/กก.") && !branches.text.includes("ดอกไม้รวม"));
+    // ข้อมูลรายสาขา columns (doc "Logistic", 19 Oct 2026): no ดอก / กก. amounts; CO₂e สินค้า and ขนส่ง each per รอบ
+    const COLS = ["จังหวัด", "สาขา", "จำนวนรอบการจัดส่ง", "CO₂e สินค้าเฉลี่ย/รอบ", "CO₂e ขนส่งเฉลี่ย/รอบ", "การปล่อย CO₂e รวม", "แนวโน้ม"];
+    const heads = (t: string) => [...t.matchAll(/<th[^>]*>([^<]*)<\/th>/g)].map((m) => m[1]);
+    log("ข้อมูลรายสาขา columns: จังหวัด · สาขา · รอบ · CO₂e สินค้าเฉลี่ย/รอบ · CO₂e ขนส่งเฉลี่ย/รอบ · CO₂e รวม · แนวโน้ม", JSON.stringify(heads(branches.text)) === JSON.stringify(COLS), heads(branches.text).join(","));
     const [bd] = await sql`SELECT carbon_breakdown, co2e_per_flower FROM batches WHERE id = ${lot}`;
-    const perKg = (Number(bd.carbon_breakdown?.transport ?? 0) / 40).toFixed(4);
-    log("CO₂e ขนส่งเฉลี่ย is transport only (transport ÷ 40 กก.), on ข้อมูลรายสาขา and the branch's own overview", perKg !== Number(bd.co2e_per_flower).toFixed(4) && branches.text.includes(`>${perKg}<`) && (await page("/logistic", cCookie)).text.includes(`>${perKg}<`), perKg);
-    // a branch that ships flowers too: one column pair per unit, never "1,000 ดอก · 5 กก." in one cell
+    const tr = Number(bd.carbon_breakdown?.transport ?? 0), all = Number(bd.co2e_per_flower) * 40;
+    const want = [(all - tr).toFixed(2), tr.toFixed(2), all.toFixed(1)]; // the branch has this one lot
+    log("…its figures: สินค้า = CO₂e minus transport, ขนส่ง = transport, each ÷ 1 รอบ; รวม = all", want.every((v) => branches.text.includes(`>${v}<`)), want.join(" / "));
+    const perKg = (tr / 40).toFixed(4);
+    log("the branch's own overview card stays transport per กก. (CO₂e ขนส่งเฉลี่ย/กก.)", (await page("/logistic", cCookie)).text.includes(`>${perKg}<`), perKg);
+    // flowers and fruit in one branch: the same seven columns, no unit columns
     const fl = await api("/api/batches", "POST", { ...round, productCategory: "flower", productType: "กุหลาบ", variety: "แดง", unit: "stem", quantity: 100, flowerCount: 100, pieceCount: undefined, pieceUnit: undefined, branchId: cUser.branch_id }, fCookie);
     const both = await page("/logistic/branches", aCookie);
-    log("ดอกไม้ + ผลไม้: ปริมาณรวม (ดอก) and น้ำหนักรวม (กก.) side by side, each with its own average", fl.status === 201 && both.text.includes("ปริมาณรวม (ดอก)") && both.text.includes("น้ำหนักรวม (กก.)") && both.text.includes("CO₂e ขนส่งเฉลี่ย/ดอก") && both.text.includes("CO₂e ขนส่งเฉลี่ย/กก.") && !both.text.includes("ดอก · ") && both.text.includes(`>${perKg}<`), String(fl.status));
+    log("ดอกไม้ + ผลไม้ in one branch: still the seven columns, nothing in ดอก / กก.", fl.status === 201 && JSON.stringify(heads(both.text)) === JSON.stringify(COLS) && !both.text.includes("ปริมาณรวม") && !both.text.includes("น้ำหนักรวม"), String(fl.status));
     const incoming = await page("/logistic/incoming", cCookie);
     log("รายการรับเข้า: อายุหลังเก็บเกี่ยว / จำนวนรับเข้า / จำนวนคงเหลือ, the fruit lot in กก. (not 0)", incoming.text.includes("อายุหลังเก็บเกี่ยว (วัน)") && incoming.text.includes("จำนวนรับเข้า") && incoming.text.includes("จำนวนคงเหลือ") && !incoming.text.includes("จำนวนดอกไม้รับเข้า") && incoming.text.includes("40 กก."));
     const dash = await page(`/logistic/branches/${cUser.branch_id}`, aCookie);
