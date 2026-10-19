@@ -48,7 +48,6 @@ export default async function LogisticHistoryPage({ searchParams }: { searchPara
         batchId: b.id,
         supplierId: b.supplierId,
         shipDateIso: b.shipDate ?? b.entryDate,
-        cutDateIso: b.cutDate,
         flowerCount: b.flowerCount,
         quantity: quantityLabel(b),
         destination: b.destination ?? "–",

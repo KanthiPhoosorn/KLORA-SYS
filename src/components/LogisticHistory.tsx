@@ -19,7 +19,6 @@ export interface ShipRow {
   batchId: string;
   supplierId: string;
   shipDateIso: string; // YYYY-MM-DD
-  cutDateIso: string; // YYYY-MM-DD
   flowerCount: number;
   quantity?: string;
   destination: string;
@@ -85,7 +84,6 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
   // ---- shipment-history filters ----
   const [sDest, setSDest] = useState("");
   const [sShip, setSShip] = useState("");
-  const [sCut, setSCut] = useState("");
   const [sState, setSState] = useState("");
   const destinations = useMemo(() => [...new Set(shipRows.map((r) => r.destination).filter((d) => d && d !== "–"))], [shipRows]);
   const filteredShips = useMemo(
@@ -93,11 +91,10 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
       shipRows.filter((r) => {
         if (sDest && r.destination !== sDest) return false;
         if (sShip && r.shipDateIso !== sShip) return false;
-        if (sCut && r.cutDateIso !== sCut) return false;
         if (sState && r.state !== sState) return false;
         return true;
       }),
-    [shipRows, sDest, sShip, sCut, sState],
+    [shipRows, sDest, sShip, sState],
   );
 
   // ---- cancel a mistaken print ----
@@ -182,7 +179,8 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
       {/* ===== ประวัติการจัดส่ง ===== */}
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-slate-900">ประวัติการจัดส่ง</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* no วันที่ตัดดอกไม้ filter (doc "Logistic", 19 Oct 2026): lots are fruit and vegetables too */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <label className={labelCls}>ปลายทาง</label>
             <select value={sDest} onChange={(e) => setSDest(e.target.value)} className={inputCls}>
@@ -191,7 +189,6 @@ export default function LogisticHistory({ printRows, shipRows }: { printRows: Pr
             </select>
           </div>
           <div><label className={labelCls}>วันที่จัดส่ง</label><DateField value={sShip} onChange={setSShip} className={inputCls} /></div>
-          <div><label className={labelCls}>วันที่ตัดดอกไม้</label><DateField value={sCut} onChange={setSCut} className={inputCls} /></div>
           <div>
             <label className={labelCls}>สถานะ</label>
             <select value={sState} onChange={(e) => setSState(e.target.value)} className={inputCls}>

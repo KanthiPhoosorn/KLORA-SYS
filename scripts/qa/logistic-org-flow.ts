@@ -150,6 +150,8 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     const fl = await api("/api/batches", "POST", { ...round, productCategory: "flower", productType: "กุหลาบ", variety: "แดง", unit: "stem", quantity: 100, flowerCount: 100, pieceCount: undefined, pieceUnit: undefined, branchId: cUser.branch_id }, fCookie);
     const both = await page("/logistic/branches", aCookie);
     log("ดอกไม้ + ผลไม้ in one branch: still the seven columns, nothing in ดอก / กก.", fl.status === 201 && JSON.stringify(heads(both.text)) === JSON.stringify(COLS) && !both.text.includes("ปริมาณรวม") && !both.text.includes("น้ำหนักรวม"), String(fl.status));
+    const hist = await page("/logistic/history", cCookie);
+    log("ประวัติ filters: no วันที่ตัดดอกไม้ (ปลายทาง · วันที่จัดส่ง · สถานะ)", hist.status === 200 && !hist.text.includes("วันที่ตัดดอกไม้") && hist.text.includes("วันที่จัดส่ง"));
     const incoming = await page("/logistic/incoming", cCookie);
     log("รายการรับเข้า: อายุหลังเก็บเกี่ยว / จำนวนรับเข้า / จำนวนคงเหลือ, the fruit lot in กก. (not 0)", incoming.text.includes("อายุหลังเก็บเกี่ยว (วัน)") && incoming.text.includes("จำนวนรับเข้า") && incoming.text.includes("จำนวนคงเหลือ") && !incoming.text.includes("จำนวนดอกไม้รับเข้า") && incoming.text.includes("40 กก."));
     const dash = await page(`/logistic/branches/${cUser.branch_id}`, aCookie);
