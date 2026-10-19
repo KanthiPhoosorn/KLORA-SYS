@@ -32,6 +32,17 @@ export function amountText(a: Partial<Record<AmountUnit, number>>, mode: UnitMod
 export const modeFor = (m: UnitMode, cat?: string): Exclude<UnitMode, null> => m ?? (cat === "fruit" || cat === "vegetable" ? "kg" : "stem");
 /** "ดอก" / "กก." / "รอบ" (mixed) / "หน่วย" (no lots) — what an average is per. */
 export const perLabel = (mode: UnitMode) => (mode === "mixed" ? "รอบ" : mode ? AMOUNT_UNIT[mode] : "หน่วย");
+/** A lot's transport CO₂e (road, plus the air leg the engine already adds into it). */
+export const transportOf = (b: Pick<Batch, "carbonBreakdown">) => b.carbonBreakdown?.transport ?? 0;
+/** "CO₂e ขนส่งเฉลี่ย" (doc "Logistic", 19 Oct 2026: transport only): total transport ÷ the total amount in the one
+ *  unit shown, or ÷ รอบ when units mix. null = nothing to divide by. */
+export function avgTransport(lots: Batch[], mode: UnitMode): number | null {
+  if (!lots.length || !mode) return null;
+  const t = lots.reduce((n, b) => n + transportOf(b), 0);
+  if (mode === "mixed") return t / lots.length;
+  const a = amountsOf(lots)[mode] ?? 0;
+  return a > 0 ? t / a : null;
+}
 /** Average CO₂e: per unit (mean of each lot's per-unit figure) or, with mixed units, per รอบ. null = no lots. */
 export function avgCo2e(lots: Batch[], mode: UnitMode): number | null {
   if (!lots.length) return null;

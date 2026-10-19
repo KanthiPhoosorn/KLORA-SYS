@@ -12,7 +12,8 @@ import { Printer, Search, MapPin, Truck, Package, Cloud, Boxes, Snowflake, Globe
 import type { Supplier, Batch, User, LogisticBranch } from "@/lib/types";
 import CategoryFilter, { type CategoryFilterValue as Cat } from "@/components/CategoryFilter";
 import { categoryOf } from "@/lib/produce";
-import { batchCo2e, unitsOf, perUnitLabel } from "@/lib/produce";
+import { batchCo2e, unitsOf } from "@/lib/produce";
+import { avgTransport, modeFor, perLabel, unitMode } from "@/lib/amounts";
 
 const nfmt = (n: number) => n.toLocaleString("en-US");
 const vehLabel = (k?: string) => (k && VEHICLE_PROFILE[k]?.label) || "–";
@@ -47,10 +48,10 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
   // Averages and percentages: nothing to divide by → "–" (doc "Logistic", 18 Oct 2026), never 0.0000 / 0% / 100%
   const totalFlowers = perShipment ? computed.length : computed.reduce((n, b) => n + unitsOf(b), 0);
   const totalCo2e = computed.reduce((n, b) => n + batchCo2e(b), 0);
-  const avgCo2e = computed.length
-    ? perShipment ? totalCo2e / computed.length : computed.reduce((n, b) => n + b.co2ePerFlower, 0) / computed.length
-    : null;
-  const avgLabel = perShipment ? "CO₂e เฉลี่ย/รอบ" : `CO₂e ขนส่งเฉลี่ย${computed[0] ? perUnitLabel(computed[0]).replace("ต่อ", "/") : "/ดอก"}`;
+  // CO₂e ขนส่งเฉลี่ย = transport only (doc "Logistic", 19 Oct 2026), per the unit shown or per รอบ when units mix
+  const mode = unitMode(computed);
+  const avgCo2e = avgTransport(computed, mode);
+  const avgLabel = `CO₂e ขนส่งเฉลี่ย/${perLabel(modeFor(mode, cat))}`;
   const reeferPct = computed.length ? Math.round((computed.filter((b) => b.isReeferUsed).length / computed.length) * 100) : null;
   // ต่างประเทศ = ส่งผ่าน "ผู้ส่งออก"; ที่เหลือคือในประเทศ — shares of the CO₂e, as the card says
   const intlCo2e = computed.filter((b) => (b.carrier ?? "").includes("ส่งออก")).reduce((n, b) => n + batchCo2e(b), 0);
@@ -135,7 +136,7 @@ export default async function LogisticDashboard({ user, cat, viewing }: { user: 
         <MetricCard label="จำนวนรอบการจัดส่ง" value={computed.length} unit="รอบ" tone="blue" icon={<Truck size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard label={perShipment ? "จำนวนรอบที่รับเข้า" : unitLabel === "ดอก" ? "จำนวนดอกทั้งหมด" : "น้ำหนักสินค้าทั้งหมด"} value={nfmt(Math.round(totalFlowers))} unit={unitLabel} tone="green" icon={<Package size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard label="การปล่อย CO₂e รวม" value={totalCo2e.toFixed(1)} unit="กิโลกรัม" tone="blue" icon={<Cloud size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
-        <MetricCard label={avgLabel} value={avgCo2e == null ? DASH : avgCo2e.toFixed(perShipment ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="blue" icon={<Boxes size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
+        <MetricCard label={avgLabel} value={avgCo2e == null ? DASH : avgCo2e.toFixed(mode === "mixed" ? 2 : 4)} unit={avgCo2e == null ? undefined : "กิโลกรัม"} tone="blue" icon={<Boxes size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard label="การใช้ตู้เย็นหรือห้องเย็น" value={reeferPct == null ? DASH : `${reeferPct}`} unit={reeferPct == null ? undefined : "%"} tone="green" icon={<Snowflake size={20} />} note={`อัปเดตล่าสุด : ${latestDate}`} />
         <MetricCard
           label="สัดส่วนการปล่อย CO₂e ในประเทศ vs ต่างประเทศ"

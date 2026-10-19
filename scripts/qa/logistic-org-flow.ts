@@ -137,6 +137,9 @@ const redirected = (p: { status: number; text: string }) => p.status === 307 || 
     const branches = await page("/logistic/branches", aCookie);
     log("ข้อมูลรายสาขา: active branches, linking to each dashboard under ข้อมูลรายสาขา", branches.text.includes("สาขาเชียงราย QA") && branches.text.includes(`/logistic/branches/${cUser.branch_id}`) && !branches.text.includes("สาขาแม่สาย QA"));
     log("ข้อมูลรายสาขา columns follow the unit: น้ำหนักรวม (กก.), CO₂e ขนส่งเฉลี่ย/กก. (fruit only here)", branches.text.includes("น้ำหนักรวม (กก.)") && branches.text.includes("CO₂e ขนส่งเฉลี่ย/กก.") && !branches.text.includes("ดอกไม้รวม"));
+    const [bd] = await sql`SELECT carbon_breakdown, co2e_per_flower FROM batches WHERE id = ${lot}`;
+    const perKg = (Number(bd.carbon_breakdown?.transport ?? 0) / 40).toFixed(4);
+    log("CO₂e ขนส่งเฉลี่ย is transport only (transport ÷ 40 กก.), on ข้อมูลรายสาขา and the branch's own overview", perKg !== Number(bd.co2e_per_flower).toFixed(4) && branches.text.includes(`>${perKg}<`) && (await page("/logistic", cCookie)).text.includes(`>${perKg}<`), perKg);
     const incoming = await page("/logistic/incoming", cCookie);
     log("รายการรับเข้า: อายุหลังเก็บเกี่ยว / จำนวนรับเข้า / จำนวนคงเหลือ, the fruit lot in กก. (not 0)", incoming.text.includes("อายุหลังเก็บเกี่ยว (วัน)") && incoming.text.includes("จำนวนรับเข้า") && incoming.text.includes("จำนวนคงเหลือ") && !incoming.text.includes("จำนวนดอกไม้รับเข้า") && incoming.text.includes("40 กก."));
     const dash = await page(`/logistic/branches/${cUser.branch_id}`, aCookie);

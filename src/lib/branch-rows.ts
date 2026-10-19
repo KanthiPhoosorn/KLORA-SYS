@@ -8,8 +8,7 @@
 // per รอบ, as on the dashboards.
 import type { Batch, LogisticBranch } from "./types";
 import type { BranchRow } from "@/components/BranchTable";
-import { batchCo2e } from "./produce";
-import { amountsOf, unitMode, type UnitMode } from "./amounts";
+import { amountsOf, unitMode, transportOf, type UnitMode } from "./amounts";
 
 /** The rows, and the one unit they are counted in (`"mixed"` when the lots use several, null with no lots). */
 export function branchRows(lots: Batch[], branches: LogisticBranch[]): { rows: BranchRow[]; unit: UnitMode } {
@@ -21,7 +20,7 @@ export function branchRows(lots: Batch[], branches: LogisticBranch[]): { rows: B
     .map((b): BranchRow => {
       const list = byBranch.get(b.id) ?? [];
       const amounts = amountsOf(list);
-      const co2e = list.reduce((n, l) => n + batchCo2e(l), 0);
+      const transport = list.reduce((n, l) => n + transportOf(l), 0);
       const per = unit === "mixed" ? list.length : unit ? amounts[unit] ?? 0 : 0;
       return {
         id: b.id,
@@ -31,8 +30,8 @@ export function branchRows(lots: Batch[], branches: LogisticBranch[]): { rows: B
         status: b.status,
         rounds: list.length,
         amounts,
-        transportCo2e: list.reduce((n, l) => n + (l.carbonBreakdown?.transport ?? 0), 0),
-        avg: per > 0 ? co2e / per : null, // nothing to divide by → "–"
+        transportCo2e: transport,
+        avg: per > 0 ? transport / per : null, // transport CO₂e per unit; nothing to divide by → "–"
         trend: null,
       };
     })
