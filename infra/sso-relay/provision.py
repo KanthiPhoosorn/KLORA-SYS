@@ -60,17 +60,34 @@ def tags(kind):
     return [{"ResourceType": kind, "Tags": [{"Key": "Name", "Value": NAME}, {"Key": "project", "Value": "corta"}]}]
 
 
+def dry_run_ok(call, **kw):
+    """True when AWS says the call WOULD succeed (DryRunOperation); nothing is created or billed."""
+    try:
+        call(DryRun=True, **kw)
+    except botocore.exceptions.ClientError as e:
+        if e.response["Error"]["Code"] == "DryRunOperation":
+            return True
+        say(f"  refused: {e.response['Error']['Code']}: {e.response['Error']['Message'][:160]}")
+        return False
+    return True
+
+
 def main():
-    s = load_state()
-    session = boto3.session.Session(region_name=REGION)
+    # --check: prove everything would work without creating anything (no cost)
+    # --profile NAME: the `aws login` profile (default: AWS_PROFILE, else "corta")
+    args = sys.argv[1:]
+    check = "--check" in args
+    profile = args[args.index("--profile") + 1] if "--profile" in args else os.environ.get("AWS_PROFILE", "corta")
+    s = {} if check else load_state()
+    session = boto3.session.Session(profile_name=profile, region_name=REGION)
     try:
         # the global STS endpoint answers even before the Thailand region is enabled
-        who = boto3.session.Session(region_name="us-east-1").client("sts").get_caller_identity()
-    except botocore.exceptions.NoCredentialsError:
-        sys.exit("No AWS credentials. Run: D:\\Installers\\awscli-venv\\Scripts\\aws.cmd configure")
+        who = boto3.session.Session(profile_name=profile, region_name="us-east-1").client("sts").get_caller_identity()
+    except (botocore.exceptions.NoCredentialsError, botocore.exceptions.ProfileNotFound):
+        sys.exit(f"No AWS login for profile '{profile}'. Run: aws login --profile {profile}")
     except botocore.exceptions.ClientError as e:
-        sys.exit(f"AWS refused the credentials ({e.response['Error']['Code']}). Check the access key in aws configure.")
-    say(f"AWS account {who['Account']}, region {REGION}")
+        sys.exit(f"AWS refused the login ({e.response['Error']['Code']}). Run: aws login --profile {profile}")
+    say(f"AWS account {who['Account']}, profile {profile}, region {REGION}")
     ec2 = session.client("ec2")
     try:
         ec2.describe_availability_zones()
@@ -86,11 +103,20 @@ def main():
         if not pick:
             sys.exit(f"None of {TYPES} is offered in {REGION}")
         s["instance_type"] = pick
-        save_state(s)
+        if not check:
+            save_state(s)
     arch = "arm64" if s["instance_type"].startswith("t4g") else "x86_64"
     ami = session.client("ssm").get_parameter(
         Name=f"/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-{arch}")["Parameter"]["Value"]
     say(f"instance type {s['instance_type']}, image {ami}")
+
+    if check:
+        server = dry_run_ok(ec2.run_instances, ImageId=ami, InstanceType=s["instance_type"], MinCount=1, MaxCount=1,
+                            CreditSpecification={"CpuCredits": "standard"})
+        ip = dry_run_ok(ec2.allocate_address, Domain="vpc")
+        say(f"dry run: server {'would be created' if server else 'NOT allowed'}, "
+            f"fixed IP {'would be allocated' if ip else 'NOT allowed'}. Nothing was created and nothing is billed.")
+        sys.exit(0 if server and ip else 1)
 
     # network: default VPC
     vpcs = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])["Vpcs"]

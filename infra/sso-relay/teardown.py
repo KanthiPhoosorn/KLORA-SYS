@@ -5,6 +5,7 @@
 The fixed IP is released, so a new relay gets a NEW IP that Thai Post would have to register again.
 """
 import json
+import os
 import pathlib
 import sys
 
@@ -28,7 +29,9 @@ def main():
     if not STATE.exists():
         sys.exit("nothing to remove (no local/state.json)")
     s = json.loads(STATE.read_text(encoding="utf-8"))
-    ec2 = boto3.session.Session(region_name=REGION).client("ec2")
+    args = sys.argv[1:]
+    profile = args[args.index("--profile") + 1] if "--profile" in args else os.environ.get("AWS_PROFILE", "corta")
+    ec2 = boto3.session.Session(profile_name=profile, region_name=REGION).client("ec2")
     if s.get("instance_id"):
         print(f"terminating {s['instance_id']}")
         gone(ec2.terminate_instances, InstanceIds=[s["instance_id"]])
