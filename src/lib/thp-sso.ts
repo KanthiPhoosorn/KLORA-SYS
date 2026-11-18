@@ -45,6 +45,8 @@ const MSG_DOWN = "ระบบของไปรษณีย์ไทยขั�
 export class SsoError extends Error {
   code: string;
   status: number;
+  /** the gateway's own words when the answer is not in Thai Post's error format (never contains tokens) */
+  detail?: string;
   constructor(code: string, status: number, message: string) {
     super(message);
     this.name = "SsoError";
@@ -81,7 +83,7 @@ function failure(code: string, status: number): SsoError {
   return err(MSG_DOWN);
 }
 
-async function call(path: string, init: RequestInit): Promise<{ status: number; body: unknown }> {
+async function call(path: string, init: RequestInit): Promise<{ status: number; body: unknown; text: string }> {
   const c = cfg();
   try {
     const r = await fetch(`${c.base}${path}`, {
@@ -90,12 +92,24 @@ async function call(path: string, init: RequestInit): Promise<{ status: number; 
       signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
       headers: { Accept: "application/json", "Accept-Language": "th", ...(init.headers as Record<string, string> | undefined) },
     });
-    const body = await r.json().catch(() => null);
-    return { status: r.status, body };
+    const text = await r.text().catch(() => "");
+    let body: unknown = null;
+    try { body = JSON.parse(text); } catch { /* not JSON, e.g. a gateway page */ }
+    return { status: r.status, body, text };
   } catch {
     // network error or timeout: nothing from the request or response is kept
     throw new SsoError("network", 502, MSG_DOWN);
   }
+}
+
+/** When an answer has no Thai Post error code (a gateway rule, a proxy page), keep its message so the cause can be
+ *  seen: the body's "message" or the start of its text, with anything token-like removed. */
+function withDetail(err: SsoError, res: { body: unknown; text: string }): SsoError {
+  if (codeOf(res.body)) return err;
+  const m = (res.body as { message?: unknown } | null)?.message;
+  const raw = typeof m === "string" ? m : res.text.replace(/<[^>]*>/g, " ");
+  err.detail = raw.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]*/g, "[jwt]").replace(/[0-9a-fA-F]{32,}/g, "[hex]").replace(/\s+/g, " ").trim().slice(0, 200);
+  return err;
 }
 
 /** Handoff → SSO token → profile. Returns only the name (possibly absent). Throws SsoError. */
@@ -111,12 +125,12 @@ export async function redeemHandoff(handoff: string): Promise<{ name?: string }>
   });
   const token = (tok.body as { data?: { token?: unknown } } | null)?.data?.token;
   if (tok.status !== 200 || typeof token !== "string" || !token) {
-    throw failure(tok.status === 200 ? "" : codeOf(tok.body), tok.status === 200 ? 502 : tok.status);
+    throw withDetail(failure(tok.status === 200 ? "" : codeOf(tok.body), tok.status === 200 ? 502 : tok.status), tok);
   }
 
   const prof = await call("/v1/sso/profile", { method: "GET", headers: { Authorization: `Bearer ${token}` } });
   if (prof.status === 404 && codeOf(prof.body) === "004004") return {}; // no Post Family data: sign in without a name
-  if (prof.status !== 200) throw failure(codeOf(prof.body), prof.status);
+  if (prof.status !== 200) throw withDetail(failure(codeOf(prof.body), prof.status), prof);
   const raw = (prof.body as { data?: { name?: unknown } } | null)?.data?.name;
   const name = typeof raw === "string" ? raw.trim().slice(0, 80) : "";
   return name ? { name } : {};

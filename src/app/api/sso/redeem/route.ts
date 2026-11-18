@@ -31,7 +31,10 @@ export async function POST(req: Request) {
     if (e instanceof SsoError) {
       console.warn(`[sso] redeem failed code=${e.code} status=${e.status}`);
       const status = [400, 401, 403, 429].includes(e.status) ? e.status : e.status === 503 ? 503 : 502;
-      return json({ error: e.message, code: e.code }, status);
+      // the gateway's message helps while testing on UAT; production never shows it
+      if (e.detail) console.warn(`[sso] gateway said: ${e.detail}`);
+      const uat = /-uat\./.test(process.env.THP_SSO_BASE_URL ?? "");
+      return json({ error: e.message, code: e.code, ...(uat && e.detail ? { detail: e.detail } : {}) }, status);
     }
     console.warn("[sso] redeem failed: unexpected");
     return json({ error: "ระบบของไปรษณีย์ไทยขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง", code: "internal" }, 502);
