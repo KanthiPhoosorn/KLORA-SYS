@@ -132,8 +132,10 @@ def main():
 
     # the server
     if "instance_id" not in s:
-        user_data = ((HERE / "user-data.sh").read_text(encoding="utf-8")
-                     .replace("__CADDYFILE__", (HERE / "Caddyfile").read_text(encoding="utf-8").strip())
+        # Linux line endings whatever git did on this Windows checkout (a CR would break the bash script)
+        lf = lambda p: (HERE / p).read_text(encoding="utf-8").replace("\r\n", "\n")
+        user_data = (lf("user-data.sh")
+                     .replace("__CADDYFILE__", lf("Caddyfile").strip())
                      .replace("__CADDY_VERSION__", CADDY_VERSION)
                      .replace("__RELAY_HOST__", s["host"])
                      .replace("__RELAY_KEY__", s["relay_key"]))

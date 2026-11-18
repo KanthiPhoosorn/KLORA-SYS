@@ -1,0 +1,3 @@
+# the relay files run on Linux
+infra/sso-relay/*.sh text eol=lf
+infra/sso-relay/Caddyfile text eol=lf
