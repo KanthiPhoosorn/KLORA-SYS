@@ -11,9 +11,11 @@ const MEMBER_MAX_AGE_S = 60 * 60 * 8; // 8 hours
 const CALL_TIMEOUT_MS = 10_000;
 
 const cfg = () => ({
-  base: (process.env.THP_SSO_BASE_URL || "").replace(/\/+$/, ""),
-  clientId: process.env.THP_SSO_CLIENT_ID || "",
-  secret: process.env.THP_SSO_CLIENT_SECRET || "",
+  // trimmed: a value pasted into Vercel can carry a stray space or line break
+  base: (process.env.THP_SSO_BASE_URL || "").trim().replace(/\/+$/, ""),
+  clientId: (process.env.THP_SSO_CLIENT_ID || "").trim(),
+  secret: (process.env.THP_SSO_CLIENT_SECRET || "").trim(),
+  relayKey: (process.env.THP_SSO_RELAY_KEY || "").trim(),
 });
 
 /** True when the three SSO settings exist. */
@@ -99,7 +101,14 @@ async function call(path: string, init: RequestInit): Promise<{ status: number; 
       ...init,
       cache: "no-store",
       signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-      headers: { Accept: "application/json", "Accept-Language": "th", ...(init.headers as Record<string, string> | undefined) },
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "th",
+        // Thai Post only accepts Thai IPs, so production calls go through our relay with a fixed Thai IP
+        // (infra/sso-relay); the relay refuses anything without this key and strips it before forwarding
+        ...(c.relayKey ? { "X-Relay-Key": c.relayKey } : {}),
+        ...(init.headers as Record<string, string> | undefined),
+      },
     });
     const text = await r.text().catch(() => "");
     let body: unknown = null;

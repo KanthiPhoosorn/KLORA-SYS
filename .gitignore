@@ -48,3 +48,6 @@ CREDENTIALS.local.txt
 .env*
 scripts/qa/*.json
 scripts/qa/*.png
+
+# SSO relay: ssh key, relay key and AWS ids (local only)
+infra/sso-relay/local/

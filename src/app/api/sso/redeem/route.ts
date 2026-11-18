@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       const status = [400, 401, 403, 429].includes(e.status) ? e.status : e.status === 503 ? 503 : 502;
       // the gateway's message helps while testing on UAT; production never shows it
       if (e.detail) console.warn(`[sso] gateway said: ${e.detail}`);
-      const uat = /-uat\./.test(process.env.THP_SSO_BASE_URL ?? "");
+      const uat = /-uat\.|\/uat\//.test(process.env.THP_SSO_BASE_URL ?? ""); // direct UAT host, or the relay's /uat/ path
       return json({ error: e.message, code: e.code, ...(uat && e.detail ? { detail: `${e.detail} [${ssoFingerprint()}]` } : {}) }, status);
     }
     console.warn("[sso] redeem failed: unexpected");

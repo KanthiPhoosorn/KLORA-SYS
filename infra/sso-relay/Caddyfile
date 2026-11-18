@@ -1,0 +1,44 @@
+# Corta SSO relay: a fixed Thai IP in front of the Thai Post SuperApp SSO API (Thai Post only accepts Thai IPs).
+# It forwards exactly two calls, only when the request carries the relay key, and keeps no access log
+# (the profile call carries a member's bearer token). RELAY_HOST and RELAY_KEY come from /etc/caddy/env.
+#   /uat/ms-commons/v1/sso/...  -> https://api-superapp-uat.thailandpost.co.th/ms-commons/v1/sso/...
+#   /prod/ms-commons/v1/sso/... -> https://api-superapp.thailandpost.co.th/ms-commons/v1/sso/...
+# Everything sits in one `route`, so it runs in the order written. A refusal from the relay itself is an empty
+# 404 with the header X-Relay: refused, which tells it apart from anything Thai Post sends back.
+
+{$RELAY_HOST} {
+	route {
+		respond /health "ok" 200
+
+		@nokey not header X-Relay-Key {$RELAY_KEY}
+		header @nokey X-Relay refused
+		respond @nokey 404
+
+		@uat path /uat/ms-commons/v1/sso/oauth/token /uat/ms-commons/v1/sso/profile
+		handle @uat {
+			uri strip_prefix /uat
+			reverse_proxy https://api-superapp-uat.thailandpost.co.th {
+				header_up Host {upstream_hostport}
+				header_up -X-Relay-Key
+				header_up -X-Forwarded-For
+				header_up -X-Forwarded-Host
+				header_up -X-Forwarded-Proto
+			}
+		}
+
+		@prod path /prod/ms-commons/v1/sso/oauth/token /prod/ms-commons/v1/sso/profile
+		handle @prod {
+			uri strip_prefix /prod
+			reverse_proxy https://api-superapp.thailandpost.co.th {
+				header_up Host {upstream_hostport}
+				header_up -X-Relay-Key
+				header_up -X-Forwarded-For
+				header_up -X-Forwarded-Host
+				header_up -X-Forwarded-Proto
+			}
+		}
+
+		header X-Relay refused
+		respond 404
+	}
+}
