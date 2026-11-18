@@ -523,6 +523,15 @@ export async function getBatch(id: string): Promise<Batch | null> {
   return r[0] ? clean<Batch>(r[0]) : null;
 }
 
+/** An active lot by its tracking number (exact, case-insensitive); cancelled lots are ignored. */
+export async function getBatchByTracking(no: string): Promise<Batch | null> {
+  const t = no.trim();
+  if (!t) return null;
+  const r = await db.select().from(batches)
+    .where(and(sql`upper(${batches.trackingNo}) = ${t.toUpperCase()}`, isNull(batches.cancelledAt))).limit(1);
+  return r[0] ? clean<Batch>(r[0]) : null;
+}
+
 export async function getBatchesBySupplier(supplierId: string): Promise<Batch[]> {
   const rows = await db.select().from(batches).where(eq(batches.supplierId, supplierId));
   return rows.map((r) => clean<Batch>(r));

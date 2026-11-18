@@ -24,7 +24,7 @@ function mint(userId: string) {
 }
 
 const PUBLIC = ["/", "/login", "/register", "/forgot", "/logistic/login", "/logistic/register", "/kyn/login",
-  `/trace/${BATCH || "B-NOPE"}`, ...(BATCH ? [`/t/${BATCH}`] : []), ...(LEGACY ? [`/trace/${LEGACY}`] : []), "/trace/DOES-NOT-EXIST"];
+  `/trace/${BATCH || "B-NOPE"}`, ...(BATCH ? [`/t/${BATCH}`] : []), ...(LEGACY ? [`/trace/${LEGACY}`] : []), "/trace/DOES-NOT-EXIST", "/miniapp", "/miniapp/home"];
 const SUP = ["/app", "/app/dashboard", "/app/farm", "/app/history", "/app/new", "/app/profile", "/app/settings", ...(EDIT ? [`/app/new?edit=${EDIT}`] : [])];
 const LOG = ["/logistic", "/logistic/branches", "/logistic/history", "/logistic/incoming", "/logistic/new",
   "/logistic/profile", "/logistic/scan", "/logistic/search", "/logistic/settings", "/logistic/status", ...(BATCH ? [`/print/labels?ids=${BATCH}`] : [])];

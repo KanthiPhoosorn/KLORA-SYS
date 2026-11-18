@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Camera, CameraOff, CheckCircle2, Loader2, ScanLine } from "lucide-react";
 import { packTime } from "@/lib/pack-photo";
 import { formatThaiDate } from "@/components/DateField";
+import { useQrCamera } from "@/components/useQrCamera";
 
 // สแกนรับของ (9 Nov 2026): the carrier scans (or types) the lot code on the parcel, sees the lot, and confirms
 // receipt with its condition and, optionally, the tracking number. A handheld scanner types the code and presses
@@ -54,45 +55,9 @@ export default function ScanQr({ initialLot = "" }: { initialLot?: string }) {
   // ?lot= opens a lot directly
   useEffect(() => { if (initialLot) void lookup(initialLot); }, [initialLot, lookup]);
 
-  // camera: BarcodeDetector when the browser has it, else jsQR on a canvas frame about every 250 ms
-  useEffect(() => {
-    if (!on) return;
-    let stream: MediaStream | null = null;
-    let timer: ReturnType<typeof setInterval> | undefined;
-    let stopped = false;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
-        const v = videoRef.current;
-        if (!v) return;
-        v.srcObject = stream;
-        const BD = (window as unknown as { BarcodeDetector?: { new (o: { formats: string[] }): { detect: (s: CanvasImageSource) => Promise<{ rawValue: string }[]> }; getSupportedFormats?: () => Promise<string[]> } }).BarcodeDetector;
-        // some browsers ship the detector without QR support, so check before trusting it
-        const qrOk = BD ? await BD.getSupportedFormats?.().then((f) => f.includes("qr_code"), () => false) ?? true : false;
-        const detector = BD && qrOk ? new BD({ formats: ["qr_code"] }) : null;
-        const jsQR = detector ? null : (await import("jsqr")).default;
-        const canvas = document.createElement("canvas");
-        let working = false;
-        timer = setInterval(async () => {
-          if (working || !v.videoWidth) return;
-          working = true;
-          try {
-            let text: string | undefined;
-            if (detector) text = (await detector.detect(v))[0]?.rawValue;
-            else if (jsQR) {
-              canvas.width = v.videoWidth; canvas.height = v.videoHeight;
-              const ctx = canvas.getContext("2d", { willReadFrequently: true });
-              if (ctx) { ctx.drawImage(v, 0, 0); const img = ctx.getImageData(0, 0, canvas.width, canvas.height); text = jsQR(img.data, img.width, img.height)?.data; }
-            }
-            if (text && lotIdOf(text) !== lastCode.current) void lookup(text);
-          } catch { /* a bad frame: try the next one */ }
-          working = false;
-        }, 250);
-      } catch { setCamErr("ไม่สามารถเข้าถึงกล้องได้ กรุณาระบุรหัสล็อตด้วยตนเอง"); setOn(false); }
-    })();
-    return () => { stopped = true; if (timer) clearInterval(timer); stream?.getTracks().forEach((t) => t.stop()); };
-  }, [on, lookup]);
+  // camera: shared hook (BarcodeDetector when the browser has it, else jsQR on a canvas frame about every 250 ms)
+  useQrCamera(on, videoRef, (text) => { if (lotIdOf(text) !== lastCode.current) void lookup(text); },
+    () => { setCamErr("ไม่สามารถเข้าถึงกล้องได้ กรุณาระบุรหัสล็อตด้วยตนเอง"); setOn(false); });
 
   async function confirm() {
     if (!lot) return;
