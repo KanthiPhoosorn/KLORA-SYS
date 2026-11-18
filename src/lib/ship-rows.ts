@@ -20,6 +20,7 @@ export function toShipRows(batches: Batch[], prints: PrintLog[]): ShipRow[] {
       carrier: b.carrier ?? "",
       provider: b.provider, // DHL Express / FedEx / UPS → their own tracking page
       trackingNo: b.trackingNo,
+      trackingBy: b.trackingBy,
       awbNo: b.awbNo,
       weightKg: b.shippedWeightKg,
       status: b.cancelledAt ? "cancelled" : printed.has(b.id) ? "printed" : "wait",

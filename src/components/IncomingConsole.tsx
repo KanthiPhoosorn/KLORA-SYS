@@ -2,6 +2,7 @@
 
 import { PackPhotoBadge } from "@/components/PackPhotos";
 import { packTime, type PackPhoto } from "@/lib/pack-photo";
+import { harvestPhotoFlag } from "@/lib/evidence";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -230,24 +231,32 @@ export default function IncomingConsole({
                 </div>
               </div>
 
-              {/* รูปถ่ายตอนแพ็ก — capture time vs upload time (12 Oct 2026) */}
-              {packPhotos[open.id]?.length ? (
-                <div>
-                  <div className="mb-2 text-[13px] font-semibold text-slate-800">รูปถ่ายตอนแพ็ก</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {packPhotos[open.id].map((p) => (
-                      <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block space-y-1">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.url} alt="รูปถ่ายตอนแพ็ก" className="h-20 w-full rounded-lg object-cover" />
-                        <PackPhotoBadge p={p} />
-                        <span className="block text-[10.5px] leading-tight text-slate-500">
-                          {p.takenAt ? `ถ่าย ${packTime(p.takenAt)} (${p.takenSrc === "exif" ? "จากกล้อง" : "จากไฟล์"})` : "ไม่มีเวลาถ่าย"}<br />อัปโหลด {packTime(p.uploadedAt)}
-                        </span>
-                      </a>
-                    ))}
+              {/* รูปถ่ายตอนเก็บเกี่ยว / ตอนแพ็ก: capture time vs upload time (12 Oct + 9 Nov 2026) */}
+              {(["harvest", "pack"] as const).map((stage) => {
+                const photos = (packPhotos[open.id] ?? []).filter((p) => (p.stage === "harvest") === (stage === "harvest"));
+                if (!photos.length) return null;
+                const label = stage === "harvest" ? "รูปถ่ายตอนเก็บเกี่ยว" : "รูปถ่ายตอนแพ็ก";
+                const flag = stage === "harvest" ? harvestPhotoFlag(open.cutDate, photos) : null;
+                return (
+                  <div key={stage}>
+                    <div className="mb-2 text-[13px] font-semibold text-slate-800">{label}</div>
+                    {flag ? <p className="mb-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-800">{flag === "before" ? "รูปถ่ายก่อนวันที่เก็บเกี่ยวที่ผู้ผลิตแจ้ง" : "รูปถ่ายหลังวันที่เก็บเกี่ยวที่ผู้ผลิตแจ้งหลายวัน"}</p> : null}
+                    <div className="grid grid-cols-3 gap-2">
+                      {photos.map((p) => (
+                        <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="block space-y-1">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.url} alt={label} className="h-20 w-full rounded-lg object-cover" />
+                          <PackPhotoBadge p={p} />
+                          {p.reused && p.reusedIn?.length ? <span className="block text-[10.5px] leading-tight text-amber-700">รูปซ้ำกับล็อต {p.reusedIn.join(", ")}</span> : null}
+                          <span className="block text-[10.5px] leading-tight text-slate-500">
+                            {p.takenAt ? `ถ่าย ${packTime(p.takenAt)} (${p.takenSrc === "exif" ? "จากกล้อง" : "จากไฟล์"})` : "ไม่มีเวลาถ่าย"}<br />อัปโหลด {packTime(p.uploadedAt)}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : null}
+                );
+              })}
 
               {/* กิจกรรมที่นำมาคำนวณ */}
               <div>

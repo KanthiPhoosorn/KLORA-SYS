@@ -18,6 +18,8 @@ export interface IncomingRow {
   remaining: number;
   unit: string; // ดอก / ช่อ / กก. / ตัน
   printId: string | null;
+  overdueDays?: number; // harvested but not handed over past its limit: days since harvest (Bangkok), only when overdue
+  receivedAt?: string; // ISO: the carrier scanned the lot in
 }
 
 const inputCls = "w-full rounded-[8px] border border-gray-300 bg-white px-[14px] py-[10px] text-[13px] text-slate-700 outline-none focus:border-blue-500";
@@ -41,6 +43,7 @@ export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; o
       if (q && !r.supplierId.toLowerCase().includes(q.toLowerCase()) && !r.farmName.toLowerCase().includes(q.toLowerCase())) return false;
       if (status === "instock" && r.remaining === 0) return false;
       if (status === "dispatched" && r.remaining > 0) return false;
+      if (status === "overdue" && r.overdueDays === undefined) return false;
       if (days && r.receivedIso) {
         const t = new Date(r.receivedIso + "T00:00:00").getTime();
         if (Number.isFinite(t) && (now - t) / 86400000 > days) return false;
@@ -78,6 +81,7 @@ export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; o
               <option value="all">ทุกสถานะ</option>
               <option value="instock">ในคลัง</option>
               <option value="dispatched">จัดส่งแล้ว</option>
+              <option value="overdue">ค้างเกินกำหนด</option>
             </select>
           </div>
           <div>
@@ -128,7 +132,11 @@ export default function LogisticIncoming({ rows, org }: { rows: IncomingRow[]; o
               ) : filtered.map((r) => (
                 <tr key={r.id} className="border-b border-slate-100 text-center last:border-0">
                   <td className="px-5 py-4 text-slate-700">{r.receivedDate}</td>
-                  <td className="px-5 py-4 text-slate-700">{r.id}</td>
+                  <td className="px-5 py-4 text-slate-700">
+                    {r.id}
+                    {r.overdueDays !== undefined ? <span className="ml-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-[#ee443f]">ค้าง {r.overdueDays} วัน</span> : null}
+                    {r.receivedAt ? <span className="ml-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">รับของแล้ว</span> : null}
+                  </td>
                   <td className="px-5 py-4 text-slate-700" title={String(r.farmName)}><span className="cell-clip">{r.farmName}</span></td>
                   <td className="px-5 py-4 tabular text-slate-700">{r.ageDays}</td>
                   <td className="px-5 py-4 tabular text-slate-700">{qty(r.received, r.unit)}</td>

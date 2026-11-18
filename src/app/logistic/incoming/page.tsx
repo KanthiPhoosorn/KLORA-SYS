@@ -5,6 +5,7 @@ import { carrierLabel } from "@/lib/carriers";
 import LogisticIncoming, { type IncomingRow } from "@/components/LogisticIncoming";
 import { thaiDateShort } from "@/lib/format";
 import type { Supplier } from "@/lib/types";
+import { isOverdue, daysSinceBangkok } from "@/lib/evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function LogisticIncomingPage({ searchParams }: { searchPar
     .map((b) => {
       const printId = activePrint.get(b.id) ?? null;
       const dispatched = !!printId; // printed QR = dispatched out of the sorting house
+      const overdue = isOverdue(b, { printed: dispatched }); // counted to today in Bangkok, not b.ageDays (entry date minus cut date)
       return {
         id: b.id,
         receivedDate: thaiDateShort(b.entryDate),
@@ -42,6 +44,8 @@ export default async function LogisticIncomingPage({ searchParams }: { searchPar
         remaining: dispatched ? 0 : b.quantity ?? b.flowerCount,
         unit: UNIT_LABEL[unitOf(b)],
         printId,
+        overdueDays: overdue ? daysSinceBangkok(b.cutDate) : undefined,
+        receivedAt: b.receivedAt,
       };
     });
 

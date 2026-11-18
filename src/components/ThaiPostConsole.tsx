@@ -124,6 +124,7 @@ export default function ThaiPostConsole({
                         <div key={b.id} className="flex flex-wrap items-center gap-2 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
                           <span><b>{b.id}</b> พิมพ์ฉลากไปแล้ว{pl ? ` เมื่อ ${new Date(pl.printedAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}` : ""}</span>
                           <a href={`/print/labels?ids=${b.id}`} target="_blank" rel="noopener" className="rounded-[6px] bg-amber-600 px-2.5 py-1 font-medium text-white hover:bg-amber-700">พิมพ์ซ้ำ</a>
+                          <a href={`/logistic/scan?lot=${b.id}`} className="rounded-[6px] border border-amber-600 px-2.5 py-1 font-medium text-amber-800 hover:bg-amber-100">บันทึกรับของ</a>
                           <a href="/logistic/status" className="underline">ยกเลิกรายการพิมพ์เดิม</a>
                         </div>
                       );

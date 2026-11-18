@@ -4,7 +4,7 @@
 // Convention: nullable columns come back from Drizzle as `null`; the domain types use
 // optional (`?`, i.e. `undefined`). `clean()` converts null -> undefined on every row read.
 
-import { eq, and, or, desc, sql, isNull, inArray, notInArray, like } from "drizzle-orm";
+import { eq, and, or, desc, sql, isNull, isNotNull, inArray, notInArray, like } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "./db";
 import { suppliers, batches, users, members, invites, notifications, prints, otp, farmMonthlyInputs, appSettings, packagingAssets, customEntries, batchEvents, carrierLinks, ratings, certFiles, media, packPhotos, logisticOrgs } from "./db/schema";
@@ -45,6 +45,8 @@ import {
 } from "./ids";
 import { enrichBatch, flowerAgeDays, basketReuseCounts, FACTORS } from "./carbon";
 import { isWeightBased, unitsOf } from "./produce";
+import { isOverdue, daysSinceBangkok, todayBangkok } from "./evidence";
+import { thaiDateFull } from "./format";
 import { fuelEf, fertilizerEf, chemicalEf, weightedEf } from "./resource-types";
 import { isVerified, MAX_PACK_PHOTOS, type PackPhoto } from "./pack-photo";
 
@@ -231,46 +233,70 @@ const trailingNum = (id: string): number => {
 // --- Suppliers ------------------------------------------------------------
 
 // --- Packing photos (12 Oct 2026) — confirm when a round was packed -----------------------------------
-const packMeta = (r: { id: string; takenAt: string | null; takenSrc: string; uploadedAt: string }): PackPhoto => ({
+type PackRowMeta = { id: string; batchId?: string | null; takenAt: string | null; takenSrc: string; uploadedAt: string; stage: string; srcHash?: string | null };
+const packMeta = (r: PackRowMeta, reused = false): PackPhoto => ({
   id: r.id, url: `/api/pack-photos/${r.id}`, takenAt: r.takenAt ?? undefined, takenSrc: r.takenSrc as PackPhoto["takenSrc"],
-  uploadedAt: r.uploadedAt, verified: isVerified(r.takenAt, r.uploadedAt),
+  uploadedAt: r.uploadedAt, stage: r.stage === "harvest" ? "harvest" : "pack", reused,
+  // a photo that already backs another lot proves nothing about this one
+  verified: isVerified(r.takenAt, r.uploadedAt) && !reused,
 });
-const metaCols = { id: packPhotos.id, batchId: packPhotos.batchId, takenAt: packPhotos.takenAt, takenSrc: packPhotos.takenSrc, uploadedAt: packPhotos.uploadedAt };
-export async function addPackPhoto(p: { supplierId: string; mime: string; size: number; data: string; takenAt?: string; takenSrc: PackPhoto["takenSrc"]; createdBy: string }): Promise<PackPhoto> {
+const metaCols = { id: packPhotos.id, batchId: packPhotos.batchId, takenAt: packPhotos.takenAt, takenSrc: packPhotos.takenSrc, uploadedAt: packPhotos.uploadedAt, stage: packPhotos.stage, srcHash: packPhotos.srcHash };
+/** Any saved photo already carries this file hash (a reused photo). */
+export async function isHashUsed(srcHash: string): Promise<boolean> {
+  const r = await db.select({ id: packPhotos.id }).from(packPhotos).where(and(eq(packPhotos.srcHash, srcHash), isNotNull(packPhotos.batchId))).limit(1);
+  return r.length > 0;
+}
+export async function addPackPhoto(p: { supplierId: string; mime: string; size: number; data: string; takenAt?: string; takenSrc: PackPhoto["takenSrc"]; createdBy: string; stage?: "pack" | "harvest"; srcHash?: string | null }): Promise<PackPhoto> {
   // photos picked for a round that was never saved are dropped after a day
   await db.delete(packPhotos).where(and(eq(packPhotos.supplierId, p.supplierId), isNull(packPhotos.batchId), sql`${packPhotos.uploadedAt} < ${new Date(Date.now() - 86400_000).toISOString()}`));
-  const row = { id: `PP-${randomBytes(6).toString("hex").toUpperCase()}`, ...p, takenAt: p.takenAt ?? null, uploadedAt: new Date().toISOString() };
+  const row = { id: `PP-${randomBytes(6).toString("hex").toUpperCase()}`, ...p, stage: p.stage ?? "pack", srcHash: p.srcHash ?? null, takenAt: p.takenAt ?? null, uploadedAt: new Date().toISOString() };
+  const reused = row.srcHash ? await isHashUsed(row.srcHash) : false;
   await db.insert(packPhotos).values(row);
-  return packMeta(row);
+  return packMeta(row, reused);
 }
 export async function getPackPhotoFile(id: string) {
   const [row] = await db.select().from(packPhotos).where(eq(packPhotos.id, id)).limit(1);
   return row ?? null;
 }
-export async function getPackPhotos(batchId: string): Promise<PackPhoto[]> {
+/** Marks photos whose file hash was already attached to another lot before this one was uploaded; only the later
+ *  copy is flagged, so the farm that took the photo first keeps its badge. `withLots` (KYN only) adds which lots. */
+async function markReused(rows: PackRowMeta[], withLots: boolean): Promise<PackPhoto[]> {
+  const hashes = [...new Set(rows.map((r) => r.srcHash).filter((h): h is string => !!h))];
+  const others = hashes.length ? await db.select({ id: packPhotos.id, hash: packPhotos.srcHash, batchId: packPhotos.batchId, uploadedAt: packPhotos.uploadedAt }).from(packPhotos).where(and(inArray(packPhotos.srcHash, hashes), isNotNull(packPhotos.batchId))) : [];
+  return rows.map((r) => {
+    const lots = r.srcHash ? [...new Set(others.filter((o) => o.hash === r.srcHash && o.batchId !== r.batchId && (o.uploadedAt < r.uploadedAt || (o.uploadedAt === r.uploadedAt && o.id < r.id))).map((o) => o.batchId!))] : [];
+    const p = packMeta(r, lots.length > 0);
+    if (withLots && lots.length) p.reusedIn = lots;
+    return p;
+  });
+}
+export async function getPackPhotos(batchId: string, opts: { withLots?: boolean } = {}): Promise<PackPhoto[]> {
   const rows = await db.select(metaCols).from(packPhotos).where(eq(packPhotos.batchId, batchId)).orderBy(packPhotos.uploadedAt);
-  return rows.map(packMeta);
+  return markReused(rows, !!opts.withLots);
 }
 /** Photos of many lots at once (KYN). */
-export async function getPackPhotosFor(batchIds: string[]): Promise<Record<string, PackPhoto[]>> {
+export async function getPackPhotosFor(batchIds: string[], opts: { withLots?: boolean } = {}): Promise<Record<string, PackPhoto[]>> {
   if (!batchIds.length) return {};
   const rows = await db.select(metaCols).from(packPhotos).where(inArray(packPhotos.batchId, batchIds)).orderBy(packPhotos.uploadedAt);
+  const photos = await markReused(rows, !!opts.withLots);
   const out: Record<string, PackPhoto[]> = {};
-  for (const r of rows) (out[r.batchId!] ??= []).push(packMeta(r));
+  photos.forEach((p, i) => (out[rows[i].batchId!] ??= []).push(p));
   return out;
 }
-/** The round's photos become exactly `ids` (≤ MAX): the farm's own unsaved photos or ones already on this
- *  lot are linked; photos dropped from the lot are deleted. Returns how many are on the lot. */
-export async function setPackPhotos(supplierId: string, batchId: string, ids: string[]): Promise<number> {
+/** The round's photos of one stage become exactly `ids` (≤ MAX): the farm's own unsaved photos or ones already on this
+ *  lot are linked; photos of that stage dropped from the lot are deleted. The other stage is never touched.
+ *  Returns how many of that stage are on the lot. */
+export async function setPackPhotos(supplierId: string, batchId: string, ids: string[], stage: "pack" | "harvest" = "pack"): Promise<number> {
   // only this farm's unsaved photos or ones already on this lot count — then the first MAX, in the order sent
   const asked = [...new Set(ids)];
-  const ok = asked.length ? new Set((await db.select({ id: packPhotos.id }).from(packPhotos).where(and(inArray(packPhotos.id, asked), eq(packPhotos.supplierId, supplierId), or(isNull(packPhotos.batchId), eq(packPhotos.batchId, batchId))))).map((r) => r.id)) : new Set<string>();
+  const mine = and(eq(packPhotos.supplierId, supplierId), eq(packPhotos.stage, stage), or(isNull(packPhotos.batchId), eq(packPhotos.batchId, batchId)));
+  const ok = asked.length ? new Set((await db.select({ id: packPhotos.id }).from(packPhotos).where(and(inArray(packPhotos.id, asked), mine))).map((r) => r.id)) : new Set<string>();
   const want = asked.filter((id) => ok.has(id)).slice(0, MAX_PACK_PHOTOS);
-  await db.delete(packPhotos).where(and(eq(packPhotos.batchId, batchId), want.length ? notInArray(packPhotos.id, want) : undefined));
+  await db.delete(packPhotos).where(and(eq(packPhotos.batchId, batchId), eq(packPhotos.stage, stage), want.length ? notInArray(packPhotos.id, want) : undefined));
   if (want.length) {
-    await db.update(packPhotos).set({ batchId }).where(and(inArray(packPhotos.id, want), eq(packPhotos.supplierId, supplierId), or(isNull(packPhotos.batchId), eq(packPhotos.batchId, batchId))));
+    await db.update(packPhotos).set({ batchId }).where(and(inArray(packPhotos.id, want), mine));
   }
-  return (await db.select({ id: packPhotos.id }).from(packPhotos).where(eq(packPhotos.batchId, batchId))).length;
+  return (await db.select({ id: packPhotos.id }).from(packPhotos).where(and(eq(packPhotos.batchId, batchId), eq(packPhotos.stage, stage)))).length;
 }
 export async function deletePendingPackPhoto(id: string, supplierId: string): Promise<boolean> {
   const r = await db.delete(packPhotos).where(and(eq(packPhotos.id, id), eq(packPhotos.supplierId, supplierId), isNull(packPhotos.batchId))).returning({ id: packPhotos.id });
@@ -329,6 +355,25 @@ export async function remindExpiringCerts(s: Supplier): Promise<void> {
     const title = `ใบรับรอง ${name} จะหมดอายุ ${c.expiresAt}`;
     if (have.has(title)) continue;
     await addNotification({ supplierId: s.id, kind: "warning", title, body: `ใบรับรอง ${name}${c.certNo ? ` เลขที่ ${c.certNo}` : ""} จะหมดอายุในอีกไม่เกิน 30 วัน ต่ออายุแล้วอัปเดตที่หน้า "ข้อมูลฟาร์ม"` });
+  }
+}
+
+/** Harvested but never handed over: one bell notification per overdue lot. The title has no day count, so
+ *  it stays the same as days pass and the lot is reminded once (deduped by title like the certificates). */
+export async function remindOverdueLots(s: Supplier): Promise<void> {
+  const now = new Date();
+  // nothing can be overdue before 2 days (the shortest limit), so older-than-that is all the query needs
+  const latest = todayBangkok(new Date(now.getTime() - 2 * 86400_000));
+  const lots = await db.select().from(batches).where(and(eq(batches.supplierId, s.id), isNull(batches.cancelledAt), isNull(batches.receivedAt), sql`${batches.status} <> 'draft'`, sql`${batches.cutDate} <= ${latest}`));
+  if (!lots.length) return;
+  const printed = new Set((await db.select({ id: prints.batchId }).from(prints).where(and(inArray(prints.batchId, lots.map((l) => l.id)), or(isNull(prints.cancelled), eq(prints.cancelled, false))))).map((r) => r.id));
+  const due = lots.map((l) => clean<Batch>(l)).filter((b) => isOverdue(b, { printed: printed.has(b.id), now }));
+  if (!due.length) return;
+  const have = new Set((await db.select({ t: notifications.title }).from(notifications).where(eq(notifications.supplierId, s.id))).map((r) => r.t));
+  for (const b of due) {
+    const title = `ล็อต ${b.id} เก็บเกี่ยวแล้วยังไม่ได้ส่ง`;
+    if (have.has(title)) continue;
+    await addNotification({ supplierId: s.id, kind: "warning", title, body: `เก็บเกี่ยวเมื่อ ${thaiDateFull(b.cutDate)} ผ่านมา ${daysSinceBangkok(b.cutDate, now)} วันแล้ว ถ้าส่งแล้วให้ผู้ขนส่งพิมพ์ฉลากหรือสแกนรับของ ถ้าไม่ส่งแล้วยกเลิกรายการได้ที่หน้าประวัติ` });
   }
 }
 

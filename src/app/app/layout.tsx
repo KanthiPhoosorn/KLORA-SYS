@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { LifeBuoy } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getSupplier, getNotifications, remindExpiringCerts } from "@/lib/store";
+import { getSupplier, getNotifications, remindExpiringCerts, remindOverdueLots } from "@/lib/store";
 import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell";
 import AccountButton from "@/components/portal/AccountButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -27,6 +27,7 @@ export default async function SupplierLayout({
   const supplier = user.supplierId ? await getSupplier(user.supplierId) : null;
   if (!supplier) notFound();
   if (supplier) await remindExpiringCerts(supplier).catch(() => undefined); // certificates expiring within 30 days → bell
+  if (supplier) await remindOverdueLots(supplier).catch(() => undefined); // harvested but never handed over → bell
   const notifs = await getNotifications(user.supplierId);
 
   // Freemium (Figma "Lock" state): ภาพรวม + แดชบอร์ดคาร์บอน are Pro-only; the rest stay free.

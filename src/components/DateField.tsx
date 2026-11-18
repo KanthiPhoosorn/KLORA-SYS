@@ -17,11 +17,16 @@ export default function DateField({
   onChange,
   className = "",
   invalid = false,
+  min,
+  max,
 }: {
   value: string;
   onChange: (iso: string) => void;
   className?: string;
   invalid?: boolean;
+  /** yyyy-mm-dd limits for the native picker */
+  min?: string;
+  max?: string;
 }) {
   return (
     <div className="relative">
@@ -35,6 +40,8 @@ export default function DateField({
       <input
         type="date"
         value={value}
+        min={min}
+        max={max}
         onChange={(e) => onChange(e.target.value)}
         aria-label="เลือกวันที่"
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"

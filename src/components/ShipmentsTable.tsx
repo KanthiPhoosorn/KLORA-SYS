@@ -30,6 +30,7 @@ export interface ShipRow {
   /** the private carrier's name (ผู้ให้บริการ), e.g. DHL Express */
   provider?: string;
   trackingNo?: string;
+  trackingBy?: "farm" | "carrier"; // the carrier bound the number when it scanned the lot in
   awbNo?: string;
   weightKg?: number;
   status: "wait" | "printed" | "cancelled";
@@ -136,7 +137,7 @@ export default function ShipmentsTable({
     if (r.status === "printed") return [
       { name: "แก้ไขข้อมูล", why: "พิมพ์ QR แล้ว · แก้ไขไม่ได้" },
       copy,
-      { name: trackName, go: () => openModal("track", r) },
+      r.trackingBy === "carrier" ? { name: "ผู้ขนส่งผูกเลขแล้ว", why: "แก้ได้จากฝั่งผู้ขนส่งเท่านั้น" } : { name: trackName, go: () => openModal("track", r) },
       { name: "ยกเลิกรายการ", why: "พิมพ์ QR แล้ว · ให้ผู้ขนส่งยกเลิกการพิมพ์ก่อน" },
     ];
     return [

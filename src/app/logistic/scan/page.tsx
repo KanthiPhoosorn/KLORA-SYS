@@ -3,7 +3,8 @@ import ScanQr from "@/components/ScanQr";
 
 export const dynamic = "force-dynamic";
 
-export default async function LogisticScanPage() {
+export default async function LogisticScanPage({ searchParams }: { searchParams: Promise<{ lot?: string }> }) {
   await requireRole("logistic");
-  return <ScanQr />;
+  const { lot } = await searchParams;
+  return <ScanQr initialLot={lot ?? ""} />;
 }

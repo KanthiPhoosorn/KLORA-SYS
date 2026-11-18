@@ -189,8 +189,13 @@ window.qa = {
     log("4.6 the อื่นๆ row is tagged ค่าประมาณ", await ev(`qa.text(qa.row(2)).includes("ค่าประมาณ")`));
 
     // รูปถ่ายตอนแพ็ก (12 Oct 2026): the camera button takes a picture → stamped, shrunk, uploaded
-    const cam = await p.$('input[type="file"][capture="environment"]');
-    await (cam as unknown as { uploadFile: (f: string) => Promise<void> }).uploadFile("public/figma/step-qr.webp");
+    // two camera buttons now: the harvest one comes first (right under the cut date), the packing one later (9 Nov 2026)
+    const cams = await p.$$('input[type="file"][capture="environment"]');
+    const up = (c: unknown) => (c as { uploadFile: (f: string) => Promise<void> }).uploadFile("public/figma/step-qr.webp");
+    await up(cams[0]);
+    const harv1 = await waitFor(`document.querySelectorAll('img[alt="รูปถ่ายตอนเก็บเกี่ยว"]').length === 1`, 20000);
+    log("harvest photo: taken, uploaded, shown", harv1);
+    await up((await p.$$('input[type="file"][capture="environment"]'))[1]);
     const shot1 = await waitFor(`document.querySelectorAll('img[alt="รูปถ่ายตอนแพ็ก"]').length === 1`, 20000);
     log("packing photo: taken, uploaded, shown with its time badge", shot1 && (await ev<boolean>(`/ยืนยันเวลา|ไม่ยืนยันเวลา/.test(document.body.innerText)`)));
     // packed weight in grams (§4.8)
@@ -229,7 +234,7 @@ window.qa = {
     log("saved as LOT-YYMM-NNNN", /^LOT-\d{4}-\d{4}$/.test(lot), lot);
     const [row] = lot ? await sql`SELECT expected_age_days, shipped_weight_kg, distance_km, packaging_items, destination, status FROM batches WHERE id = ${lot}` : [];
     log("saved: age 14 · packed 30 kg (from grams) · 3 packaging rows · computed", row?.expected_age_days === 14 && Number(row?.shipped_weight_kg) === 30 && (row?.packaging_items as unknown[])?.length === 3 && row?.status === "computed", JSON.stringify({ age: row?.expected_age_days, kg: row?.shipped_weight_kg, rows: (row?.packaging_items as unknown[])?.length, st: row?.status }));
-    log("packing photo saved on the lot", (await sql`SELECT count(*)::int n FROM pack_photos WHERE batch_id = ${lot}`)[0].n === 1);
+    log("packing photo + harvest photo saved on the lot, one of each", (await sql`SELECT count(*) FILTER (WHERE stage = 'pack')::int p, count(*) FILTER (WHERE stage = 'harvest')::int h FROM pack_photos WHERE batch_id = ${lot}`).every((r) => r.p === 1 && r.h === 1));
     log("grade A+ saved", (await sql`SELECT grade FROM batches WHERE id = ${lot}`)[0]?.grade === "A+");
     const [ce] = await sql`SELECT field FROM custom_entries WHERE value = ${OTHER_NAME}`;
     log("4.6 the อื่นๆ packaging went to KYN's review queue", !!ce, ce?.field);

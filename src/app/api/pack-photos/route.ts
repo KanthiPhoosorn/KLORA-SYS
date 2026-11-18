@@ -3,10 +3,12 @@ import { guard } from "@/lib/api-guard";
 import { addPackPhoto } from "@/lib/store";
 import { rateLimit, tooMany } from "@/lib/rate-limit";
 
-// POST /api/pack-photos (multipart: file, takenAt?, takenSrc?) — a farm adds a photo taken while packing a
+// POST /api/pack-photos (multipart: file, takenAt?, takenSrc?, stage?, srcHash?): a farm adds a photo taken while packing a
 // round (12 Oct 2026). The browser shrinks + stamps it and reads its capture time (EXIF, else the file time)
 // before sending; the server adds its own upload time, which is what the 24-hour check compares against.
-// The photo stays unattached until the round is saved (POST/PUT /api/batches with packPhotoIds).
+// The photo stays unattached until the round is saved (POST/PUT /api/batches with packPhotoIds / harvestPhotoIds).
+// srcHash (SHA-256 of the original file) lets the server spot the same photo used on another lot; the answer is
+// only a yes/no (reused), never which lot.
 const MAX = 1.5 * 1024 * 1024;
 const isImage = (b: Uint8Array) =>
   (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) || (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47);
@@ -31,6 +33,8 @@ export async function POST(req: Request) {
   const photo = await addPackPhoto({
     supplierId: g.user.supplierId, mime: bytes[0] === 0xff ? "image/jpeg" : "image/png", size: bytes.length,
     data: Buffer.from(bytes).toString("base64"), takenAt: sane ? t.toISOString() : undefined, takenSrc: sane ? src : "none", createdBy: g.user.id,
+    stage: form.get("stage") === "harvest" ? "harvest" : "pack",
+    srcHash: /^[0-9a-f]{64}$/.test(String(form.get("srcHash") ?? "")) ? String(form.get("srcHash")) : null,
   });
   return NextResponse.json(photo, { status: 201 });
 }

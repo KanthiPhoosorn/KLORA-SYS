@@ -1,4 +1,5 @@
-import { getBatch, getSupplier } from "@/lib/store";
+import { getBatch, getSupplier, getPackPhotos, activePrintOf } from "@/lib/store";
+import { harvestPhotoAt } from "@/lib/evidence";
 import { buildTraceSummary, type TraceSummary } from "@/lib/trace-summary";
 import SuperAppPrototype, { type DemoOrder } from "@/components/SuperAppPrototype";
 import { headers } from "next/headers";
@@ -29,7 +30,8 @@ export default async function SuperAppPage() {
       const b = await getBatch(it.batchId);
       const s = b ? await getSupplier(b.supplierId) : null;
       if (!b || !s) continue;
-      const trace: TraceSummary = buildTraceSummary(b, s, origin);
+      const [photos, print] = await Promise.all([getPackPhotos(b.id), activePrintOf(b.id)]);
+      const trace: TraceSummary = buildTraceSummary(b, s, origin, { harvestPhotoAt: harvestPhotoAt(photos), labelPrintedAt: print?.printedAt });
       items.push({ ...it, trace });
     }
     if (items.length) orders.push({ ...o, items });

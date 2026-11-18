@@ -6,10 +6,13 @@ export interface PackPhoto {
   takenAt?: string; // when the camera took it (EXIF, else the file's time) — ISO
   takenSrc: "exif" | "file" | "none";
   uploadedAt: string; // server time — the one that cannot be changed
-  verified: boolean; // taken within VERIFY_HOURS of the upload
+  verified: boolean; // taken within VERIFY_HOURS of the upload, and not a file already used on another lot
+  stage: "pack" | "harvest"; // when it was taken: while packing, or at harvest
+  reused?: boolean; // the same file backs another lot
+  reusedIn?: string[]; // those lots (KYN pages only, never public)
 }
 
-export const MAX_PACK_PHOTOS = 3;
+export const MAX_PACK_PHOTOS = 3; // per stage
 export const VERIFY_HOURS = 24;
 
 /** Verified = the photo carries a capture time, it is not in the future, and it was taken at most

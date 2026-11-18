@@ -9,10 +9,11 @@ import { parsePackagingItems, basketIdsOf } from "@/lib/packaging-parse";
 import { queueTransportOthers, queuePackagingOthers } from "@/lib/custom-queue";
 import { normalizeAwb } from "@/lib/tracking";
 import { guard, forbidden } from "@/lib/api-guard";
-import { unitsOf, perUnitLabel } from "@/lib/produce";
+import { unitsOf, perUnitLabel, quantityLabel } from "@/lib/produce";
 import type { ShipmentStatus } from "@/lib/types";
 import { lockRound, withoutBound } from "@/lib/carrier-lock";
 import { lotRefusal, placeRound, exportRefusal } from "@/lib/logistic-org";
+import { packTime } from "@/lib/pack-photo";
 
 const SHIPMENT: ShipmentStatus[] = ["cutting", "in_transit", "delivered"];
 const SHIPMENT_TH: Record<ShipmentStatus, string> = { cutting: "รอจัดส่ง", in_transit: "กำลังขนส่ง", delivered: "ส่งถึงปลายทางแล้ว" };
@@ -63,14 +64,47 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
+  // Moves the shipment status and tells the farm when it changes (shared by the status branch and the receipt scan).
+  async function moveShipment(next: ShipmentStatus) {
+    const updated = await updateBatch(id, { shipmentStatus: next });
+    if (next !== batch!.shipmentStatus) {
+      await notifyFarm(batch!.supplierId, `สถานะขนส่ง ${id}: ${SHIPMENT_TH[next]}`, next === "delivered" ? "พัสดุถึงปลายทางเรียบร้อยแล้ว" : "ผู้ขนส่งอัปเดตสถานะพัสดุของคุณ", next === "delivered" ? "success" : "info");
+    }
+    return updated;
+  }
+
+  // ผู้ขนส่งสแกนรับของ: the carrier confirms it holds the printed lot, its condition, and may bind the tracking number.
+  if (body.action === "receive") {
+    if (g.user.role !== "logistic") return forbidden();
+    if (batch.cancelledAt) return NextResponse.json({ error: "รายการนี้ถูกยกเลิกแล้ว" }, { status: 409 });
+    if (!(await activePrintOf(id))) return NextResponse.json({ error: "ต้องพิมพ์ฉลาก QR ก่อนรับของ" }, { status: 409 });
+    if (batch.receivedAt) return NextResponse.json({ error: `รับของแล้วเมื่อ ${packTime(batch.receivedAt)}` }, { status: 409 });
+    const condition = body.condition === "ok" || body.condition === "damaged" ? body.condition : null;
+    if (!condition) return NextResponse.json({ error: "กรุณาเลือกสภาพสินค้า" }, { status: 400 });
+    const note = String(body.note ?? "").trim();
+    if (note.length > 300) return NextResponse.json({ error: "หมายเหตุยาวเกินไป (ไม่เกิน 300 ตัวอักษร)" }, { status: 400 });
+    if (condition === "damaged" && !note) return NextResponse.json({ error: "กรุณาระบุความเสียหาย" }, { status: 400 });
+    const trackingNo = String(body.trackingNo ?? "").trim().toUpperCase();
+    if (trackingNo && !/^[A-Z0-9-]{6,40}$/.test(trackingNo)) return NextResponse.json({ error: "เลขพัสดุไม่ถูกต้อง" }, { status: 400 });
+    const at = new Date().toISOString();
+    const patch: Partial<Batch> = { receivedAt: at, receivedBy: g.user.id, receivedCondition: condition, receivedNote: note || undefined };
+    if (trackingNo) { patch.trackingNo = trackingNo; patch.trackingBy = "carrier"; }
+    let updated = await updateBatch(id, patch);
+    await addBatchEvent({ batchId: id, actorId: g.user.id, actorName: g.user.username, action: "receive", detail: { condition, note: note || undefined, trackingNo: trackingNo || undefined, before: batch.trackingNo } });
+    if (batch.shipmentStatus === "cutting") updated = await moveShipment("in_transit");
+    await notifyFarm(batch.supplierId, `ผู้ขนส่งรับของล็อต ${id} แล้ว`, condition === "ok" ? "สภาพสินค้าปกติ" : `สภาพสินค้า: เสียหาย · ${note}`, condition === "ok" ? "info" : "warning");
+    return NextResponse.json(updated);
+  }
+
   // ใส่ / แก้เลขพัสดุ + น้ำหนักรวมจากใบเสร็จ — only after the QR is printed (§5.5).
   if (body.action === "tracking") {
+    if (g.user.role === "supplier" && batch.trackingBy === "carrier") return NextResponse.json({ error: "ผู้ขนส่งผูกเลขพัสดุไว้แล้ว แก้ได้จากฝั่งผู้ขนส่งเท่านั้น" }, { status: 409 });
     if (batch.cancelledAt) return NextResponse.json({ error: "รายการนี้ถูกยกเลิกแล้ว" }, { status: 409 });
     if (!(await activePrintOf(id))) return NextResponse.json({ error: "ใส่เลขพัสดุได้หลังพิมพ์ QR แล้ว" }, { status: 409 });
     const trackingNo = String(body.trackingNo ?? "").trim().toUpperCase().slice(0, 40);
     if (!trackingNo) return NextResponse.json({ error: "กรุณาระบุเลขพัสดุ" }, { status: 400 });
     const w = Number(body.weightKg);
-    const patch: Partial<Batch> = { trackingNo };
+    const patch: Partial<Batch> = { trackingNo, trackingBy: g.user.role === "logistic" ? "carrier" : "farm" };
     if (w > 0) patch.shippedWeightKg = w;
     await updateBatch(id, patch);
     await addBatchEvent({ batchId: id, actorId: g.user.id, actorName: g.user.username, action: "tracking", detail: { trackingNo, weightKg: w > 0 ? w : undefined, before: batch.trackingNo } });
@@ -109,6 +143,7 @@ export async function PATCH(
     // What the carrier recorded on /logistic/new — marks the round as "บันทึกการจัดส่งแล้ว".
     if (body.shipType === "domestic" || body.shipType === "international") {
       patch.shipType = body.shipType;
+      if (body.shipDate && String(body.shipDate) < batch.cutDate) return NextResponse.json({ error: "วันที่จัดส่งต้องไม่ก่อนวันที่เก็บเกี่ยว" }, { status: 400 });
       patch.shipDate = body.shipDate ? String(body.shipDate) : undefined;
       patch.airline = body.shipType === "international" && body.airline ? String(body.airline) : undefined;
       patch.flightNo = body.shipType === "international" && body.flightNo ? String(body.flightNo) : undefined;
@@ -178,11 +213,7 @@ export async function PATCH(
       return NextResponse.json({ error: "สถานะขนส่งไม่ถูกต้อง" }, { status: 400 });
     }
     const next = body.shipmentStatus as ShipmentStatus;
-    const updated = await updateBatch(id, { shipmentStatus: next });
-    if (next !== batch.shipmentStatus) {
-      await notifyFarm(batch.supplierId, `สถานะขนส่ง ${id}: ${SHIPMENT_TH[next]}`, next === "delivered" ? "พัสดุถึงปลายทางเรียบร้อยแล้ว" : "ผู้ขนส่งอัปเดตสถานะพัสดุของคุณ", next === "delivered" ? "success" : "info");
-    }
-    return NextResponse.json(updated);
+    return NextResponse.json(await moveShipment(next));
   }
 
   return NextResponse.json({ error: "ไม่มีการเปลี่ยนแปลง" }, { status: 400 });
@@ -232,14 +263,42 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const patch = Object.fromEntries(Object.entries({ ...f, ageDays: flowerAgeDays(f.cutDate, batch.entryDate) }).map(([k, v]) => [k, v === undefined ? null : v]));
   await updateBatch(batch.id, patch as Partial<Batch>);
   // packing photos: the list sent becomes the lot's photos; a change is part of the edit history
-  if (Array.isArray(body.packPhotoIds)) {
-    const before = await getPackPhotos(batch.id);
-    const now = await setPackPhotos(batch.supplierId, batch.id, (Array.isArray(body.packPhotoIds) ? (body.packPhotoIds as unknown[]).map(String) : []));
-    const same = before.length === now && before.every((p) => (body.packPhotoIds as unknown[]).includes(p.id));
-    if (!same) changes.push({ field: "packPhotos", label: "รูปตอนแพ็ก", from: `${before.length} รูป`, to: now === before.length ? `เปลี่ยนรูป (${now} รูป)` : `${now} รูป` });
+  for (const [key, stage, field, label] of [["packPhotoIds", "pack", "packPhotos", "รูปตอนแพ็ก"], ["harvestPhotoIds", "harvest", "harvestPhotos", "รูปตอนเก็บเกี่ยว"]] as const) {
+    const sent = body[key];
+    if (!Array.isArray(sent)) continue;
+    const before = (await getPackPhotos(batch.id)).filter((p) => p.stage === stage);
+    const now = await setPackPhotos(batch.supplierId, batch.id, (sent as unknown[]).map(String), stage);
+    const same = before.length === now && before.every((p) => (sent as unknown[]).includes(p.id));
+    if (!same) changes.push({ field, label, from: `${before.length} รูป`, to: now === before.length ? `เปลี่ยนรูป (${now} รูป)` : `${now} รูป` });
   }
   await addBatchEvent({ batchId: batch.id, actorId: g.user.id, actorName: g.user.username, action: "edit", detail: { changes } });
   await queueRoundOthers(sup ? withoutBound(sup, f) : f, { supplierId: batch.supplierId, userId: g.user.id, batchId: batch.id }).catch(() => undefined);
   const updated = await computeBatch(batch.id, { advanceShipment: false }).catch(() => null);
   return NextResponse.json({ batch: updated ?? (await getBatch(batch.id)), changes });
+}
+
+// GET /api/batches/[id]: a small summary for the carrier's receipt scan (the owning farm and KYN may read it too).
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const g = await guard();
+  if (g.deny) return g.deny;
+  const { id: rawId } = await params;
+  const batch = await getBatch(rawId);
+  if (!batch) return NextResponse.json({ error: "ไม่พบล็อตนี้" }, { status: 404 });
+  if (g.user.role === "supplier" && batch.supplierId !== g.user.supplierId) return forbidden();
+  const notMine = await lotRefusal(g.user, batch);
+  if (notMine) return NextResponse.json({ error: notMine }, { status: 403 });
+  const farm = await getSupplier(batch.supplierId);
+  return NextResponse.json({
+    id: batch.id,
+    farmName: farm?.farmName ?? "",
+    product: [batch.productType, batch.variety && batch.variety !== batch.productType ? batch.variety : ""].filter(Boolean).join(" ") || "ดอกไม้",
+    quantity: quantityLabel(batch),
+    cutDate: batch.cutDate,
+    cancelled: !!batch.cancelledAt,
+    printed: !!(await activePrintOf(batch.id)),
+    receivedAt: batch.receivedAt ?? null,
+    receivedCondition: batch.receivedCondition ?? null,
+    trackingNo: batch.trackingNo ?? null,
+    trackingBy: batch.trackingBy ?? null,
+  });
 }

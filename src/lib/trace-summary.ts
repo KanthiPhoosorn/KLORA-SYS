@@ -18,10 +18,12 @@ export interface TraceSummary {
   carbon: { status: string; perUnit: number; perUnitLabel: string; totalKg: number; breakdown?: { farm: number; packaging: number; transport: number; engine: string } };
   origin: { farmName: string; province?: string; address: string; description?: string; certifications: { kind: string; name?: string; certNo?: string; expiresAt?: string }[] };
   shipment: { status: string; destination?: string; carrier?: string; provider?: string; distanceKm: number; reefer: boolean };
+  /** where each date comes from: the farm's word, a verified photo, or a time the system recorded */
+  evidence: { harvestDateSource: "producer"; harvestPhotoAt?: string; receivedAt?: string; labelPrintedAt?: string };
   links: { passport: string };
 }
 
-export function buildTraceSummary(b: Batch, s: Supplier, origin: string): TraceSummary {
+export function buildTraceSummary(b: Batch, s: Supplier, origin: string, ev: { harvestPhotoAt?: string; labelPrintedAt?: string } = {}): TraceSummary {
   const category = categoryOf(b);
   const { stage, daysSinceHarvest, profile } = ripenessAtScan(b);
   const showRipeness = category !== "flower" && (profile.ripens || category === "fruit");
@@ -60,6 +62,7 @@ export function buildTraceSummary(b: Batch, s: Supplier, origin: string): TraceS
       certifications: (s.certifications ?? []).filter((c) => certAppliesTo(c, category, b.productType || s.flowerType)).map((c) => ({ kind: c.kind, name: c.name, certNo: c.certNo, expiresAt: c.expiresAt })),
     },
     shipment: { status: b.shipmentStatus, destination: b.destination, carrier: b.carrier, provider: b.provider, distanceKm: b.distanceKm, reefer: !!b.isReeferUsed },
+    evidence: { harvestDateSource: "producer", harvestPhotoAt: ev.harvestPhotoAt, receivedAt: b.receivedAt, labelPrintedAt: ev.labelPrintedAt },
     links: { passport: `${origin}/t/${b.id}` },
   };
 }

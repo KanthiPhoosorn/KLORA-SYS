@@ -26,6 +26,8 @@ import { CARRIERS, PROVIDERS } from "@/lib/carriers";
 import SelectOther from "@/components/SelectOther";
 import PackPhotos, { PackPhotoBadge } from "@/components/PackPhotos";
 import type { PackPhoto } from "@/lib/pack-photo";
+import { checkRoundDates, harvestPhotoFlag, todayBangkok, bangkokDate } from "@/lib/evidence";
+import { shownTime } from "@/lib/pack-photo";
 import PackagingLines, { firstRow, validateRows, rowsToPayload, rowsFromBatch, rowsWeightKg, rowSummary, type PackRowState } from "@/components/PackagingLines";
 import { DEFAULT_CATALOG, NO_PACK, OTHER, packsFor, type PackCatalog } from "@/lib/packaging-catalog";
 import type { CarrierKey } from "@/lib/types";
@@ -116,7 +118,8 @@ export default function RoundForm({
   const [toast, setToast] = useState(false);
   const src = edit ?? copyFrom; // what the form starts from
   // packing photos: the farm's own form only (a carrier logging on behalf has none); a copy starts empty
-  const [photos, setPhotos] = useState<PackPhoto[]>(edit ? savedPhotos : []);
+  const [photos, setPhotos] = useState<PackPhoto[]>(edit ? savedPhotos.filter((p) => p.stage !== "harvest") : []);
+  const [harvestPhotos, setHarvestPhotos] = useState<PackPhoto[]>(edit ? savedPhotos.filter((p) => p.stage === "harvest") : []);
   const [distEdited, setDistEdited] = useState(!!edit); // an edit keeps its saved distance until asked to recompute
   const [errs, setErrs] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -202,6 +205,10 @@ export default function RoundForm({
   );
   const chillWarning = coldChainWarning({ isReeferUsed: CARRIER_DEFAULTS[carrier].reefer, productType: flowerType, productCategory: category });
 
+  // a warning only, never a block: the harvest photo was taken on another day than the cut date entered
+  const flag = cutDate ? harvestPhotoFlag(cutDate, harvestPhotos) : null;
+  const firstShot = harvestPhotos.filter((p) => p.verified).map((p) => shownTime(p)).sort()[0];
+  const harvestFlag = flag === "before" && firstShot ? `รูปตอนเก็บเกี่ยวถ่ายเมื่อ ${formatThaiDate(bangkokDate(firstShot))} ก่อนวันที่เก็บเกี่ยวที่กรอก โปรดตรวจวันที่อีกครั้ง` : flag === "late" ? "รูปตอนเก็บเกี่ยวถ่ายหลังวันที่เก็บเกี่ยวหลายวัน" : null;
   function onCut(v: string) {
     setCutDate(v);
     setErrs((e) => ({ ...e, cutDate: "" }));
@@ -277,6 +284,7 @@ export default function RoundForm({
     ...Object.fromEntries(packs.flatMap((r, i) => { const s = rowSummary(r, catalog); return [[`p${i}.บรรจุภัณฑ์`, [s.name, s.usage].filter(Boolean).join(" · ")], [`p${i}.หมายเลข`, s.code ?? ""], [`p${i}.ขนาด`, `${s.size} · ${s.qty}`], [`p${i}.วัสดุ`, s.inner]]; })),
     วันที่จัดส่ง: formatThaiDate(shipDate),
     รูปตอนแพ็ก: photos.map((p) => p.id).join(","),
+    รูปตอนเก็บเกี่ยว: harvestPhotos.map((p) => p.id).join(","),
     น้ำหนักรวม: packedKg ? `${packedKg.toLocaleString("th-TH", { maximumFractionDigits: 3 })} กก.` : "",
   });
   const original = useRef<Record<string, string> | null>(null);
@@ -293,6 +301,8 @@ export default function RoundForm({
     if (!grade) e.grade = "กรุณาเลือกเกรดสินค้า"; // required (13 Oct 2026 mockup)
     if (!flowerCount || Number(flowerCount) <= 0) e.flowerCount = isFlower ? "กรุณาระบุจำนวนดอกไม้" : "กรุณาระบุน้ำหนักสินค้า";
     if (!cutDate) e.cutDate = isFlower ? "กรุณาเลือกวันที่ตัดดอกไม้" : "กรุณาเลือกวันที่เก็บเกี่ยว";
+    const bad = cutDate ? checkRoundDates({ cutDate, plantingDate: !isFlower ? plantingDate : undefined, shipDate }) : null;
+    if (bad) e[bad.field] = bad.error;
     if (destGps.trim() && !parseGps(destGps)) e.destGps = isShortMapsLink(destGps) ? "ลิงก์นี้ไม่มีพิกัด ใน Google Maps กดค้างที่ตำแหน่งผู้รับ แล้วคัดลอกพิกัดมาวาง" : "รูปแบบพิกัดไม่ถูกต้อง (ละติจูด, ลองจิจูด)";
     if (isFlower && !ageDays) e.ageDays = "กรุณาระบุอายุหลังตัดที่คาดการณ์";
     if (category === "fruit" && !ripeness) e.ripeness = "กรุณาระบุระยะการสุก";
@@ -345,6 +355,7 @@ export default function RoundForm({
           shipDate,
           copiedFrom: copyFrom?.id,
           packPhotoIds: postSupplierId ? undefined : photos.map((p) => p.id),
+          harvestPhotoIds: postSupplierId ? undefined : harvestPhotos.map((p) => p.id),
           plantingDate: !isFlower && plantingDate ? plantingDate : undefined,
           ripenessAtHarvest: category === "fruit" && ripeness ? ripeness : undefined,
           grade: grade || undefined,
@@ -574,14 +585,21 @@ export default function RoundForm({
             {!isFlower ? (
               <div>
                 <label className={labelCls}>วันที่ปลูก</label>
-                <DateField value={plantingDate} onChange={setPlantingDate} className={inputCls} />
+                <DateField value={plantingDate} onChange={(v) => { setPlantingDate(v); setErrs((x) => ({ ...x, plantingDate: "" })); }} className={inputCls} max={todayBangkok()} invalid={!!errs.plantingDate} />
+                <Err msg={errs.plantingDate} />
               </div>
             ) : null}
             <div>
               <label className={labelCls}>{harvestLabel(category)}{req}</label>
-              <DateField value={cutDate} onChange={onCut} className={inputCls} invalid={!!errs.cutDate} />
+              <DateField value={cutDate} onChange={onCut} className={inputCls} invalid={!!errs.cutDate} max={todayBangkok()} />
               <Err msg={errs.cutDate} />
+              {harvestFlag ? <p className="mt-1 text-[12px] text-amber-700">{harvestFlag}</p> : null}
             </div>
+            {!postSupplierId ? (
+              <div className="sm:col-span-2">
+                <PackPhotos stage="harvest" value={harvestPhotos} onChange={setHarvestPhotos} farmName={supplier.farmName} saved={savedPhotos.filter((p) => p.stage === "harvest").map((p) => p.id)} />
+              </div>
+            ) : null}
             {isFlower ? (
               <div>
                 <label className={labelCls}>อายุหลังตัดที่คาดการณ์ (วัน){req}</label>
@@ -649,7 +667,7 @@ export default function RoundForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelCls}>วันที่จัดส่ง{req}</label>
-            <DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} />
+            <DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} min={cutDate || undefined} />
             <Err msg={errs.shipDate} />
           </div>
           <div>

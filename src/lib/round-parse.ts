@@ -4,11 +4,15 @@ import type { BatchInput } from "./types";
 import { asCategory, asUnit, asRipeness } from "./produce-parse";
 import { parsePackagingItems, basketIdsOf } from "./packaging-parse";
 import { PIECE_UNITS, defaultPieceUnit } from "./produce";
+import { checkRoundDates } from "./evidence";
 
 export type RoundFields = Omit<BatchInput, "supplierId" | "status">;
 
 export function parseRound(body: Record<string, unknown>): { fields: RoundFields } | { error: string } {
   if (!body.cutDate) return { error: "ต้องระบุวันที่ตัด/เก็บเกี่ยว" };
+  const ymd = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(String(body[k] ?? "")) ? String(body[k]) : undefined);
+  const badDate = checkRoundDates({ cutDate: String(body.cutDate), plantingDate: body.plantingDate ? String(body.plantingDate) : undefined, shipDate: ymd("shipDate") });
+  if (badDate) return { error: badDate.error };
   // Product category + counting unit. Flowers count stems (flowerCount); produce is weighed
   // (quantity in kg/ton) and keeps flowerCount = 0 so stem-based totals never mix units.
   const productCategory = asCategory(body.productCategory) ?? "flower";

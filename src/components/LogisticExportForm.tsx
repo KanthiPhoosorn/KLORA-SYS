@@ -225,6 +225,7 @@ export default function LogisticExportForm({
     if (!weightKg || Number(weightKg) <= 0) e.weightKg = "กรุณาระบุน้ำหนักรวมหลังแพ็ก";
     else if (packagingKg > 0 && Number(weightKg) <= packagingKg) e.weightKg = `น้อยกว่าน้ำหนักบรรจุภัณฑ์ที่เลือกไว้ (≈ ${packagingKg.toFixed(2)} กก.)`;
     if (!shipDate) e.shipDate = "กรุณาระบุวันที่จัดส่ง";
+    else if (selectedBatch && shipDate < selectedBatch.cutDate) e.shipDate = "วันที่จัดส่งต้องไม่ก่อนวันที่เก็บเกี่ยว";
     if (shipType === "domestic") {
       if (!destination) e.destination = "กรุณาระบุปลายทาง";
       if (!destAddress.trim()) e.destAddress = "กรุณากรอกที่อยู่ผู้รับ ใช้คำนวณระยะทางขนส่ง";
@@ -434,7 +435,7 @@ export default function LogisticExportForm({
         {shipType === "domestic" ? (
           <>
             <div className="grid gap-4 sm:grid-cols-3">
-              <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
+              <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} min={selectedBatch?.cutDate} /><Err msg={errs.shipDate} /></div>
               <div>
                 <label className={labelCls}>จังหวัดปลายทาง{req}</label>
                 <SelectOther value={destination} onChange={onDestProvince} options={DESTINATIONS.map((d) => ({ value: d.name, label: d.name }))} placeholder="เลือกจังหวัดปลายทาง" otherPlaceholder="ระบุจังหวัด / ปลายทาง" className={inputCls} invalid={!!errs.destination} />
@@ -483,7 +484,7 @@ export default function LogisticExportForm({
           </>
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
-            <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} /><Err msg={errs.shipDate} /></div>
+            <div><label className={labelCls}>วันที่จัดส่ง{req}</label><DateField value={shipDate} onChange={(v) => { setShipDate(v); setErrs((x) => ({ ...x, shipDate: "" })); }} className={inputCls} invalid={!!errs.shipDate} min={selectedBatch?.cutDate} /><Err msg={errs.shipDate} /></div>
             <div><label className={labelCls}>ประเทศ / เมืองปลายทาง</label><input value={destCountry} onChange={(e) => setDestCountry(e.target.value)} placeholder="เช่น ญี่ปุ่น (โตเกียว)" className={inputCls} /></div>
             <div><label className={labelCls}>น้ำหนักรวมหลังแพ็ก (กก.){req}</label><input type="number" min="0" step="any" value={weightKg} onChange={(e) => { setWeightKg(e.target.value); setErrs((x) => ({ ...x, weightKg: "" })); }} placeholder="ชั่งสินค้าพร้อมบรรจุภัณฑ์" className={`${inputCls} ${errs.weightKg ? "border-[#ee443f]" : ""}`} /><Err msg={errs.weightKg} /></div>
             <div className="sm:col-span-2">

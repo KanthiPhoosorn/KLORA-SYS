@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function KynIncomingPage() {
   await requireRole("kyn");
   const [suppliers, batches, prints] = await Promise.all([getSuppliers(), getBatches(), getPrints()]);
-  const packPhotos = await getPackPhotosFor(batches.map((b) => b.id));
+  const packPhotos = await getPackPhotosFor(batches.map((b) => b.id), { withLots: true });
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-slate-900">ข้อมูลที่รับเข้าจากผู้ผลิต</h1>

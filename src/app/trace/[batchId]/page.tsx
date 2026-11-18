@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getBatch, getSupplier, activePrintOf, carrierOfLot, ratingSummary, getMyRating, getPackPhotos } from "@/lib/store";
 import { packTime, shownTime } from "@/lib/pack-photo";
+import { bangkokDate, harvestPhotoAt } from "@/lib/evidence";
 import { RATER_COOKIE } from "@/lib/rating";
 import RatingBadge from "@/components/RatingBadge";
 import RateLot from "@/components/RateLot";
@@ -45,6 +46,9 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   const carrier = await carrierOfLot(batch, print);
   const rater = (await cookies()).get(RATER_COOKIE)?.value;
   const [summary, mine, packPhotos] = await Promise.all([ratingSummary(supplier.id, carrier?.key), rater ? getMyRating(batch.id, rater) : null, getPackPhotos(batch.id)]);
+  const harvestPhotos = packPhotos.filter((p) => p.stage === "harvest");
+  const packOnly = packPhotos.filter((p) => p.stage !== "harvest");
+  const harvestShotAt = harvestPhotoAt(harvestPhotos);
 
   const category = categoryOf(batch);
   const isFlower = category === "flower";
@@ -68,18 +72,20 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
   const steps = [
     { label: isFlower ? "ตัดดอก" : "เก็บเกี่ยว", date: thaiDateFull(batch.cutDate), done: true, Icon: Scissors },
     { label: "รับสินค้า", date: thaiDateFull(batch.entryDate), done: true, Icon: ClipboardCheck },
-    { label: "กำลังขนส่ง", date: print ? thaiDateFull(print.printedAt.slice(0, 10)) : "รอดำเนินการ", done: !!print || batch.shipmentStatus !== "cutting", Icon: Truck },
+    // the receipt scan is the carrier's own record, so it wins over the label's print date
+    { label: "กำลังขนส่ง", date: batch.receivedAt ? thaiDateFull(bangkokDate(batch.receivedAt)) : print ? thaiDateFull(print.printedAt.slice(0, 10)) : "รอดำเนินการ", done: !!batch.receivedAt || !!print || batch.shipmentStatus !== "cutting", Icon: Truck },
     { label: "ถึงปลายทาง", date: batch.shipmentStatus === "delivered" ? "ส่งถึงแล้ว" : "รอดำเนินการ", done: batch.shipmentStatus === "delivered", Icon: PackageCheck },
   ];
   // the 6 tiles keep our own content (product · quantity · CO₂e per unit · CO₂e รวม · cut date · age) in the
   // mockup's card style — the lot's total CO₂e, not its weight (10 Oct 2026)
-  const tiles: { v: string; l: string; Icon: LucideIcon }[] = [
-    { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower : category === "fruit" ? Apple : Carrot },
-    { v: [quantityLabel(batch), pieceLabel(batch)].filter(Boolean).join(" · "), l: isFlower ? "จำนวนดอก" : pieceLabel(batch) ? "น้ำหนัก · จำนวน" : "น้ำหนักสินค้า", Icon: Package },
+  // src = who says so, in small gray text (the CO₂e tiles are calculated by Corta, so they carry none)
+  const tiles: { v: string; l: string; Icon: LucideIcon; src?: string }[] = [
+    { v: productName, l: isFlower ? "ชนิดดอกไม้" : categoryLabel(category), Icon: isFlower ? Flower : category === "fruit" ? Apple : Carrot, src: "ผู้ผลิตแจ้ง" },
+    { v: [quantityLabel(batch), pieceLabel(batch)].filter(Boolean).join(" · "), l: isFlower ? "จำนวนดอก" : pieceLabel(batch) ? "น้ำหนัก · จำนวน" : "น้ำหนักสินค้า", Icon: Package, src: "ผู้ผลิตแจ้ง" },
     { v: `${batch.co2ePerFlower.toFixed(4)} kg`, l: `CO₂e ${perUnitLabel(batch)}`, Icon: Leaf },
     { v: `${batchCo2e(batch).toFixed(2)} kg`, l: "CO₂e รวม", Icon: Cloud },
-    { v: thaiDateFull(batch.cutDate), l: harvestLabel(category), Icon: CalendarDays },
-    { v: `${daysSinceHarvest} วัน`, l: ageLabel(category), Icon: Clock },
+    { v: thaiDateFull(batch.cutDate), l: harvestLabel(category), Icon: CalendarDays, src: "ผู้ผลิตแจ้ง" },
+    { v: `${daysSinceHarvest} วัน`, l: ageLabel(category), Icon: Clock, src: "คำนวณจากวันที่ผู้ผลิตแจ้ง" },
   ];
 
   return (
@@ -135,6 +141,7 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
                 <t.Icon size={20} className="mx-auto mb-1 text-[#EE2C34]" />
                 <p className="truncate text-[13px] font-semibold text-slate-800" title={t.v}>{t.v}</p>
                 <p className="mt-0.5 truncate text-[11px] text-slate-500">{t.l}</p>
+                {t.src ? <p className="text-[10px] leading-tight text-slate-400">{t.src}</p> : null}
               </div>
             ))}
           </div>
@@ -157,28 +164,74 @@ export default async function TracePage({ params }: { params: Promise<{ batchId:
           <Co2eDisclosure className="mt-2 px-1" />
         </section>
 
-        {/* รูปถ่ายตอนแพ็ก — when the farm packed this lot (12 Oct 2026) */}
-        {packPhotos.length ? (
+        {/* ภาพตอนเก็บเกี่ยว: the photo taken at harvest (9 Nov 2026) */}
+        {harvestPhotos.length ? (
           <section>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-semibold text-slate-700">ภาพตอนแพ็กสินค้า</h2>
-              {packPhotos.some((p) => p.verified)
+              <h2 className="text-[14px] font-semibold text-slate-700">ภาพตอนเก็บเกี่ยว</h2>
+              {harvestPhotos.some((p) => p.verified)
                 ? <span className="inline-flex items-center gap-1 text-[12px] text-emerald-700"><ShieldCheck size={13} /> ยืนยันเวลาจากรูปถ่าย</span>
                 : null}
             </div>
             <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E6E7E8]">
               <div className="flex gap-2 overflow-x-auto">
-                {packPhotos.map((p) => (
+                {harvestPhotos.map((p) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={p.id} src={p.url} alt="ภาพตอนแพ็กสินค้า" className={`h-40 shrink-0 rounded-xl object-cover object-bottom ${packPhotos.length === 1 ? "w-full" : "w-[78%]"}`} />
+                  <img key={p.id} src={p.url} alt="ภาพตอนเก็บเกี่ยว" className={`h-40 shrink-0 rounded-xl object-cover object-bottom ${harvestPhotos.length === 1 ? "w-full" : "w-[78%]"}`} />
                 ))}
               </div>
               <p className="mt-2 text-[12.5px] text-slate-600">
-                {packPhotos.some((p) => p.verified) ? "แพ็กเมื่อ" : "บันทึกภาพเมื่อ"} <b className="text-slate-800">{packTime(shownTime(packPhotos.find((p) => p.verified) ?? packPhotos[0]))}</b>
+                {harvestPhotos.some((p) => p.verified) ? "ถ่ายเมื่อ" : "บันทึกภาพเมื่อ"} <b className="text-slate-800">{packTime(shownTime(harvestPhotos.find((p) => p.verified) ?? harvestPhotos[0]))}</b>
               </p>
             </div>
           </section>
         ) : null}
+
+        {/* รูปถ่ายตอนแพ็ก — when the farm packed this lot (12 Oct 2026) */}
+        {packOnly.length ? (
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="text-[14px] font-semibold text-slate-700">ภาพตอนแพ็กสินค้า</h2>
+              {packOnly.some((p) => p.verified)
+                ? <span className="inline-flex items-center gap-1 text-[12px] text-emerald-700"><ShieldCheck size={13} /> ยืนยันเวลาจากรูปถ่าย</span>
+                : null}
+            </div>
+            <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-[#E6E7E8]">
+              <div className="flex gap-2 overflow-x-auto">
+                {packOnly.map((p) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={p.id} src={p.url} alt="ภาพตอนแพ็กสินค้า" className={`h-40 shrink-0 rounded-xl object-cover object-bottom ${packOnly.length === 1 ? "w-full" : "w-[78%]"}`} />
+                ))}
+              </div>
+              <p className="mt-2 text-[12.5px] text-slate-600">
+                {packOnly.some((p) => p.verified) ? "แพ็กเมื่อ" : "บันทึกภาพเมื่อ"} <b className="text-slate-800">{packTime(shownTime(packOnly.find((p) => p.verified) ?? packOnly[0]))}</b>
+              </p>
+            </div>
+          </section>
+        ) : null}
+
+        {/* ที่มาของข้อมูล: who says what, and which times the system recorded itself */}
+        <section>
+          <h2 className="mb-2 text-[14px] font-semibold text-slate-700">ที่มาของข้อมูล</h2>
+          <dl className="space-y-2 rounded-2xl bg-white p-4 text-[12.5px] shadow-sm ring-1 ring-slate-100">
+            <div>
+              <dt className="text-slate-500">วันที่เก็บเกี่ยว</dt>
+              <dd className="font-medium text-slate-800">ผู้ผลิตแจ้ง{harvestShotAt ? ` · มีรูปตอนเก็บเกี่ยว ถ่ายเมื่อ ${packTime(harvestShotAt)}` : ""}</dd>
+            </div>
+            {batch.receivedAt ? (
+              <div>
+                <dt className="text-slate-500">ผู้ขนส่งรับของ</dt>
+                <dd className="font-medium text-slate-800">{packTime(batch.receivedAt)} · บันทึกโดยผู้ขนส่ง</dd>
+              </div>
+            ) : null}
+            {print ? (
+              <div>
+                <dt className="text-slate-500">พิมพ์ฉลาก QR</dt>
+                <dd className="font-medium text-slate-800">{packTime(print.printedAt)} · เวลาจากระบบ</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
 
         {/* shipping steps */}
         <section>

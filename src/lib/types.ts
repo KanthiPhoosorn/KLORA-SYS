@@ -218,7 +218,7 @@ export interface BatchEvent {
   at: string;
   actorId?: string;
   actorName?: string;
-  action: "create" | "edit" | "cancel" | "print" | "print_cancel" | "tracking" | "transport";
+  action: "create" | "edit" | "cancel" | "print" | "print_cancel" | "tracking" | "transport" | "receive";
   detail?: Record<string, unknown>; // edit: { changes: [{ field, label, from, to }] } · cancel: { reason }
 }
 
@@ -287,6 +287,11 @@ export interface Batch {
   cancelledAt?: string; // ยกเลิกรายการ — excluded from totals, kept for history
   cancelReason?: string;
   cancelledBy?: string;
+  receivedAt?: string; // ISO: the carrier scanned the lot in
+  receivedBy?: string; // User.id
+  receivedCondition?: "ok" | "damaged";
+  receivedNote?: string;
+  trackingBy?: "farm" | "carrier"; // who bound the tracking number
   supplierId: string; // → Supplier.id
 
   // --- ข้อมูลที่ใช้คำนวณ (ลงใหม่ทุกครั้ง / entered every round) ---

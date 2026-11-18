@@ -155,6 +155,11 @@ export const batches = pgTable("batches", {
   cancelledAt: text("cancelled_at"), // ยกเลิกรายการ — soft cancel, kept for history
   cancelReason: text("cancel_reason"),
   cancelledBy: text("cancelled_by"),
+  receivedAt: text("received_at"), // carrier receipt scan (9 Nov 2026)
+  receivedBy: text("received_by"),
+  receivedCondition: text("received_condition").$type<"ok" | "damaged">(),
+  receivedNote: text("received_note"),
+  trackingBy: text("tracking_by").$type<"farm" | "carrier">(),
   supplierId: text("supplier_id").notNull(),
   flowerCount: integer("flower_count").notNull(),
   variety: text("variety"),
@@ -333,6 +338,8 @@ export const packPhotos = pgTable("pack_photos", {
   takenSrc: text("taken_src").notNull(),
   uploadedAt: text("uploaded_at").notNull(),
   createdBy: text("created_by"),
+  stage: text("stage").notNull().default("pack"), // "pack" | "harvest"
+  srcHash: text("src_hash"), // SHA-256 of the original file, to spot a photo reused on another lot
 });
 
 // Public farm / product photos for the QR page (scripts/add-media.ts).

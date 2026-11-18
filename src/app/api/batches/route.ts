@@ -76,7 +76,11 @@ export async function POST(req: Request) {
   try {
     const batch = await addBatch({ ...fields, supplierId, status });
     // photos taken while packing (the farm's own, uploaded from the form) go onto the new lot
-    if (user.role === "supplier") await setPackPhotos(supplierId, batch.id, (Array.isArray(body.packPhotoIds) ? (body.packPhotoIds as unknown[]).map(String) : []));
+    if (user.role === "supplier") {
+      const ids = (k: string) => (Array.isArray(body[k]) ? (body[k] as unknown[]).map(String) : []);
+      await setPackPhotos(supplierId, batch.id, ids("packPhotoIds"));
+      await setPackPhotos(supplierId, batch.id, ids("harvestPhotoIds"), "harvest");
+    }
     const from = body.copiedFrom ? await getBatch(String(body.copiedFrom)) : null; // คัดลอกรายการ
     await addBatchEvent({ batchId: batch.id, actorId: user.id, actorName: user.username, action: "create", detail: from && from.supplierId === supplierId ? { copiedFrom: from.id } : undefined });
     // "อื่นๆ (ระบุ)" values → KYN review queue

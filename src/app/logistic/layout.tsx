@@ -18,6 +18,7 @@ export default async function LogisticLayout({ children }: { children: React.Rea
     ...(exports ? [{ href: "/logistic/new", label: "เพิ่มข้อมูลรอบส่งออก", icon: "plus" } as PortalNavItem] : []),
     { href: "/logistic/incoming", label: "รายการรับเข้าจากผู้ผลิต", icon: "inbox" },
     { href: "/logistic/search", label: "ค้นหา QR code", icon: "search" },
+    { href: "/logistic/scan", label: "สแกนรับของ", icon: "qr" },
     // the per-branch comparison belongs to the head office; a branch sees only itself
     ...(access.hq ? [{ href: "/logistic/branches", label: "ข้อมูลรายสาขา", icon: "building" } as PortalNavItem] : []),
     { href: "/logistic/history", label: "ประวัติ", icon: "file" },
