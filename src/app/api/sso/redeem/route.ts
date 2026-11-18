@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { rateLimit, clientIp, tooMany } from "@/lib/rate-limit";
-import { ssoOn, isHandoff, redeemHandoff, memberCookie, SsoError } from "@/lib/thp-sso";
+import { ssoOn, isHandoff, redeemHandoff, memberCookie, SsoError, ssoFingerprint } from "@/lib/thp-sso";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       // the gateway's message helps while testing on UAT; production never shows it
       if (e.detail) console.warn(`[sso] gateway said: ${e.detail}`);
       const uat = /-uat\./.test(process.env.THP_SSO_BASE_URL ?? "");
-      return json({ error: e.message, code: e.code, ...(uat && e.detail ? { detail: e.detail } : {}) }, status);
+      return json({ error: e.message, code: e.code, ...(uat && e.detail ? { detail: `${e.detail} [${ssoFingerprint()}]` } : {}) }, status);
     }
     console.warn("[sso] redeem failed: unexpected");
     return json({ error: "ระบบของไปรษณีย์ไทยขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง", code: "internal" }, 502);

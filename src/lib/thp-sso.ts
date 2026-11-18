@@ -3,7 +3,7 @@
 // trade that for a short-lived SSO token, read the member's profile once and keep ONLY the name, in our own
 // signed cookie (never the database). The secret, handoffs, challenges and tokens are never logged.
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 
 const SECRET = process.env.KLORA_SESSION_SECRET || "klora-dev-secret-change-in-production";
 export const MEMBER_COOKIE = "corta_member";
@@ -17,6 +17,15 @@ const cfg = () => ({
 });
 
 /** True when the three SSO settings exist. */
+/** The API host and a short fingerprint of the three settings: lets two deployments be compared without showing
+ *  any value (10 hex chars of a SHA-256 over all three reveal nothing usable). */
+export function ssoFingerprint(): string {
+  const c = cfg();
+  let host = "";
+  try { host = new URL(c.base).host; } catch { host = "invalid-url"; }
+  return `${host} cfg ${createHash("sha256").update(`${c.base}|${c.clientId}|${c.secret}`).digest("hex").slice(0, 10)}`;
+}
+
 export function ssoOn(): boolean {
   const c = cfg();
   return !!(c.base && c.clientId && c.secret);
